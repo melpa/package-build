@@ -705,17 +705,17 @@ Optionally PRETTY-PRINT the data."
                    (package-version-join (cadr elt))))
            (aref pkg-info 1))
         ;; Append our extra information
-        ,@(apply #'append (mapcar (lambda (entry)
-                                    (let ((value (cdr entry)))
-                                      (when (or (symbolp value) (listp value))
-                                        ;; We must quote lists and symbols,
-                                        ;; because Emacs 24.3 and earlier evaluate
-                                        ;; the package information, which would
-                                        ;; break for unquoted symbols or lists
-                                        (setq value (list 'quote value)))
-                                      (list (car entry) value)))
-                                  (when (> (length pkg-info) 4)
-                                    (aref pkg-info 4)))))
+        ,@(cl-mapcan (lambda (entry)
+                       (let ((value (cdr entry)))
+                         (when (or (symbolp value) (listp value))
+                           ;; We must quote lists and symbols,
+                           ;; because Emacs 24.3 and earlier evaluate
+                           ;; the package information, which would
+                           ;; break for unquoted symbols or lists
+                           (setq value (list 'quote value)))
+                         (list (car entry) value)))
+                     (when (> (length pkg-info) 4)
+                       (aref pkg-info 4))))
      (current-buffer))
     (princ ";; Local Variables:\n;; no-byte-compile: t\n;; End:\n" (current-buffer))))
 
@@ -1503,22 +1503,20 @@ If FILE-NAME is not specified, the default archive-contents file is used."
          (type (elt info 3))
          (props (when (> (length info) 4) (elt info 4))))
     (list :ver ver
-          :deps (apply 'append
-                       (mapcar (lambda (dep)
-                                 (list (package-build--sym-to-keyword (car dep))
-                                       (cadr dep)))
-                               deps))
+          :deps (cl-mapcan (lambda (dep)
+                             (list (package-build--sym-to-keyword (car dep))
+                                   (cadr dep)))
+                           deps)
           :desc desc
           :type type
           :props props)))
 
 (defun package-build--archive-alist-for-json ()
   "Return the archive alist in a form suitable for JSON encoding."
-  (apply 'append
-         (mapcar (lambda (entry)
-                   (list (package-build--sym-to-keyword (car entry))
-                         (package-build--pkg-info-for-json (cdr entry))))
-                 (package-build-archive-alist))))
+  (cl-mapcan (lambda (entry)
+               (list (package-build--sym-to-keyword (car entry))
+                     (package-build--pkg-info-for-json (cdr entry))))
+             (package-build-archive-alist)))
 
 (defun package-build-archive-alist-as-json (file-name)
   "Dump the build packages list to FILE-NAME as json."
