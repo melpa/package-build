@@ -160,7 +160,7 @@ function for access to this function")
 
 (defun package-build--string-rtrim (str)
   "Remove trailing whitespace from `STR'."
-  (replace-regexp-in-string "[ \t\n]*$" "" str))
+  (replace-regexp-in-string "[ \t\n\r]+\\'" "" str))
 
 
 (defun package-build--valid-version (str &optional regexp)
