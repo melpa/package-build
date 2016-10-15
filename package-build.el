@@ -330,7 +330,7 @@ A number as third arg means request confirmation if NEWNAME already exists."
 (defun package-build--grab-wiki-file (filename)
   "Download FILENAME from emacswiki, returning its last-modified time."
   (let* ((download-url
-          (format "http://www.emacswiki.org/emacs/download/%s" filename))
+          (format "https://www.emacswiki.org/emacs/download/%s" filename))
          headers)
     (package-build--with-wiki-rate-limit
      (setq headers (package-build--url-copy-file download-url filename t)))
