@@ -1318,7 +1318,6 @@ Returns the archive entry for the package."
                                   " "))
       (package-build--url-copy-file badge-url badge-filename t))))
 
-
 ;;; Helpers for recipe authors
 
 (defvar package-build-minor-mode-map
@@ -1405,7 +1404,6 @@ Returns the archive entry for the package."
        (package-build--message "%s" (error-message-string err))
        nil))))
 
-
 ;;;###autoload
 (defun package-build-all ()
   "Build all packages in the `package-build-recipe-alist'."
@@ -1474,7 +1472,6 @@ If FILE-NAME is not specified, the default archive-contents file is used."
           (setq entries (remove old entries)))
         (add-to-list 'entries new)))))
 
-
 ;;; Exporting data as json
 
 (defun package-build-recipe-alist-as-json (file-name)
