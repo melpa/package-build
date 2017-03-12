@@ -251,13 +251,13 @@ position.  The match found must not before after that position."
 Output is written to the current buffer."
   (let* ((default-directory (file-name-as-directory (or dir default-directory)))
          (timeout (number-to-string package-build-timeout-secs))
-         (argv (append
-                (unless (eq system-type 'windows-nt)
-                  '("env" "LC_ALL=C"))
-                (if package-build-timeout-executable
-                    (append (list package-build-timeout-executable
-                                  "-k" "60" timeout command) args)
-                  (cons command args)))))
+         (argv (nconc (and (eq system-type 'windows-nt)
+                           (list "env" "LC_ALL=C"))
+                      (if package-build-timeout-executable
+                          (nconc (list package-build-timeout-executable
+                                       "-k" "60" timeout command)
+                                 args)
+                        (cons command args)))))
     (unless (file-directory-p default-directory)
       (error "Can't run process in non-existent directory: %s" default-directory))
     (let ((exit-code (apply 'process-file
@@ -651,10 +651,10 @@ Return a cons cell whose `car' is the root and whose `cdr' is the repository."
         (package-build--princ-checkout repo dir)
         (package-build--run-process nil "bzr" "branch" repo dir)))
       (if package-build-stable
-          (let ( (bound (goto-char (point-max)))
-                 (regexp (or (plist-get config :version-regexp)
-                             package-build-version-regexp))
-                 tag-version )
+          (let ((bound (goto-char (point-max)))
+                (regexp (or (plist-get config :version-regexp)
+                            package-build-version-regexp))
+                tag-version)
             (package-build--run-process dir "bzr" "tags")
             (goto-char bound)
             (ignore-errors (while (re-search-forward "\\ +.*")
@@ -694,10 +694,10 @@ Return a cons cell whose `car' is the root and whose `cdr' is the repository."
         (package-build--princ-checkout repo dir)
         (package-build--run-process nil "hg" "clone" repo dir)))
       (if package-build-stable
-          (let ( (bound (goto-char (point-max)))
-                 (regexp (or (plist-get config :version-regexp)
-                             package-build-version-regexp))
-                 tag-version )
+          (let ((bound (goto-char (point-max)))
+                (regexp (or (plist-get config :version-regexp)
+                            package-build-version-regexp))
+                tag-version)
             (package-build--run-process dir "hg" "tags")
             ;; The output of `hg tags` shows the ref of the tag as well
             ;; as the tag itself, e.g.:
@@ -973,7 +973,7 @@ to build the recipe."
                nil
                "Recipe '%s' contains mismatched package name '%s'"
                (file-name-nondirectory file-name)
-               (car pkg-info))
+               pkg-name)
     (cl-assert rest)
     (let* ((symbol-keys '(:fetcher))
            (string-keys '(:url :repo :module :commit :branch :version-regexp))
@@ -1150,8 +1150,7 @@ FILES is a list of (SOURCE . DEST) relative filepath pairs."
 
 (defun package-build--find-source-file (target files)
   "Search for source of TARGET in FILES."
-  (let* ((entry (rassoc target files)))
-    (when entry (car entry))))
+  (car (rassoc target files)))
 
 (defun package-build--find-package-file (name)
   "Return the filename of the most recently built package of NAME."
