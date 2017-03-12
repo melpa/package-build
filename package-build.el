@@ -1530,6 +1530,7 @@ If FILE-NAME is not specified, the default archive-contents file is used."
 ;; Local Variables:
 ;; coding: utf-8
 ;; checkdoc-minor-mode: 1
+;; indent-tabs-mode: nil
 ;; End:
 
 ;;; package-build.el ends here
