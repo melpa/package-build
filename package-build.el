@@ -231,8 +231,7 @@ position.  The match found must not before after that position."
              (version (package-build--valid-version tag regexp)))
         (when (and version (version-list-<= (cdr ret) version))
           (setq ret (cons tag version)))))
-    (and (car ret)
-         (list (cdr ret) (car ret)))))
+    (and (car ret) ret)))
 
 ;;; Run Process
 
@@ -317,9 +316,9 @@ Returns the package version as a string."
                             min-bound)
                            (error "No valid stable versions found for %s" name)))))
             (package-build--update-git-to-ref
-             dir (concat "tags/" (cadr tag-version)))
+             dir (concat "tags/" (car tag-version)))
             ;; Return the parsed version as a string
-            (package-version-join (car tag-version)))
+            (package-version-join (cdr tag-version)))
         (package-build--update-git-to-ref
          dir (or (plist-get config :commit)
                  (concat "origin/"
@@ -409,9 +408,9 @@ Returns the package version as a string."
             (setq tag-version
                   (or (package-build--find-version-newest regexp min-bound)
                       (error "No valid stable versions found for %s" name)))
-            (package-build--run-process dir "hg" "update" (cadr tag-version))
+            (package-build--run-process dir "hg" "update" (car tag-version))
             ;; Return the parsed version as a string
-            (package-version-join (car tag-version)))
+            (package-version-join (cdr tag-version)))
         (apply 'package-build--run-process
                dir "hg" "log" "--style" "compact" "-l1"
                (package-build--expand-source-file-list dir config))
