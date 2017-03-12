@@ -73,12 +73,12 @@
   :type 'string)
 
 (defcustom package-build-verbose t
-  "When non-nil, `package-build' feels free to print information about its progress."
+  "When non-nil, then print additional progress information."
   :group 'package-build
   :type 'boolean)
 
 (defcustom package-build-stable nil
-  "When non-nil, `package-build' tries to build packages from versions-tagged code."
+  "When non-nil, then try to build packages from versions-tagged code."
   :group 'package-build
   :type 'boolean)
 
@@ -113,7 +113,8 @@ Certain package names (e.g. \"@\") may not work properly with a BSD tar."
   :type '(file :must-match t))
 
 (defcustom package-build-write-melpa-badge-images nil
-  "When non-nil, write MELPA badge images alongside packages, for use on GitHub pages etc."
+  "When non-nil, write MELPA badge images alongside packages.
+These batches can, for example, be used on GitHub pages."
   :group 'package-build
   :type 'boolean)
 
@@ -188,14 +189,16 @@ or nil if the version cannot be parsed."
             (format "%d" (string-to-number (format-time-string "%H%M" time))))))
 
 (defun package-build--find-parse-time (regex &optional bound)
-  "Find REGEX in current buffer and format as a time-based version string, \
-optionally looking only as far back as BOUND."
+  "Find REGEX in current buffer and format as a time-based version string.
+An optional second argument bounds the search; it is a buffer
+position.  The match found must not end after that position."
   (package-build--parse-time (and (re-search-backward regex bound t)
                                   (match-string-no-properties 1))))
 
 (defun package-build--find-parse-time-newest (regex &optional bound)
-  "Find REGEX in current buffer and format as a time-based version string, \
-optionally looking only as far back as BOUND."
+  "Find REGEX in current buffer and format as a time-based version string.
+An optional second argument bounds the search; it is a buffer
+position.  The match found must not end after that position."
   (save-match-data
     (let (cur matches)
       (while (setq cur (ignore-errors
@@ -204,7 +207,9 @@ optionally looking only as far back as BOUND."
       (car (nreverse (sort matches 'string<))))))
 
 (defun package-build--find-version-newest (regex &optional bound)
-  "Find the newest version matching REGEX before point, optionally stopping at BOUND."
+  "Find the newest version matching REGEX before point.
+An optional second argument bounds the search; it is a buffer
+position.  The match found must not before after that position."
   (let ((tags (split-string
                (buffer-substring-no-properties
                 (or bound (point-min)) (point))
@@ -261,7 +266,8 @@ Output is written to the current buffer."
                  argv exit-code (buffer-string))))))
 
 (defun package-build--run-process-match (regex dir prog &rest args)
-  "Find match for REGEX when - in DIR, or `default-directory' if unset - we run PROG with ARGS."
+  "Run PROG with args and return the first match for REGEX in its output.
+PROG is run in DIR, or if that is nil in `default-directory'."
   (with-temp-buffer
     (apply 'package-build--run-process dir prog args)
     (goto-char (point-min))
