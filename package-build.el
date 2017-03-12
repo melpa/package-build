@@ -348,9 +348,9 @@ A number as third arg means request confirmation if NEWNAME already exists."
 
 (defun package-build--grab-wiki-file (filename)
   "Download FILENAME from emacswiki, returning its last-modified time."
-  (let* ((download-url
-          (format "https://www.emacswiki.org/emacs/download/%s" filename))
-         headers)
+  (let ((download-url
+         (format "https://www.emacswiki.org/emacs/download/%s" filename))
+        headers)
     (package-build--with-wiki-rate-limit
      (setq headers (package-build--url-copy-file download-url filename t)))
     (when (zerop (nth 7 (file-attributes filename)))
@@ -613,17 +613,17 @@ Return a cons cell whose `car' is the root and whose `cdr' is the repository."
 
 (defun package-build--checkout-github (name config dir)
   "Check package NAME with config CONFIG out of github into DIR."
-  (let* ((url (format "https://github.com/%s.git" (plist-get config :repo))))
+  (let ((url (format "https://github.com/%s.git" (plist-get config :repo))))
     (package-build--checkout-git name (plist-put (copy-sequence config) :url url) dir)))
 
 (defun package-build--checkout-gitlab (name config dir)
   "Check package NAME with config CONFIG out of gitlab into DIR."
-  (let* ((url (format "https://gitlab.com/%s.git" (plist-get config :repo))))
+  (let ((url (format "https://gitlab.com/%s.git" (plist-get config :repo))))
     (package-build--checkout-git name (plist-put (copy-sequence config) :url url) dir)))
 
 (defun package-build--checkout-bitbucket (name config dir)
   "Check package NAME with config CONFIG out of bitbucket into DIR."
-  (let* ((url (format "https://bitbucket.com/%s" (plist-get config :repo))))
+  (let ((url (format "https://bitbucket.com/%s" (plist-get config :repo))))
     (package-build--checkout-hg name (plist-put (copy-sequence config) :url url) dir)))
 
 (defun package-build--bzr-expand-repo (repo)
@@ -902,20 +902,20 @@ Optionally PRETTY-PRINT the data."
 (defun package-build--merge-package-info (pkg-info name version)
   "Return a version of PKG-INFO updated with NAME, VERSION and info from CONFIG.
 If PKG-INFO is nil, an empty one is created."
-  (let* ((merged (or (copy-sequence pkg-info)
-                     (vector name nil "No description available." version))))
+  (let ((merged (or (copy-sequence pkg-info)
+                    (vector name nil "No description available." version))))
     (aset merged 0 name)
     (aset merged 3 version)
     merged))
 
 (defun package-build--archive-entry (pkg-info type)
   "Return the archive-contents cons cell for PKG-INFO and TYPE."
-  (let* ((name (intern (aref pkg-info 0)))
-         (requires (aref pkg-info 1))
-         (desc (or (aref pkg-info 2) "No description available."))
-         (version (aref pkg-info 3))
-         (extras (when (> (length pkg-info) 4)
-                   (aref pkg-info 4))))
+  (let ((name (intern (aref pkg-info 0)))
+        (requires (aref pkg-info 1))
+        (desc (or (aref pkg-info 2) "No description available."))
+        (version (aref pkg-info 3))
+        (extras (when (> (length pkg-info) 4)
+                  (aref pkg-info 4))))
     (cons name
           (vector (version-to-list version)
                   requires
@@ -1555,11 +1555,11 @@ If FILE-NAME is not specified, the default archive-contents file is used."
 
 (defun package-build--pkg-info-for-json (info)
   "Convert INFO into a data structure which will serialize to JSON in the desired shape."
-  (let* ((ver (elt info 0))
-         (deps (elt info 1))
-         (desc (elt info 2))
-         (type (elt info 3))
-         (props (when (> (length info) 4) (elt info 4))))
+  (let ((ver (elt info 0))
+        (deps (elt info 1))
+        (desc (elt info 2))
+        (type (elt info 3))
+        (props (when (> (length info) 4) (elt info 4))))
     (list :ver ver
           :deps (cl-mapcan (lambda (dep)
                              (list (package-build--sym-to-keyword (car dep))
