@@ -914,8 +914,8 @@ If PKG-INFO is nil, an empty one is created."
         (requires (aref pkg-info 1))
         (desc (or (aref pkg-info 2) "No description available."))
         (version (aref pkg-info 3))
-        (extras (when (> (length pkg-info) 4)
-                  (aref pkg-info 4))))
+        (extras (and (> (length pkg-info) 4)
+                     (aref pkg-info 4))))
     (cons name
           (vector (version-to-list version)
                   requires
@@ -1559,7 +1559,8 @@ If FILE-NAME is not specified, the default archive-contents file is used."
         (deps (elt info 1))
         (desc (elt info 2))
         (type (elt info 3))
-        (props (when (> (length info) 4) (elt info 4))))
+        (props (and (> (length info) 4)
+                    (elt info 4))))
     (list :ver ver
           :deps (cl-mapcan (lambda (dep)
                              (list (package-build--sym-to-keyword (car dep))
