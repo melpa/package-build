@@ -190,26 +190,26 @@ or nil if the version cannot be parsed."
     (concat (format-time-string "%Y%m%d." time)
             (format "%d" (string-to-number (format-time-string "%H%M" time))))))
 
-(defun package-build--find-parse-time (regex &optional bound)
-  "Find REGEX in current buffer and format as a time-based version string.
+(defun package-build--find-parse-time (regexp &optional bound)
+  "Find REGEXP in current buffer and format as a time-based version string.
 An optional second argument bounds the search; it is a buffer
 position.  The match found must not end after that position."
-  (package-build--parse-time (and (re-search-backward regex bound t)
+  (package-build--parse-time (and (re-search-backward regexp bound t)
                                   (match-string-no-properties 1))))
 
-(defun package-build--find-parse-time-newest (regex &optional bound)
-  "Find REGEX in current buffer and format as a time-based version string.
+(defun package-build--find-parse-time-newest (regexp &optional bound)
+  "Find REGEXP in current buffer and format as a time-based version string.
 An optional second argument bounds the search; it is a buffer
 position.  The match found must not end after that position."
   (save-match-data
     (let (cur matches)
       (while (setq cur (ignore-errors
-                         (package-build--find-parse-time regex bound)))
+                         (package-build--find-parse-time regexp bound)))
         (push cur matches))
       (car (nreverse (sort matches 'string<))))))
 
-(defun package-build--find-version-newest (regex &optional bound)
-  "Find the newest version matching REGEX before point.
+(defun package-build--find-version-newest (regexp &optional bound)
+  "Find the newest version matching REGEXP before point.
 An optional second argument bounds the search; it is a buffer
 position.  The match found must not before after that position."
   (let ((tags (split-string
@@ -223,8 +223,8 @@ position.  The match found must not before after that position."
                  ;; wrongly as (1 -4 4 -4 5), so we set
                  ;; `version-separator' to "_" below and run again.
                  (lambda (tag)
-                   (when (package-build--valid-version tag regex)
-                     (list (package-build--valid-version tag regex) tag)))
+                   (when (package-build--valid-version tag regexp)
+                     (list (package-build--valid-version tag regexp) tag)))
                  tags)
                 (mapcar
                  ;; Check for valid versions again, this time using
@@ -237,8 +237,8 @@ position.  The match found must not before after that position."
                  ;; `version-list-<'.
                  (lambda (tag)
                    (let ((version-separator "_"))
-                     (when (package-build--valid-version tag regex)
-                       (list (package-build--valid-version tag regex) tag))))
+                     (when (package-build--valid-version tag regexp)
+                       (list (package-build--valid-version tag regexp) tag))))
                  tags)))
     (setq tags (cl-remove-if nil tags))
     ;; Returns a list like ((0 1) ("v0.1")); the first element is used
@@ -267,13 +267,13 @@ Output is written to the current buffer."
           (error "Command '%s' exited with non-zero status %d: %s"
                  argv exit-code (buffer-string))))))
 
-(defun package-build--run-process-match (regex dir prog &rest args)
-  "Run PROG with args and return the first match for REGEX in its output.
+(defun package-build--run-process-match (regexp dir prog &rest args)
+  "Run PROG with args and return the first match for REGEXP in its output.
 PROG is run in DIR, or if that is nil in `default-directory'."
   (with-temp-buffer
     (apply 'package-build--run-process dir prog args)
     (goto-char (point-min))
-    (re-search-forward regex)
+    (re-search-forward regexp)
     (match-string-no-properties 1)))
 
 (defun package-build-checkout (package-name config working-dir)
