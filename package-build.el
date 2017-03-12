@@ -1397,6 +1397,75 @@ Returns the archive entry for the package."
           (package-build--archive-entry pkg-info 'tar))
       (delete-directory tmp-dir t nil))))
 
+;;;###autoload
+(defun package-build-all ()
+  "Build all packages in the `package-build-recipe-alist'."
+  (interactive)
+  (let ((failed (cl-loop for pkg in (mapcar 'car (package-build-recipe-alist))
+                         when (not (package-build-archive-ignore-errors pkg))
+                         collect pkg)))
+    (if (not failed)
+        (princ "\nSuccessfully Compiled All Packages\n")
+      (princ "\nFailed to Build the Following Packages\n")
+      (princ (mapconcat 'symbol-name failed "\n"))
+      (princ "\n")))
+  (package-build-cleanup))
+
+(defun package-build-cleanup ()
+  "Remove previously-built packages that no longer have recipes."
+  (interactive)
+  (let* ((known-package-names (mapcar 'car (package-build-recipe-alist)))
+         (stale-archives (cl-loop for built in (package-build--archive-entries)
+                                  when (not (memq (car built) known-package-names))
+                                  collect built)))
+    (mapc 'package-build--remove-archive-files stale-archives)
+    (package-build-dump-archive-contents)))
+
+(defun package-build-recipe-alist ()
+  "Return the list of available packages."
+  (unless package-build--recipe-alist-initialized
+    (setq package-build--recipe-alist (package-build--read-recipes-ignore-errors)
+          package-build--recipe-alist-initialized t))
+  package-build--recipe-alist)
+
+(defun package-build-archive-alist ()
+  "Return the archive list."
+  (cdr (package-build--read-from-file
+        (expand-file-name "archive-contents"
+                          package-build-archive-dir))))
+
+(defun package-build-reinitialize ()
+  "Forget any information about packages which have already been built."
+  (interactive)
+  (setq package-build--recipe-alist-initialized nil))
+
+(defun package-build-dump-archive-contents (&optional file pretty-print)
+  "Dump the list of built packages to FILE.
+
+If FILE-NAME is not specified, the default archive-contents file is used."
+  (package-build--dump (cons 1 (package-build--archive-entries))
+                       (or file
+                           (expand-file-name "archive-contents"
+                                             package-build-archive-dir))
+                       pretty-print))
+
+(defun package-build--archive-entries ()
+  "Read all .entry files from the archive directory and return a list of all entries."
+  (let ((entries '()))
+    (dolist (new (mapcar 'package-build--read-from-file
+                         (directory-files package-build-archive-dir t
+                                          ".*\.entry$"))
+                 entries)
+      (let ((old (assq (car new) entries)))
+        (when old
+          (when (version-list-< (elt (cdr new) 0)
+                                (elt (cdr old) 0))
+            ;; swap old and new
+            (cl-rotatef old new))
+          (package-build--remove-archive-files old)
+          (setq entries (remove old entries)))
+        (add-to-list 'entries new)))))
+
 ;;; Helpers for Recipe Authors
 
 (defvar package-build-minor-mode-map
@@ -1480,77 +1549,6 @@ Returns the archive entry for the package."
       (error
        (package-build--message "%s" (error-message-string err))
        nil))))
-
-;;; Building
-
-;;;###autoload
-(defun package-build-all ()
-  "Build all packages in the `package-build-recipe-alist'."
-  (interactive)
-  (let ((failed (cl-loop for pkg in (mapcar 'car (package-build-recipe-alist))
-                         when (not (package-build-archive-ignore-errors pkg))
-                         collect pkg)))
-    (if (not failed)
-        (princ "\nSuccessfully Compiled All Packages\n")
-      (princ "\nFailed to Build the Following Packages\n")
-      (princ (mapconcat 'symbol-name failed "\n"))
-      (princ "\n")))
-  (package-build-cleanup))
-
-(defun package-build-cleanup ()
-  "Remove previously-built packages that no longer have recipes."
-  (interactive)
-  (let* ((known-package-names (mapcar 'car (package-build-recipe-alist)))
-         (stale-archives (cl-loop for built in (package-build--archive-entries)
-                                  when (not (memq (car built) known-package-names))
-                                  collect built)))
-    (mapc 'package-build--remove-archive-files stale-archives)
-    (package-build-dump-archive-contents)))
-
-(defun package-build-recipe-alist ()
-  "Return the list of available packages."
-  (unless package-build--recipe-alist-initialized
-    (setq package-build--recipe-alist (package-build--read-recipes-ignore-errors)
-          package-build--recipe-alist-initialized t))
-  package-build--recipe-alist)
-
-(defun package-build-archive-alist ()
-  "Return the archive list."
-  (cdr (package-build--read-from-file
-        (expand-file-name "archive-contents"
-                          package-build-archive-dir))))
-
-(defun package-build-reinitialize ()
-  "Forget any information about packages which have already been built."
-  (interactive)
-  (setq package-build--recipe-alist-initialized nil))
-
-(defun package-build-dump-archive-contents (&optional file pretty-print)
-  "Dump the list of built packages to FILE.
-
-If FILE-NAME is not specified, the default archive-contents file is used."
-  (package-build--dump (cons 1 (package-build--archive-entries))
-                       (or file
-                           (expand-file-name "archive-contents"
-                                             package-build-archive-dir))
-                       pretty-print))
-
-(defun package-build--archive-entries ()
-  "Read all .entry files from the archive directory and return a list of all entries."
-  (let ((entries '()))
-    (dolist (new (mapcar 'package-build--read-from-file
-                         (directory-files package-build-archive-dir t
-                                          ".*\.entry$"))
-                 entries)
-      (let ((old (assq (car new) entries)))
-        (when old
-          (when (version-list-< (elt (cdr new) 0)
-                                (elt (cdr old) 0))
-            ;; swap old and new
-            (cl-rotatef old new))
-          (package-build--remove-archive-files old)
-          (setq entries (remove old entries)))
-        (add-to-list 'entries new)))))
 
 ;;; Exporting Data as Json
 
