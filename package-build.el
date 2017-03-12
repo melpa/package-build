@@ -162,7 +162,6 @@ function for access to this function")
   "Remove trailing whitespace from `STR'."
   (replace-regexp-in-string "[ \t\n\r]+$" "" str))
 
-
 (defun package-build--valid-version (str &optional regexp)
   "Apply to STR the REGEXP if defined, \
 then pass the string to `version-to-list' and return the result, \
@@ -450,7 +449,6 @@ A number as third arg means request confirmation if NEWNAME already exists."
                (package-build--expand-source-file-list dir config))
         (or (package-build--find-parse-time-newest "Last Changed Date: \\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\} [0-9]\\{2\\}:[0-9]\\{2\\}:[0-9]\\{2\\}\\( [+-][0-9]\\{4\\}\\)?\\)" bound)
             (error "No valid timestamps found!"))))))
-
 
 (defun package-build--cvs-repo (dir)
   "Get the current CVS root and repository for DIR.
@@ -743,7 +741,6 @@ Optionally PRETTY-PRINT the data."
          "--exclude=.hg"
          (or (mapcar (lambda (fn) (concat dir "/" fn)) files) (list dir))))
 
-
 (defun package-build--find-package-commentary (file-path)
   "Get commentary section from FILE-PATH."
   (when (file-exists-p file-path)
@@ -970,7 +967,6 @@ to build the recipe."
            when pkg-info
            collect pkg-info))
 
-
 (defun package-build-expand-file-specs (dir specs &optional subdir allow-empty)
   "In DIR, expand SPECS, optionally under SUBDIR.
 The result is a list of (SOURCE . DEST), where SOURCE is a source
@@ -1008,7 +1004,6 @@ for ALLOW-EMPTY to prevent this error."
     (when (and (null lst) (not allow-empty))
       (error "No matching file(s) found in %s: %s" dir specs))
     lst))
-
 
 (defun package-build--config-file-list (config)
   "Get the :files spec from CONFIG, or return `package-build-default-files-spec'."
@@ -1094,7 +1089,6 @@ FILES is a list of (SOURCE . DEST) relative filepath pairs."
     (package-build--message "%s => %s" file newname)
     (copy-directory file newname))))
 
-
 (defun package-build--package-name-completing-read ()
   "Prompt for a package name, returning a symbol."
   (intern (completing-read "Package: " (package-build-recipe-alist))))
@@ -1156,8 +1150,8 @@ and a cl struct in Emacs HEAD.  This wrapper normalises the results."
                        (file-newer-than-file-p package-file package-build--this-file)))
           (cl-return t))))))
 
-
 ;;; Public interface
+
 ;;;###autoload
 (defun package-build-archive (name)
   "Build a package archive for package NAME."
@@ -1412,7 +1406,6 @@ Returns the archive entry for the package."
        nil))))
 
 
-
 ;;;###autoload
 (defun package-build-all ()
   "Build all packages in the `package-build-recipe-alist'."
@@ -1482,7 +1475,6 @@ If FILE-NAME is not specified, the default archive-contents file is used."
         (add-to-list 'entries new)))))
 
 
-
 ;;; Exporting data as json
 
 (defun package-build-recipe-alist-as-json (file-name)
@@ -1524,7 +1516,6 @@ If FILE-NAME is not specified, the default archive-contents file is used."
   (with-temp-file file-name
     (insert (json-encode (package-build--archive-alist-for-json)))))
 
-
 (provide 'package-build)
 
 ;; Local Variables:
@@ -1532,5 +1523,4 @@ If FILE-NAME is not specified, the default archive-contents file is used."
 ;; checkdoc-minor-mode: 1
 ;; indent-tabs-mode: nil
 ;; End:
-
 ;;; package-build.el ends here
