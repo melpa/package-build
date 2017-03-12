@@ -97,10 +97,9 @@ This must be a version which supports the \"-k\" option."
 (defcustom package-build-timeout-secs 600
   "Wait this many seconds for external processes to complete.
 
-If an external process takes longer than
-`package-build-timeout-secs' seconds to complete, the process is
-terminated.  The `package-build-timeout-secs' variable will only
-have an effect if `package-build-timeout-executable' is not nil."
+If an external process takes longer than specified here to
+complete, then it is terminated.  This only has an effect
+if `package-build-timeout-executable' is non-nil."
   :group 'package-build
   :type 'number)
 
@@ -152,7 +151,8 @@ function for access to this function")
   "Default value for :files attribute in recipes.")
 
 (defun package-build--message (format-string &rest args)
-  "Log a message using FORMAT-STRING and ARGS as per `message'."
+  "Behave like `message' if `package-build-verbose' is non-nil.
+Otherwise do nothing."
   (when package-build-verbose
     (apply 'message format-string args)))
 
@@ -1497,7 +1497,7 @@ Returns the archive entry for the package."
     (package-build-dump-archive-contents)))
 
 (defun package-build-recipe-alist ()
-  "Retun the list of avalailable packages."
+  "Return the list of available packages."
   (unless package-build--recipe-alist-initialized
     (setq package-build--recipe-alist (package-build--read-recipes-ignore-errors)
           package-build--recipe-alist-initialized t))
