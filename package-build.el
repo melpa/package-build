@@ -156,11 +156,11 @@ function for access to this function")
   (when package-build-verbose
     (apply 'message format-string args)))
 
-(defun package-build--slurp-file (file-name)
-  "Return the contents of FILE-NAME as a string, or nil if no such file exists."
-  (when (file-exists-p file-name)
+(defun package-build--slurp-file (file)
+  "Return the contents of FILE as a string, or nil if no such file exists."
+  (when (file-exists-p file)
     (with-temp-buffer
-      (insert-file-contents file-name)
+      (insert-file-contents file)
       (buffer-substring-no-properties (point-min) (point-max)))))
 
 (defun package-build--string-rtrim (str)
@@ -765,10 +765,10 @@ Optionally PRETTY-PRINT the data."
     (princ ";; Local Variables:\n;; no-byte-compile: t\n;; End:\n"
            (current-buffer))))
 
-(defun package-build--read-from-file (file-name)
-  "Read and return the Lisp data stored in FILE-NAME, or nil if no such file exists."
-  (when (file-exists-p file-name)
-    (car (read-from-string (package-build--slurp-file file-name)))))
+(defun package-build--read-from-file (file)
+  "Read and return the Lisp data stored in FILE, or nil if no such file exists."
+  (when (file-exists-p file)
+    (car (read-from-string (package-build--slurp-file file)))))
 
 (defun package-build--create-tar (file dir &optional files)
   "Create a tar FILE containing the contents of DIR, or just FILES if non-nil."
@@ -1515,12 +1515,12 @@ Returns the archive entry for the package."
   (interactive)
   (setq package-build--recipe-alist-initialized nil))
 
-(defun package-build-dump-archive-contents (&optional file-name pretty-print)
-  "Dump the list of built packages to FILE-NAME.
+(defun package-build-dump-archive-contents (&optional file pretty-print)
+  "Dump the list of built packages to FILE.
 
 If FILE-NAME is not specified, the default archive-contents file is used."
   (package-build--dump (cons 1 (package-build--archive-entries))
-                       (or file-name
+                       (or file
                            (expand-file-name "archive-contents"
                                              package-build-archive-dir))
                        pretty-print))
@@ -1544,10 +1544,10 @@ If FILE-NAME is not specified, the default archive-contents file is used."
 
 ;;; Exporting data as json
 
-(defun package-build-recipe-alist-as-json (file-name)
-  "Dump the recipe list to FILE-NAME as json."
+(defun package-build-recipe-alist-as-json (file)
+  "Dump the recipe list to FILE as json."
   (interactive)
-  (with-temp-file file-name
+  (with-temp-file file
     (insert (json-encode (package-build-recipe-alist)))))
 
 (defun package-build--sym-to-keyword (s)
@@ -1577,10 +1577,10 @@ If FILE-NAME is not specified, the default archive-contents file is used."
                      (package-build--pkg-info-for-json (cdr entry))))
              (package-build-archive-alist)))
 
-(defun package-build-archive-alist-as-json (file-name)
-  "Dump the build packages list to FILE-NAME as json."
+(defun package-build-archive-alist-as-json (file)
+  "Dump the build packages list to FILE as json."
   (interactive)
-  (with-temp-file file-name
+  (with-temp-file file
     (insert (json-encode (package-build--archive-alist-for-json)))))
 
 (provide 'package-build)
