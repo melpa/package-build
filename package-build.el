@@ -45,6 +45,8 @@
 (require 'lisp-mnt)
 (require 'json)
 
+;;; Options
+
 (defconst package-build--melpa-base
   (file-name-directory
    (directory-file-name
@@ -150,6 +152,8 @@ function for access to this function")
     (:exclude ".dir-locals.el" "test.el" "tests.el" "*-test.el" "*-tests.el"))
   "Default value for :files attribute in recipes.")
 
+;;; Utilities
+
 (defun package-build--message (format-string &rest args)
   "Behave like `message' if `package-build-verbose' is non-nil.
 Otherwise do nothing."
@@ -166,6 +170,8 @@ Otherwise do nothing."
 (defun package-build--string-rtrim (str)
   "Remove trailing whitespace from `STR'."
   (replace-regexp-in-string "[ \t\n\r]+$" "" str))
+
+;;; Version Handling
 
 (defun package-build--valid-version (str &optional regexp)
   "Apply to STR the REGEXP if defined, \
@@ -245,6 +251,8 @@ position.  The match found must not before after that position."
     ;; (the original tag) is used by git/hg/etc.
     (car (nreverse (sort tags (lambda (v1 v2) (version-list-< (car v1) (car v2))))))))
 
+;;; Run Process
+
 (defun package-build--run-process (dir command &rest args)
   "In DIR (or `default-directory' if unset) run COMMAND with ARGS.
 Output is written to the current buffer."
@@ -276,6 +284,9 @@ PROG is run in DIR, or if that is nil in `default-directory'."
     (re-search-forward regexp)
     (match-string-no-properties 1)))
 
+;;; Checkout
+;;;; Common
+
 (defun package-build-checkout (package-name config working-dir)
   "Check out source for PACKAGE-NAME with CONFIG under WORKING-DIR.
 In turn, this function uses the :fetcher option in the CONFIG to
@@ -292,6 +303,8 @@ Returns the package version as a string."
     (funcall (intern (format "package-build--checkout-%s"
                              (symbol-name repo-type)))
              package-name config (file-name-as-directory working-dir))))
+
+;;;; Wiki
 
 (defvar package-build--last-wiki-fetch-time 0
   "The time at which an emacswiki URL was last requested.
@@ -370,6 +383,8 @@ A number as third arg means request confirmation if NEWNAME already exists."
         (car (nreverse (sort (mapcar 'package-build--grab-wiki-file files)
                              'string-lessp)))))))
 
+;;;; Darcs
+
 (defun package-build--darcs-repo (dir)
   "Get the current darcs repo for DIR."
   (package-build--run-process-match "Default Remote: \\(.*\\)"
@@ -410,6 +425,8 @@ A number as third arg means request confirmation if NEWNAME already exists."
 \\( \\|[0-9]\\)[0-9] [0-9]\\{2\\}:[0-9]\\{2\\}:[0-9]\\{2\\} \
 [A-Za-z]\\{3\\} [0-9]\\{4\\}\\)")))))
 
+;;;; Fossil
+
 (defun package-build--fossil-repo (dir)
   "Get the current fossil repo for DIR."
   (package-build--run-process-match "\\(.*\\)" dir "fossil" "remote-url"))
@@ -437,6 +454,8 @@ A number as third arg means request confirmation if NEWNAME already exists."
 === \\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\} ===\n\
 [0-9]\\{2\\}:[0-9]\\{2\\}:[0-9]\\{2\\}\\) ")
             (error "No valid timestamps found!"))))))
+
+;;;; Svn
 
 (defun package-build--svn-repo (dir)
   "Get the current svn repo for DIR."
@@ -479,6 +498,8 @@ Last Changed Date: \\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\} \
 [0-9]\\{2\\}:[0-9]\\{2\\}:[0-9]\\{2\\}\\( [+-][0-9]\\{4\\}\\)?\\)"
              bound)
             (error "No valid timestamps found!"))))))
+
+;;;; Cvs
 
 (defun package-build--cvs-repo (dir)
   "Get the current CVS root and repository for DIR.
@@ -547,6 +568,8 @@ Return a cons cell whose `car' is the root and whose `cdr' is the repository."
           (setq latest (match-string 1 latest)))
         (or (package-build--parse-time latest)
             (error "No valid timestamps found!"))))))
+
+;;;; Git
 
 (defun package-build--git-repo (dir)
   "Get the current git repo for DIR."
@@ -623,6 +646,8 @@ Return a cons cell whose `car' is the root and whose `cdr' is the repository."
   (let ((url (format "https://bitbucket.com/%s" (plist-get config :repo))))
     (package-build--checkout-hg name (plist-put (copy-sequence config) :url url) dir)))
 
+;;;; Bzr
+
 (defun package-build--bzr-expand-repo (repo)
   "Get REPO expanded name."
   (package-build--run-process-match
@@ -669,6 +694,8 @@ Return a cons cell whose `car' is the root and whose `cdr' is the repository."
         (package-build--find-parse-time "\
 \\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\} \
 [0-9]\\{2\\}:[0-9]\\{2\\}:[0-9]\\{2\\}\\( [+-][0-9]\\{4\\}\\)?\\)")))))
+
+;;;; Hg
 
 (defun package-build--hg-repo (dir)
   "Get the current hg repo for DIR."
@@ -723,6 +750,8 @@ Return a cons cell whose `car' is the root and whose `cdr' is the repository."
         (package-build--find-parse-time "\
 \\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\} \
 [0-9]\\{2\\}:[0-9]\\{2\\}\\( [+-][0-9]\\{4\\}\\)?\\)")))))
+
+;;; Utilities
 
 (defun package-build--dump (data file &optional pretty-print)
   "Write DATA to FILE as a Lisp sexp.
@@ -955,6 +984,8 @@ of the same-named package which is to be kept."
           (list  (package-build--archive-file-name archive-entry)
                  (package-build--entry-file-name archive-entry))))
 
+;;; Recipes
+
 (defun package-build--read-recipe (file-name)
   "Return the plist of recipe info for the package called FILE-NAME.
 It performs some basic checks on the recipe to ensure that known
@@ -1102,6 +1133,8 @@ deleted."
                                 (expand-file-name dest-file target-dir))
         (delete-file (expand-file-name dest-file target-dir))))))
 
+;;; Info Manuals
+
 (defun package-build--generate-dir-file (files target-dir)
   "Create dir file from any .info files listed in FILES in TARGET-DIR."
   (dolist (spec files)
@@ -1120,6 +1153,8 @@ deleted."
              "install-info"
              (concat "--dir=" (expand-file-name "dir" target-dir))
              info-path)))))))
+
+;;; Utilities
 
 (defun package-build--copy-package-files (files source-dir target-dir)
   "Copy FILES from SOURCE-DIR to TARGET-DIR.
@@ -1204,7 +1239,7 @@ and a cl struct in Emacs HEAD.  This wrapper normalises the results."
                                                package-build--this-file)))
           (cl-return t))))))
 
-;;; Public interface
+;;; Building
 
 ;;;###autoload
 (defun package-build-archive (name)
@@ -1362,7 +1397,7 @@ Returns the archive entry for the package."
           (package-build--archive-entry pkg-info 'tar))
       (delete-directory tmp-dir t nil))))
 
-;;; Helpers for recipe authors
+;;; Helpers for Recipe Authors
 
 (defvar package-build-minor-mode-map
   (let ((m (make-sparse-keymap)))
@@ -1446,6 +1481,8 @@ Returns the archive entry for the package."
        (package-build--message "%s" (error-message-string err))
        nil))))
 
+;;; Building
+
 ;;;###autoload
 (defun package-build-all ()
   "Build all packages in the `package-build-recipe-alist'."
@@ -1515,7 +1552,7 @@ If FILE-NAME is not specified, the default archive-contents file is used."
           (setq entries (remove old entries)))
         (add-to-list 'entries new)))))
 
-;;; Exporting data as json
+;;; Exporting Data as Json
 
 (defun package-build-recipe-alist-as-json (file)
   "Dump the recipe list to FILE as json."
