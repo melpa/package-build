@@ -213,39 +213,26 @@ position.  The match found must not end after that position."
   "Find the newest version matching REGEXP before point.
 An optional second argument bounds the search; it is a buffer
 position.  The match found must not before after that position."
-  (let ((tags (split-string
-               (buffer-substring-no-properties
-                (or bound (point-min)) (point))
-               "\n")))
-    (setq tags (append
-                (mapcar
-                 ;; Because the default `version-separator' is ".",
-                 ;; version-strings like "1_4_5" will be parsed
-                 ;; wrongly as (1 -4 4 -4 5), so we set
-                 ;; `version-separator' to "_" below and run again.
-                 (lambda (tag)
-                   (when (package-build--valid-version tag regexp)
-                     (list (package-build--valid-version tag regexp) tag)))
-                 tags)
-                (mapcar
-                 ;; Check for valid versions again, this time using
-                 ;; "_" as a separator instead of "." to catch
-                 ;; version-strings like "1_4_5".  Since "_" is
-                 ;; otherwise treated as a snapshot separator by
-                 ;; `version-regexp-alist', we don't have to worry
-                 ;; about the incorrect version list above—(1 -4 4 -4
-                 ;; 5)—since it will always be treated as older by
-                 ;; `version-list-<'.
-                 (lambda (tag)
-                   (let ((version-separator "_"))
-                     (when (package-build--valid-version tag regexp)
-                       (list (package-build--valid-version tag regexp) tag))))
-                 tags)))
-    (setq tags (cl-remove-if nil tags))
-    ;; Returns a list like ((0 1) ("v0.1")); the first element is used
-    ;; for comparison and for `package-version-join', and the second
-    ;; (the original tag) is used by git/hg/etc.
-    (car (nreverse (sort tags (lambda (v1 v2) (version-list-< (car v1) (car v2))))))))
+  (let ((ret '(nil 0)))
+    (dolist (tag (split-string (buffer-substring-no-properties
+                                (or bound (point-min)) (point))
+                               "\n"))
+      (let ((version (package-build--valid-version tag regexp)))
+        (when (and version (version-list-<= (cdr ret) version))
+          (setq ret (cons tag version))))
+      ;; Some version tags use "_" as version separator instead of
+      ;; the default ".", e.g. "1_4_5".  Check for valid versions
+      ;; again, this time using "_" as a `version-separator'.
+      ;; Since "_" is otherwise treated as a snapshot separator by
+      ;; `version-regexp-alist', we don't have to worry about the
+      ;; incorrect version list above `(1 -4 4 -4 5)' since it will
+      ;; always be treated as smaller by `version-list-<'.
+      (let* ((version-separator "_")
+             (version (package-build--valid-version tag regexp)))
+        (when (and version (version-list-<= (cdr ret) version))
+          (setq ret (cons tag version)))))
+    (and (car ret)
+         (list (cdr ret) (car ret)))))
 
 ;;; Run Process
 
