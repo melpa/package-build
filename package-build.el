@@ -179,14 +179,14 @@ or nil if the version cannot be parsed."
   "Parse STR as a time, and format as a YYYYMMDD.HHMM string."
   ;; We remove zero-padding the HH portion, as it is lost
   ;; when stored in the archive-contents
-  (let* ((s (substring-no-properties str))
-         (time (date-to-time
-                (if (string-match "\
+  (setq str (substring-no-properties str))
+  (let ((time (date-to-time
+               (if (string-match "\
 ^\\([0-9]\\{4\\}\\)/\\([0-9]\\{2\\}\\)/\\([0-9]\\{2\\}\\) \
-\\([0-9]\\{2\\}:[0-9]\\{2\\}:[0-9]\\{2\\}\\)$" s)
-                    (concat (match-string 1 s) "-" (match-string 2 s) "-"
-                            (match-string 3 s) " " (match-string 4 s))
-                  s))))
+\\([0-9]\\{2\\}:[0-9]\\{2\\}:[0-9]\\{2\\}\\)$" str)
+                   (concat (match-string 1 str) "-" (match-string 2 str) "-"
+                           (match-string 3 str) " " (match-string 4 str))
+                 str))))
     (concat (format-time-string "%Y%m%d." time)
             (format "%d" (string-to-number (format-time-string "%H%M" time))))))
 
@@ -249,15 +249,16 @@ position.  The match found must not before after that position."
 (defun package-build--run-process (dir command &rest args)
   "In DIR (or `default-directory' if unset) run COMMAND with ARGS.
 Output is written to the current buffer."
-  (let* ((default-directory (file-name-as-directory (or dir default-directory)))
-         (timeout (number-to-string package-build-timeout-secs))
-         (argv (nconc (and (eq system-type 'windows-nt)
-                           (list "env" "LC_ALL=C"))
-                      (if package-build-timeout-executable
-                          (nconc (list package-build-timeout-executable
-                                       "-k" "60" timeout command)
-                                 args)
-                        (cons command args)))))
+  (let ((default-directory (file-name-as-directory (or dir default-directory)))
+        (argv (nconc (and (eq system-type 'windows-nt)
+                          (list "env" "LC_ALL=C"))
+                     (if package-build-timeout-executable
+                         (nconc (list package-build-timeout-executable
+                                      "-k" "60" (number-to-string
+                                                 package-build-timeout-secs)
+                                      command)
+                                args)
+                       (cons command args)))))
     (unless (file-directory-p default-directory)
       (error "Can't run process in non-existent directory: %s" default-directory))
     (let ((exit-code (apply 'process-file
@@ -303,10 +304,8 @@ seconds; the server cuts off after 10 requests in 20 seconds.")
 
 (defmacro package-build--with-wiki-rate-limit (&rest body)
   "Rate-limit BODY code passed to this macro to match EmacsWiki's rate limiting."
-  (let ((now (cl-gensym))
-        (elapsed (cl-gensym)))
-    `(let* ((,now (float-time))
-            (,elapsed (- ,now package-build--last-wiki-fetch-time)))
+  (let ((elapsed (cl-gensym)))
+    `(let ((,elapsed (- (float-time) package-build--last-wiki-fetch-time)))
        (when (< ,elapsed package-build--wiki-min-request-interval)
          (let ((wait (- package-build--wiki-min-request-interval ,elapsed)))
            (package-build--message
@@ -392,13 +391,13 @@ A number as third arg means request confirmation if NEWNAME already exists."
         (package-build--princ-checkout repo dir)
         (package-build--run-process nil "darcs" "get" repo dir)))
       (if package-build-stable
-          (let* ((bound (goto-char (point-max)))
-                 (regexp (or (plist-get config :version-regexp)
-                             package-build-version-regexp))
-                 (tag-version
-                  (and (package-build--run-process dir "darcs" "show" "tags")
-                       (or (package-build--find-version-newest regexp bound)
-                           (error "No valid stable versions found for %s" name)))))
+          (let ((tag-version
+                 (and (package-build--run-process dir "darcs" "show" "tags")
+                      (or (package-build--find-version-newest
+                           (or (plist-get config :version-regexp)
+                               package-build-version-regexp)
+                           (goto-char (point-max)))
+                          (error "No valid stable versions found for %s" name)))))
             (package-build--run-process dir "darcs" "obliterate"
                                         "--all" "--from-tag"
                                         (cadr tag-version))
@@ -515,12 +514,12 @@ Return a cons cell whose `car' is the root and whose `cdr' is the repository."
           ;; to just write to DIR, we need to execute CVS from the parent
           ;; directory of DIR, and specific DIR as relative path.  Hence all the
           ;; following mucking around with paths.  CVS is really horrid.
-          (let* ((dir (directory-file-name dir))
-                 (working-dir (file-name-directory dir))
-                 (target-dir (file-name-nondirectory dir)))
-            (package-build--run-process working-dir "env" "TZ=UTC" "cvs" "-z3"
+          (let ((dir (directory-file-name dir)))
+            (package-build--run-process (file-name-directory dir)
+                                        "env" "TZ=UTC" "cvs" "-z3"
                                         "-d" root "checkout"
-                                        "-d" target-dir repo))))
+                                        "-d" (file-name-nondirectory dir)
+                                        repo))))
         (apply 'package-build--run-process dir "cvs" "log"
                (package-build--expand-source-file-list dir config))
 
@@ -582,14 +581,13 @@ Return a cons cell whose `car' is the root and whose `cdr' is the repository."
         (package-build--princ-checkout repo dir)
         (package-build--run-process nil "git" "clone" repo dir)))
       (if package-build-stable
-          (let* ((bound (goto-char (point-max)))
-                 (regexp (or (plist-get config :version-regexp)
-                             package-build-version-regexp))
-                 (tag-version
-                  (and (package-build--run-process dir "git" "tag")
-                       (or (package-build--find-version-newest regexp bound)
-                           (error "No valid stable versions found for %s" name)))))
-
+          (let ((tag-version
+                 (and (package-build--run-process dir "git" "tag")
+                      (or (package-build--find-version-newest
+                           (or (plist-get config :version-regexp)
+                               package-build-version-regexp)
+                           (goto-char (point-max)))
+                          (error "No valid stable versions found for %s" name)))))
             ;; Using reset --hard here to comply with what's used for
             ;; unstable, but maybe this should be a checkout?
             (package-build--update-git-to-ref
@@ -843,8 +841,9 @@ Optionally PRETTY-PRINT the data."
   "Add a 'FILE-PATH ends here' trailing line if missing."
   (save-excursion
     (goto-char (point-min))
-    (let* ((fname (file-name-nondirectory file-path))
-           (trailer (concat ";;; " fname " ends here")))
+    (let ((trailer (concat ";;; "
+                           (file-name-nondirectory file-path)
+                           " ends here")))
       (unless (search-forward trailer nil t)
         (goto-char (point-max))
         (newline)
@@ -1394,16 +1393,15 @@ Returns the archive entry for the package."
     (when (file-exists-p recipe-file)
       (error "Recipe already exists"))
     (find-file recipe-file)
-    (let* ((extra-params
-            (cond
-             ((eq 'github fetcher) '(:repo "USER/REPO"))
-             ((eq 'wiki fetcher) '())
-             (t '(:url "SCM_URL_HERE"))))
-           (template `(,name :fetcher ,fetcher ,@extra-params)))
-      (insert (pp-to-string template))
-      (emacs-lisp-mode)
-      (package-build-minor-mode)
-      (goto-char (point-min)))))
+    (insert (pp-to-string `(,name
+                            :fetcher ,fetcher
+                            ,@(cl-case fetcher
+                                (github (list :repo "USER/REPO"))
+                                (wiki nil)
+                                (t (list :url "SCM_URL_HERE"))))))
+    (emacs-lisp-mode)
+    (package-build-minor-mode)
+    (goto-char (point-min))))
 
 ;;;###autoload
 (defun package-build-current-recipe ()
