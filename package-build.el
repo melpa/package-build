@@ -181,7 +181,9 @@ or nil if the version cannot be parsed."
   ;; when stored in the archive-contents
   (let* ((s (substring-no-properties str))
          (time (date-to-time
-                (if (string-match "^\\([0-9]\\{4\\}\\)/\\([0-9]\\{2\\}\\)/\\([0-9]\\{2\\}\\) \\([0-9]\\{2\\}:[0-9]\\{2\\}:[0-9]\\{2\\}\\)$" s)
+                (if (string-match "\
+^\\([0-9]\\{4\\}\\)/\\([0-9]\\{2\\}\\)/\\([0-9]\\{2\\}\\) \
+\\([0-9]\\{2\\}:[0-9]\\{2\\}:[0-9]\\{2\\}\\)$" s)
                     (concat (match-string 1 s) "-" (match-string 2 s) "-"
                             (match-string 3 s) " " (match-string 4 s))
                   s))))
@@ -405,8 +407,10 @@ A number as third arg means request confirmation if NEWNAME already exists."
         (apply 'package-build--run-process
                dir "darcs" "changes" "--max-count" "1"
                (package-build--expand-source-file-list dir config))
-        (package-build--find-parse-time
-         "\\([a-zA-Z]\\{3\\} [a-zA-Z]\\{3\\} \\( \\|[0-9]\\)[0-9] [0-9]\\{2\\}:[0-9]\\{2\\}:[0-9]\\{2\\} [A-Za-z]\\{3\\} [0-9]\\{4\\}\\)")))))
+        (package-build--find-parse-time "\
+\\([a-zA-Z]\\{3\\} [a-zA-Z]\\{3\\} \
+\\( \\|[0-9]\\)[0-9] [0-9]\\{2\\}:[0-9]\\{2\\}:[0-9]\\{2\\} \
+[A-Za-z]\\{3\\} [0-9]\\{4\\}\\)")))))
 
 (defun package-build--fossil-repo (dir)
   "Get the current fossil repo for DIR."
@@ -431,8 +435,9 @@ A number as third arg means request confirmation if NEWNAME already exists."
           (package-build--run-process dir "fossil" "clone" repo "repo.fossil")
           (package-build--run-process dir "fossil" "open" "repo.fossil")))
         (package-build--run-process dir "fossil" "timeline" "-n" "1" "-t" "ci")
-        (or (package-build--find-parse-time
-             "=== \\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\} ===\n[0-9]\\{2\\}:[0-9]\\{2\\}:[0-9]\\{2\\}\\) ")
+        (or (package-build--find-parse-time "\
+=== \\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\} ===\n\
+[0-9]\\{2\\}:[0-9]\\{2\\}:[0-9]\\{2\\}\\) ")
             (error "No valid timestamps found!"))))))
 
 (defun package-build--svn-repo (dir)
@@ -471,7 +476,10 @@ A number as third arg means request confirmation if NEWNAME already exists."
           (package-build--run-process nil "svn" "checkout" repo dir)))
         (apply 'package-build--run-process dir "svn" "info"
                (package-build--expand-source-file-list dir config))
-        (or (package-build--find-parse-time-newest "Last Changed Date: \\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\} [0-9]\\{2\\}:[0-9]\\{2\\}:[0-9]\\{2\\}\\( [+-][0-9]\\{4\\}\\)?\\)" bound)
+        (or (package-build--find-parse-time-newest "\
+Last Changed Date: \\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\} \
+[0-9]\\{2\\}:[0-9]\\{2\\}:[0-9]\\{2\\}\\( [+-][0-9]\\{4\\}\\)?\\)"
+             bound)
             (error "No valid timestamps found!"))))))
 
 (defun package-build--cvs-repo (dir)
@@ -593,8 +601,9 @@ Return a cons cell whose `car' is the root and whose `cdr' is the repository."
         (apply 'package-build--run-process
                dir "git" "log" "--first-parent" "-n1" "--pretty=format:'\%ci'"
                (package-build--expand-source-file-list dir config))
-        (package-build--find-parse-time
-         "\\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\} [0-9]\\{2\\}:[0-9]\\{2\\}:[0-9]\\{2\\}\\( [+-][0-9]\\{4\\}\\)?\\)")))))
+        (package-build--find-parse-time "\
+\\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\} \
+[0-9]\\{2\\}:[0-9]\\{2\\}:[0-9]\\{2\\}\\( [+-][0-9]\\{4\\}\\)?\\)")))))
 
 (defun package-build--update-git-to-ref (dir ref)
   "Update the git repo in DIR so that HEAD is REF."
@@ -660,8 +669,9 @@ Return a cons cell whose `car' is the root and whose `cdr' is the repository."
             (package-version-join (car tag-version)))
         (apply 'package-build--run-process dir "bzr" "log" "-l1"
                (package-build--expand-source-file-list dir config))
-        (package-build--find-parse-time
-         "\\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\} [0-9]\\{2\\}:[0-9]\\{2\\}:[0-9]\\{2\\}\\( [+-][0-9]\\{4\\}\\)?\\)")))))
+        (package-build--find-parse-time "\
+\\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\} \
+[0-9]\\{2\\}:[0-9]\\{2\\}:[0-9]\\{2\\}\\( [+-][0-9]\\{4\\}\\)?\\)")))))
 
 (defun package-build--hg-repo (dir)
   "Get the current hg repo for DIR."
@@ -713,8 +723,9 @@ Return a cons cell whose `car' is the root and whose `cdr' is the repository."
         (apply 'package-build--run-process
                dir "hg" "log" "--style" "compact" "-l1"
                (package-build--expand-source-file-list dir config))
-        (package-build--find-parse-time
-         "\\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\} [0-9]\\{2\\}:[0-9]\\{2\\}\\( [+-][0-9]\\{4\\}\\)?\\)")))))
+        (package-build--find-parse-time "\
+\\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\} \
+[0-9]\\{2\\}:[0-9]\\{2\\}\\( [+-][0-9]\\{4\\}\\)?\\)")))))
 
 (defun package-build--dump (data file &optional pretty-print)
   "Write DATA to FILE as a Lisp sexp.
