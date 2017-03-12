@@ -194,8 +194,8 @@ or nil if the version cannot be parsed."
   "Find REGEXP in current buffer and format as a time-based version string.
 An optional second argument bounds the search; it is a buffer
 position.  The match found must not end after that position."
-  (package-build--parse-time (and (re-search-backward regexp bound t)
-                                  (match-string-no-properties 1))))
+  (and (re-search-backward regexp bound t)
+       (package-build--parse-time (match-string-no-properties 1))))
 
 (defun package-build--find-parse-time-newest (regexp &optional bound)
   "Find REGEXP in current buffer and format as a time-based version string.
@@ -203,8 +203,7 @@ An optional second argument bounds the search; it is a buffer
 position.  The match found must not end after that position."
   (save-match-data
     (let (cur matches)
-      (while (setq cur (ignore-errors
-                         (package-build--find-parse-time regexp bound)))
+      (while (setq cur (package-build--find-parse-time regexp bound))
         (push cur matches))
       (car (nreverse (sort matches 'string<))))))
 
