@@ -1588,7 +1588,6 @@ If FILE-NAME is not specified, the default archive-contents file is used."
 
 (defun package-build-archive-alist-as-json (file)
   "Dump the build packages list to FILE as json."
-  (interactive)
   (with-temp-file file
     (insert (json-encode (package-build--archive-alist-for-json)))))
 
