@@ -1018,7 +1018,7 @@ to build the recipe."
       (dolist (key symbol-keys)
         (let ((val (plist-get rest key)))
           (when val
-            (cl-assert (symbolp val) nil "%s must be a list but is %S" key val))))
+            (cl-assert (symbolp val) nil "%s must be a symbol but is %S" key val))))
       (dolist (key list-keys)
         (let ((val (plist-get rest key)))
           (when val
