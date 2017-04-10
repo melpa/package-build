@@ -209,14 +209,14 @@ position.  The match found must not end after that position."
         (push cur matches))
       (car (nreverse (sort matches 'string<))))))
 
-(defun package-build--find-version-newest (regexp &optional bound)
-  "Find the newest version matching REGEXP before point.
-An optional second argument bounds the search; it is a buffer
-position.  The match found must not before after that position."
+(defun package-build--find-version-newest (tags &optional regexp)
+  "Find the newest version in TAGS matching REGEXP.
+If optional REGEXP is nil, then `package-build-version-regexp'
+is used instead."
+  (unless regexp
+    (setq regexp package-build-version-regexp))
   (let ((ret '(nil 0)))
-    (dolist (tag (split-string (buffer-substring-no-properties
-                                (or bound (point-min)) (point))
-                               "\n"))
+    (dolist (tag tags)
       (let ((version (package-build--valid-version tag regexp)))
         (when (and version (version-list-<= (cdr ret) version))
           (setq ret (cons tag version))))
@@ -307,14 +307,11 @@ Returns the package version as a string."
         (package-build--message "Cloning %s to %s" repo dir)
         (package-build--run-process nil "git" "clone" repo dir)))
       (if package-build-stable
-          (let* ((min-bound (goto-char (point-max)))
-                 (tag-version
-                  (and (package-build--run-process dir "git" "tag")
-                       (or (package-build--find-version-newest
-                            (or (plist-get config :version-regexp)
-                                package-build-version-regexp)
-                            min-bound)
-                           (error "No valid stable versions found for %s" name)))))
+          (let ((tag-version
+                 (or (package-build--find-version-newest
+                      (process-lines "git" "tag")
+                      (plist-get config :version-regexp))
+                     (error "No valid stable versions found for %s" name))))
             (package-build--update-git-to-ref
              dir (concat "tags/" (car tag-version)))
             ;; Return the parsed version as a string
@@ -385,29 +382,15 @@ Returns the package version as a string."
         (package-build--message "Cloning %s to %s" repo dir)
         (package-build--run-process nil "hg" "clone" repo dir)))
       (if package-build-stable
-          (let ((min-bound (goto-char (point-max)))
-                (regexp (or (plist-get config :version-regexp)
-                            package-build-version-regexp))
-                tag-version)
-            (package-build--run-process dir "hg" "tags")
-            ;; The output of `hg tags` shows the ref of the tag as well
-            ;; as the tag itself, e.g.:
-            ;;
-            ;; tip                             1696:73ad80e8fea1
-            ;; 1.2.8                           1691:464af57fd2b7
-            ;;
-            ;; So here we remove that second column before passing the
-            ;; buffer contents to `package-build--find-version-newest'.
-            ;; This isn't strictly necessary for Mercurial since the
-            ;; colon in "1691:464af57fd2b7" means that won't be parsed
-            ;; as a valid version-string, but it's an example of how to
-            ;; do it in case it's necessary elsewhere.
-            (goto-char min-bound)
-            (ignore-errors (while (re-search-forward "\\ +.*")
-                             (replace-match "")))
-            (setq tag-version
-                  (or (package-build--find-version-newest regexp min-bound)
-                      (error "No valid stable versions found for %s" name)))
+          (let ((tag-version
+                 (or (package-build--find-version-newest
+                      (mapcar (lambda (line)
+                                ;; Remove space and rev that follow ref.
+                                (string-match "\\`[^ ]+" line)
+                                (match-string 0))
+                              (process-lines "hg" "tags"))
+                      (plist-get config :version-regexp))
+                     (error "No valid stable versions found for %s" name))))
             (package-build--run-process dir "hg" "update" (car tag-version))
             ;; Return the parsed version as a string
             (package-version-join (cdr tag-version)))
