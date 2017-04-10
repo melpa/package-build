@@ -577,13 +577,6 @@ Return a cons cell whose `car' is the root and whose `cdr' is the repository."
   (package-build--run-process-match
    "Fetch URL: \\(.*\\)" dir "git" "remote" "show" "-n" "origin"))
 
-(defun package-build--git-head-branch (dir)
-  "Get the current git repo for DIR."
-  (or (ignore-errors
-        (package-build--run-process-match
-         "HEAD branch: \\(.*\\)" dir "git" "remote" "show" "origin"))
-      "master"))
-
 (defun package-build--checkout-git (name config dir)
   "Check package NAME with config CONFIG out of git into DIR."
   (let ((repo (plist-get config :url))
@@ -626,6 +619,13 @@ Return a cons cell whose `car' is the root and whose `cdr' is the repository."
         (package-build--find-parse-time "\
 \\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\} \
 [0-9]\\{2\\}:[0-9]\\{2\\}:[0-9]\\{2\\}\\( [+-][0-9]\\{4\\}\\)?\\)")))))
+
+(defun package-build--git-head-branch (dir)
+  "Get the current git repo for DIR."
+  (or (ignore-errors
+        (package-build--run-process-match
+         "HEAD branch: \\(.*\\)" dir "git" "remote" "show" "origin"))
+      "master"))
 
 (defun package-build--update-git-to-ref (dir ref)
   "Update the git repo in DIR so that HEAD is REF."
