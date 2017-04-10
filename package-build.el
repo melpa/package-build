@@ -307,7 +307,7 @@ Returns the package version as a string."
                               (or (plist-get config :repo)
                                   (plist-get config :url))))
     (funcall (intern (format "package-build--checkout-%s" fetcher))
-             name config (file-name-as-directory working-dir))))
+             package-name config (file-name-as-directory working-dir))))
 
 (defun package-build--princ-exists (dir)
   "Print a message that the contents of DIR will be updated."
