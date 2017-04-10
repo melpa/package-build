@@ -169,11 +169,17 @@ Otherwise do nothing."
 
 ;;; Version Handling
 
-(defun package-build--parse-time (str)
+(defun package-build--parse-time (str &optional regexp)
   "Parse STR as a time, and format as a YYYYMMDD.HHMM string."
+  (unless str
+    (error "No valid timestamp found"))
+  (setq str (substring-no-properties str))
+  (when regexp
+    (if (string-match regexp str)
+        (setq str (match-string 1 str))
+      (error "No valid timestamp found")))
   ;; We remove zero-padding the HH portion, as it is lost
   ;; when stored in the archive-contents
-  (setq str (substring-no-properties str))
   (let ((time (date-to-time
                (if (string-match "\
 ^\\([0-9]\\{4\\}\\)/\\([0-9]\\{2\\}\\)/\\([0-9]\\{2\\}\\) \
@@ -183,23 +189,6 @@ Otherwise do nothing."
                  str))))
     (concat (format-time-string "%Y%m%d." time)
             (format "%d" (string-to-number (format-time-string "%H%M" time))))))
-
-(defun package-build--find-parse-time (regexp &optional bound)
-  "Find REGEXP in current buffer and format as a time-based version string.
-An optional second argument bounds the search; it is a buffer
-position.  The match found must not end after that position."
-  (and (re-search-backward regexp bound t)
-       (package-build--parse-time (match-string-no-properties 1))))
-
-(defun package-build--find-parse-time-newest (regexp &optional bound)
-  "Find REGEXP in current buffer and format as a time-based version string.
-An optional second argument bounds the search; it is a buffer
-position.  The match found must not end after that position."
-  (save-match-data
-    (let (cur matches)
-      (while (setq cur (package-build--find-parse-time regexp bound))
-        (push cur matches))
-      (car (nreverse (sort matches 'string<))))))
 
 (defun package-build--find-version-newest (tags &optional regexp)
   "Find the newest version in TAGS matching REGEXP.
@@ -318,10 +307,10 @@ Returns the package version as a string."
                  (concat "origin/"
                          (or (plist-get config :branch)
                              (package-build--git-head-branch dir)))))
-        (apply 'package-build--run-process
-               dir "git" "log" "--first-parent" "-n1" "--pretty=format:'\%ci'"
-               (package-build--expand-source-file-list dir config))
-        (package-build--find-parse-time "\
+        (package-build--parse-time
+         (car (apply #'package-build--process-lines dir
+                     "git" "log" "--first-parent" "-n1" "--pretty=format:'\%ci'"
+                     (package-build--expand-source-file-list dir config))) "\
 \\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\} \
 [0-9]\\{2\\}:[0-9]\\{2\\}:[0-9]\\{2\\}\\( [+-][0-9]\\{4\\}\\)?\\)")))))
 
@@ -390,10 +379,10 @@ Returns the package version as a string."
                   (error "No valid stable versions found for %s" name))
             (package-build--run-process dir "hg" "update" tag)
             version)
-        (apply 'package-build--run-process
-               dir "hg" "log" "--style" "compact" "-l1"
-               (package-build--expand-source-file-list dir config))
-        (package-build--find-parse-time "\
+        (package-build--parse-time
+         (car (apply #'package-build--process-lines dir
+                     "hg" "log" "--style" "compact" "-l1"
+                     (package-build--expand-source-file-list dir config))) "\
 \\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\} \
 [0-9]\\{2\\}:[0-9]\\{2\\}\\( [+-][0-9]\\{4\\}\\)?\\)")))))
 
