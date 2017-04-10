@@ -169,14 +169,6 @@ Otherwise do nothing."
 
 ;;; Version Handling
 
-(defun package-build--valid-version (str &optional regexp)
-  "Apply to STR the REGEXP if defined, \
-then pass the string to `version-to-list' and return the result, \
-or nil if the version cannot be parsed."
-  (when (and regexp (string-match regexp str))
-    (setq str (match-string 1 str)))
-  (ignore-errors (version-to-list str)))
-
 (defun package-build--parse-time (str)
   "Parse STR as a time, and format as a YYYYMMDD.HHMM string."
   ;; We remove zero-padding the HH portion, as it is lost
@@ -213,11 +205,10 @@ position.  The match found must not end after that position."
   "Find the newest version in TAGS matching REGEXP.
 If optional REGEXP is nil, then `package-build-version-regexp'
 is used instead."
-  (unless regexp
-    (setq regexp package-build-version-regexp))
   (let ((ret '(nil 0)))
     (dolist (tag tags)
-      (let ((version (package-build--valid-version tag regexp)))
+      (string-match (or regexp package-build-version-regexp) tag)
+      (let ((version (ignore-errors (version-to-list (match-string 1 tag)))))
         (when (and version (version-list-<= (cdr ret) version))
           (setq ret (cons tag version))))
       ;; Some version tags use "_" as version separator instead of
@@ -227,8 +218,9 @@ is used instead."
       ;; `version-regexp-alist', we don't have to worry about the
       ;; incorrect version list above `(1 -4 4 -4 5)' since it will
       ;; always be treated as smaller by `version-list-<'.
+      (string-match (or regexp package-build-version-regexp) tag)
       (let* ((version-separator "_")
-             (version (package-build--valid-version tag regexp)))
+             (version (ignore-errors (version-to-list (match-string 1 tag)))))
         (when (and version (version-list-<= (cdr ret) version))
           (setq ret (cons tag version)))))
     (and (car ret)
