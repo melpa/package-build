@@ -1248,7 +1248,7 @@ and a cl struct in Emacs HEAD.  This wrapper normalises the results."
   (interactive (list (package-build--package-name-completing-read)))
   (let* ((file-name (symbol-name name))
          (rcp (or (cdr (assoc name (package-build-recipe-alist)))
-                  (error "Cannot find package %s" (symbol-name name))))
+                  (error "Cannot find package %s" name)))
          (pkg-working-dir
           (file-name-as-directory
            (expand-file-name file-name package-build-working-dir))))
@@ -1257,15 +1257,15 @@ and a cl struct in Emacs HEAD.  This wrapper normalises the results."
       (package-build--message "Creating directory %s" package-build-archive-dir)
       (make-directory package-build-archive-dir))
 
-    (package-build--message "\n;;; %s\n" file-name)
+    (package-build--message "\n;;; %s\n" name)
     (let* ((version (package-build-checkout name rcp pkg-working-dir))
            (default-directory package-build-working-dir)
            (start-time (current-time)))
-      (if (package-build--up-to-date-p (symbol-name name) version)
+      (if (package-build--up-to-date-p file-name version)
           (package-build--message "Package %s is up to date - skipping." name)
         (progn
           (let ((archive-entry (package-build-package
-                                (symbol-name name)
+                                file-name
                                 version
                                 (package-build--config-file-list rcp)
                                 pkg-working-dir
@@ -1274,7 +1274,7 @@ and a cl struct in Emacs HEAD.  This wrapper normalises the results."
                                  (package-build--entry-file-name archive-entry)))
           (when package-build-write-melpa-badge-images
             (package-build--write-melpa-badge-image
-             (symbol-name name)
+             file-name
              version package-build-archive-dir))
           (package-build--message "Built %s in %.3fs, finished at %s"
                                   name
@@ -1408,7 +1408,7 @@ Returns the archive entry for the package."
     (if (not failed)
         (princ "\nSuccessfully Compiled All Packages\n")
       (princ "\nFailed to Build the Following Packages\n")
-      (princ (mapconcat 'symbol-name failed "\n"))
+      (princ (mapconcat #'symbol-name failed "\n"))
       (princ "\n")))
   (package-build-cleanup))
 
@@ -1559,9 +1559,9 @@ If FILE-NAME is not specified, the default archive-contents file is used."
   (with-temp-file file
     (insert (json-encode (package-build-recipe-alist)))))
 
-(defun package-build--sym-to-keyword (s)
-  "Return a version of symbol S as a :keyword."
-  (intern (concat ":" (symbol-name s))))
+(defun package-build--sym-to-keyword (symbol)
+  "Return a version of SYMBOL as a keyword."
+  (intern (format ":%s" symbol)))
 
 (defun package-build--pkg-info-for-json (info)
   "Convert INFO into a data structure which will serialize to JSON in the desired shape."
