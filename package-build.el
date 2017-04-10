@@ -171,6 +171,12 @@ Otherwise do nothing."
   "Remove trailing whitespace from `STR'."
   (replace-regexp-in-string "[ \t\n\r]+$" "" str))
 
+(defun package-build--trim (str &optional chr)
+  "Return a copy of STR without any trailing CHR (or space if unspecified)."
+  (if (equal (elt str (1- (length str))) (or chr ? ))
+      (substring str 0 (1- (length str)))
+    str))
+
 ;;; Version Handling
 
 (defun package-build--valid-version (str &optional regexp)
@@ -303,6 +309,14 @@ Returns the package version as a string."
     (funcall (intern (format "package-build--checkout-%s"
                              (symbol-name repo-type)))
              package-name config (file-name-as-directory working-dir))))
+
+(defun package-build--princ-exists (dir)
+  "Print a message that the contents of DIR will be updated."
+  (package-build--message "Updating %s" dir))
+
+(defun package-build--princ-checkout (repo dir)
+  "Print a message that REPO will be checked out into DIR."
+  (package-build--message "Cloning %s to %s" repo dir))
 
 ;;;; Wiki
 
@@ -461,20 +475,6 @@ A number as third arg means request confirmation if NEWNAME already exists."
 (defun package-build--svn-repo (dir)
   "Get the current svn repo for DIR."
   (package-build--run-process-match "URL: \\(.*\\)" dir "svn" "info"))
-
-(defun package-build--trim (str &optional chr)
-  "Return a copy of STR without any trailing CHR (or space if unspecified)."
-  (if (equal (elt str (1- (length str))) (or chr ? ))
-      (substring str 0 (1- (length str)))
-    str))
-
-(defun package-build--princ-exists (dir)
-  "Print a message that the contents of DIR will be updated."
-  (package-build--message "Updating %s" dir))
-
-(defun package-build--princ-checkout (repo dir)
-  "Print a message that REPO will be checked out into DIR."
-  (package-build--message "Cloning %s to %s" repo dir))
 
 (defun package-build--checkout-svn (name config dir)
   "Check package NAME with config CONFIG out of svn into DIR."
