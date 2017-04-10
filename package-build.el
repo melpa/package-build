@@ -300,15 +300,14 @@ choose a source-specific fetcher function, which it calls with
 the same arguments.
 
 Returns the package version as a string."
-  (let ((repo-type (plist-get config :fetcher)))
-    (package-build--message "Fetcher: %s" (symbol-name repo-type))
-    (unless (eq 'wiki repo-type)
+  (let ((fetcher (plist-get config :fetcher)))
+    (package-build--message "Fetcher: %s" fetcher)
+    (unless (eq fetcher 'wiki)
       (package-build--message "Source: %s\n"
                               (or (plist-get config :repo)
                                   (plist-get config :url))))
-    (funcall (intern (format "package-build--checkout-%s"
-                             (symbol-name repo-type)))
-             package-name config (file-name-as-directory working-dir))))
+    (funcall (intern (format "package-build--checkout-%s" fetcher))
+             name config (file-name-as-directory working-dir))))
 
 (defun package-build--princ-exists (dir)
   "Print a message that the contents of DIR will be updated."
