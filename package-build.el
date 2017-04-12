@@ -263,8 +263,8 @@ position.  The match found must not before after that position."
   "In DIR (or `default-directory' if unset) run COMMAND with ARGS.
 Output is written to the current buffer."
   (let ((default-directory (file-name-as-directory (or dir default-directory)))
-        (argv (nconc (and (eq system-type 'windows-nt)
-                          (list "env" "LC_ALL=C"))
+        (argv (nconc (unless (eq system-type 'windows-nt)
+                       (list "env" "LC_ALL=C"))
                      (if package-build-timeout-executable
                          (nconc (list package-build-timeout-executable
                                       "-k" "60" (number-to-string
