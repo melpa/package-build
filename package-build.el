@@ -639,18 +639,15 @@ Return a cons cell whose `car' is the root and whose `cdr' is the repository."
 
 ;;;; Bzr
 
-(defun package-build--bzr-expand-repo (repo)
-  "Get REPO expanded name."
-  (package-build--run-process-match
-   "\\(?:branch root\\|repository branch\\): \\(.*\\)" nil "bzr" "info" repo))
-
 (defun package-build--bzr-repo (dir)
   "Get the current bzr repo for DIR."
   (package-build--run-process-match "parent branch: \\(.*\\)" dir "bzr" "info"))
 
 (defun package-build--checkout-bzr (name config dir)
   "Check package NAME with config CONFIG out of bzr into DIR."
-  (let ((repo (package-build--bzr-expand-repo (plist-get config :url))))
+  (let ((repo (package-build--run-process-match
+               "\\(?:branch root\\|repository branch\\): \\(.*\\)"
+               nil "bzr" "info" (plist-get config :url))))
     (with-current-buffer (get-buffer-create "*package-build-checkout*")
       (goto-char (point-max))
       (cond
