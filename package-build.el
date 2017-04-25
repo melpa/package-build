@@ -133,12 +133,7 @@ Use function `package-build-recipe-alist' instead of this variable.")
 
 (defvar package-build--archive-alist nil
   "Internal list of already-built packages, in the standard package.el format.
-
-Do not use this directly.  Use `package-build-archive-alist'
-function for access to this function")
-
-(defvar package-build--archive-alist-initialized nil
-  "Determines if package-build--archive-alist has been initialized.")
+Use function `package-build-archive-alist' instead of this variable.")
 
 (defconst package-build-default-files-spec
   '("*.el" "*.el.in" "dir"
