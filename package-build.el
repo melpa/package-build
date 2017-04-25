@@ -1170,7 +1170,7 @@ FILES is a list of (SOURCE . DEST) relative filepath pairs."
 
 (defun package-build--package-name-completing-read ()
   "Prompt for a package name, returning a symbol."
-  (intern (completing-read "Package: " (package-build-recipe-alist))))
+  (intern (completing-read "Package: " (package-build-packages))))
 
 (defun package-build--find-source-file (target files)
   "Search for source of TARGET in FILES."
@@ -1392,7 +1392,7 @@ Returns the archive entry for the package."
 (defun package-build-all ()
   "Build all packages in the `package-build-recipe-alist'."
   (interactive)
-  (let ((failed (cl-loop for pkg in (mapcar 'car (package-build-recipe-alist))
+  (let ((failed (cl-loop for pkg in (package-build-packages)
                          when (not (package-build-archive-ignore-errors pkg))
                          collect pkg)))
     (if (not failed)
@@ -1405,7 +1405,7 @@ Returns the archive entry for the package."
 (defun package-build-cleanup ()
   "Remove previously-built packages that no longer have recipes."
   (interactive)
-  (let* ((known-package-names (mapcar 'car (package-build-recipe-alist)))
+  (let* ((known-package-names (package-build-packages))
          (stale-archives (cl-loop for built in (package-build--archive-entries)
                                   when (not (memq (car built) known-package-names))
                                   collect built)))
@@ -1417,6 +1417,10 @@ Returns the archive entry for the package."
   (or package-build--recipe-alist
       (setq package-build--recipe-alist
             (package-build--read-recipes-ignore-errors))))
+
+(defun package-build-packages ()
+  "Return the list of the names of available packages."
+  (mapcar #'car (package-build-recipe-alist)))
 
 (defun package-build-archive-alist ()
   "Return the archive list."
