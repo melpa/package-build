@@ -128,13 +128,8 @@ The string in the capture group should be parsed as valid by `version-to-list'."
 ;;; Internal Variables
 
 (defvar package-build--recipe-alist nil
-  "Internal list of package build specs.
-
-Do not use this directly.  Use `package-build-recipe-alist'
-function.")
-
-(defvar package-build--recipe-alist-initialized nil
-  "Determines if `package-build--recipe-alist` has been initialized.")
+  "Internal list of package recipes.
+Use function `package-build-recipe-alist' instead of this variable.")
 
 (defvar package-build--archive-alist nil
   "Internal list of already-built packages, in the standard package.el format.
@@ -1423,11 +1418,10 @@ Returns the archive entry for the package."
     (package-build-dump-archive-contents)))
 
 (defun package-build-recipe-alist ()
-  "Return the list of available packages."
-  (unless package-build--recipe-alist-initialized
-    (setq package-build--recipe-alist (package-build--read-recipes-ignore-errors)
-          package-build--recipe-alist-initialized t))
-  package-build--recipe-alist)
+  "Return the list of available package recipes."
+  (or package-build--recipe-alist
+      (setq package-build--recipe-alist
+            (package-build--read-recipes-ignore-errors))))
 
 (defun package-build-archive-alist ()
   "Return the archive list."
@@ -1438,7 +1432,7 @@ Returns the archive entry for the package."
 (defun package-build-reinitialize ()
   "Forget any information about packages which have already been built."
   (interactive)
-  (setq package-build--recipe-alist-initialized nil))
+  (setq package-build--recipe-alist nil))
 
 (defun package-build-dump-archive-contents (&optional file pretty-print)
   "Dump the list of built packages to FILE.
