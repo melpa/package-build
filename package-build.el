@@ -1272,6 +1272,21 @@ and a cl struct in Emacs HEAD.  This wrapper normalises the results."
                                   (current-time-string))))
       (list file-name version))))
 
+(defun package-build-archive-ignore-errors (pkg)
+  "Build archive for package PKG, ignoring any errors."
+  (interactive (list (package-build--package-name-completing-read)))
+  (let* ((debug-on-error t)
+         (debug-on-signal t)
+         (package-build--debugger-return nil)
+         (debugger (lambda (&rest args)
+                     (setq package-build--debugger-return
+                           (with-output-to-string (backtrace))))))
+    (condition-case err
+        (package-build-archive pkg)
+      (error
+       (package-build--message "%s" (error-message-string err))
+       nil))))
+
 ;;;###autoload
 (defun package-build-package (package-name version file-specs source-dir target-dir)
   "Create PACKAGE-NAME with VERSION.
@@ -1528,21 +1543,6 @@ If FILE-NAME is not specified, the default archive-contents file is used."
         (view-mode)))
     (when (yes-or-no-p "Install new package? ")
       (package-install-file (package-build--find-package-file pkg-name)))))
-
-(defun package-build-archive-ignore-errors (pkg)
-  "Build archive for package PKG, ignoring any errors."
-  (interactive (list (package-build--package-name-completing-read)))
-  (let* ((debug-on-error t)
-         (debug-on-signal t)
-         (package-build--debugger-return nil)
-         (debugger (lambda (&rest args)
-                     (setq package-build--debugger-return
-                           (with-output-to-string (backtrace))))))
-    (condition-case err
-        (package-build-archive pkg)
-      (error
-       (package-build--message "%s" (error-message-string err))
-       nil))))
 
 ;;; Exporting Data as Json
 
