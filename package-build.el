@@ -1552,10 +1552,6 @@ If FILE-NAME is not specified, the default archive-contents file is used."
   (with-temp-file file
     (insert (json-encode (package-build-recipe-alist)))))
 
-(defun package-build--sym-to-keyword (symbol)
-  "Return a version of SYMBOL as a keyword."
-  (intern (format ":%s" symbol)))
-
 (defun package-build--pkg-info-for-json (info)
   "Convert INFO into a data structure which will serialize to JSON in the desired shape."
   (let ((ver (elt info 0))
@@ -1566,7 +1562,7 @@ If FILE-NAME is not specified, the default archive-contents file is used."
                     (elt info 4))))
     (list :ver ver
           :deps (cl-mapcan (lambda (dep)
-                             (list (package-build--sym-to-keyword (car dep))
+                             (list (intern (format ":%s" (car dep)))
                                    (cadr dep)))
                            deps)
           :desc desc
@@ -1576,7 +1572,7 @@ If FILE-NAME is not specified, the default archive-contents file is used."
 (defun package-build--archive-alist-for-json ()
   "Return the archive alist in a form suitable for JSON encoding."
   (cl-mapcan (lambda (entry)
-               (list (package-build--sym-to-keyword (car entry))
+               (list (intern (format ":%s" (car entry)))
                      (package-build--pkg-info-for-json (cdr entry))))
              (package-build-archive-alist)))
 
