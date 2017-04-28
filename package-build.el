@@ -128,22 +128,12 @@ The string in the capture group should be parsed as valid by `version-to-list'."
 ;;; Internal Variables
 
 (defvar package-build--recipe-alist nil
-  "Internal list of package build specs.
-
-Do not use this directly.  Use `package-build-recipe-alist'
-function.")
-
-(defvar package-build--recipe-alist-initialized nil
-  "Determines if `package-build--recipe-alist` has been initialized.")
+  "Internal list of package recipes.
+Use function `package-build-recipe-alist' instead of this variable.")
 
 (defvar package-build--archive-alist nil
   "Internal list of already-built packages, in the standard package.el format.
-
-Do not use this directly.  Use `package-build-archive-alist'
-function for access to this function")
-
-(defvar package-build--archive-alist-initialized nil
-  "Determines if package-build--archive-alist has been initialized.")
+Use function `package-build-archive-alist' instead of this variable.")
 
 (defconst package-build-default-files-spec
   '("*.el" "*.el.in" "dir"
@@ -649,18 +639,15 @@ Return a cons cell whose `car' is the root and whose `cdr' is the repository."
 
 ;;;; Bzr
 
-(defun package-build--bzr-expand-repo (repo)
-  "Get REPO expanded name."
-  (package-build--run-process-match
-   "\\(?:branch root\\|repository branch\\): \\(.*\\)" nil "bzr" "info" repo))
-
 (defun package-build--bzr-repo (dir)
   "Get the current bzr repo for DIR."
   (package-build--run-process-match "parent branch: \\(.*\\)" dir "bzr" "info"))
 
 (defun package-build--checkout-bzr (name config dir)
   "Check package NAME with config CONFIG out of bzr into DIR."
-  (let ((repo (package-build--bzr-expand-repo (plist-get config :url))))
+  (let ((repo (package-build--run-process-match
+               "\\(?:branch root\\|repository branch\\): \\(.*\\)"
+               nil "bzr" "info" (plist-get config :url))))
     (with-current-buffer (get-buffer-create "*package-build-checkout*")
       (goto-char (point-max))
       (cond
@@ -1180,7 +1167,7 @@ FILES is a list of (SOURCE . DEST) relative filepath pairs."
 
 (defun package-build--package-name-completing-read ()
   "Prompt for a package name, returning a symbol."
-  (intern (completing-read "Package: " (package-build-recipe-alist))))
+  (intern (completing-read "Package: " (package-build-packages))))
 
 (defun package-build--find-source-file (target files)
   "Search for source of TARGET in FILES."
@@ -1281,6 +1268,21 @@ and a cl struct in Emacs HEAD.  This wrapper normalises the results."
                                   (time-to-seconds (time-since start-time))
                                   (current-time-string))))
       (list file-name version))))
+
+(defun package-build-archive-ignore-errors (pkg)
+  "Build archive for package PKG, ignoring any errors."
+  (interactive (list (package-build--package-name-completing-read)))
+  (let* ((debug-on-error t)
+         (debug-on-signal t)
+         (package-build--debugger-return nil)
+         (debugger (lambda (&rest args)
+                     (setq package-build--debugger-return
+                           (with-output-to-string (backtrace))))))
+    (condition-case err
+        (package-build-archive pkg)
+      (error
+       (package-build--message "%s" (error-message-string err))
+       nil))))
 
 ;;;###autoload
 (defun package-build-package (package-name version file-specs source-dir target-dir)
@@ -1402,7 +1404,7 @@ Returns the archive entry for the package."
 (defun package-build-all ()
   "Build all packages in the `package-build-recipe-alist'."
   (interactive)
-  (let ((failed (cl-loop for pkg in (mapcar 'car (package-build-recipe-alist))
+  (let ((failed (cl-loop for pkg in (package-build-packages)
                          when (not (package-build-archive-ignore-errors pkg))
                          collect pkg)))
     (if (not failed)
@@ -1415,7 +1417,7 @@ Returns the archive entry for the package."
 (defun package-build-cleanup ()
   "Remove previously-built packages that no longer have recipes."
   (interactive)
-  (let* ((known-package-names (mapcar 'car (package-build-recipe-alist)))
+  (let* ((known-package-names (package-build-packages))
          (stale-archives (cl-loop for built in (package-build--archive-entries)
                                   when (not (memq (car built) known-package-names))
                                   collect built)))
@@ -1423,11 +1425,14 @@ Returns the archive entry for the package."
     (package-build-dump-archive-contents)))
 
 (defun package-build-recipe-alist ()
-  "Return the list of available packages."
-  (unless package-build--recipe-alist-initialized
-    (setq package-build--recipe-alist (package-build--read-recipes-ignore-errors)
-          package-build--recipe-alist-initialized t))
-  package-build--recipe-alist)
+  "Return the list of available package recipes."
+  (or package-build--recipe-alist
+      (setq package-build--recipe-alist
+            (package-build--read-recipes-ignore-errors))))
+
+(defun package-build-packages ()
+  "Return the list of the names of available packages."
+  (mapcar #'car (package-build-recipe-alist)))
 
 (defun package-build-archive-alist ()
   "Return the archive list."
@@ -1438,7 +1443,7 @@ Returns the archive entry for the package."
 (defun package-build-reinitialize ()
   "Forget any information about packages which have already been built."
   (interactive)
-  (setq package-build--recipe-alist-initialized nil))
+  (setq package-build--recipe-alist nil))
 
 (defun package-build-dump-archive-contents (&optional file pretty-print)
   "Dump the list of built packages to FILE.
@@ -1536,21 +1541,6 @@ If FILE-NAME is not specified, the default archive-contents file is used."
     (when (yes-or-no-p "Install new package? ")
       (package-install-file (package-build--find-package-file pkg-name)))))
 
-(defun package-build-archive-ignore-errors (pkg)
-  "Build archive for package PKG, ignoring any errors."
-  (interactive (list (package-build--package-name-completing-read)))
-  (let* ((debug-on-error t)
-         (debug-on-signal t)
-         (package-build--debugger-return nil)
-         (debugger (lambda (&rest args)
-                     (setq package-build--debugger-return
-                           (with-output-to-string (backtrace))))))
-    (condition-case err
-        (package-build-archive pkg)
-      (error
-       (package-build--message "%s" (error-message-string err))
-       nil))))
-
 ;;; Exporting Data as Json
 
 (defun package-build-recipe-alist-as-json (file)
@@ -1558,10 +1548,6 @@ If FILE-NAME is not specified, the default archive-contents file is used."
   (interactive)
   (with-temp-file file
     (insert (json-encode (package-build-recipe-alist)))))
-
-(defun package-build--sym-to-keyword (symbol)
-  "Return a version of SYMBOL as a keyword."
-  (intern (format ":%s" symbol)))
 
 (defun package-build--pkg-info-for-json (info)
   "Convert INFO into a data structure which will serialize to JSON in the desired shape."
@@ -1573,7 +1559,7 @@ If FILE-NAME is not specified, the default archive-contents file is used."
                     (elt info 4))))
     (list :ver ver
           :deps (cl-mapcan (lambda (dep)
-                             (list (package-build--sym-to-keyword (car dep))
+                             (list (intern (format ":%s" (car dep)))
                                    (cadr dep)))
                            deps)
           :desc desc
@@ -1583,7 +1569,7 @@ If FILE-NAME is not specified, the default archive-contents file is used."
 (defun package-build--archive-alist-for-json ()
   "Return the archive alist in a form suitable for JSON encoding."
   (cl-mapcan (lambda (entry)
-               (list (package-build--sym-to-keyword (car entry))
+               (list (intern (format ":%s" (car entry)))
                      (package-build--pkg-info-for-json (cdr entry))))
              (package-build-archive-alist)))
 
