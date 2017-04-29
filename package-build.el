@@ -231,7 +231,9 @@ is used instead."
              (version (package-build--valid-version tag regexp)))
         (when (and version (version-list-<= (cdr ret) version))
           (setq ret (cons tag version)))))
-    (and (car ret) ret)))
+    (and (car ret)
+         (cons (car ret)
+               (package-version-join (cdr ret))))))
 
 ;;; Run Process
 
@@ -307,15 +309,13 @@ Returns the package version as a string."
         (package-build--message "Cloning %s to %s" repo dir)
         (package-build--run-process nil "git" "clone" repo dir)))
       (if package-build-stable
-          (let ((tag-version
-                 (or (package-build--find-version-newest
-                      (process-lines "git" "tag")
-                      (plist-get config :version-regexp))
-                     (error "No valid stable versions found for %s" name))))
-            (package-build--update-git-to-ref
-             dir (concat "tags/" (car tag-version)))
-            ;; Return the parsed version as a string
-            (package-version-join (cdr tag-version)))
+          (cl-destructuring-bind (tag . version)
+              (or (package-build--find-version-newest
+                   (process-lines "git" "tag")
+                   (plist-get config :version-regexp))
+                  (error "No valid stable versions found for %s" name))
+            (package-build--update-git-to-ref dir (concat "tags/" tag))
+            version)
         (package-build--update-git-to-ref
          dir (or (plist-get config :commit)
                  (concat "origin/"
@@ -382,18 +382,17 @@ Returns the package version as a string."
         (package-build--message "Cloning %s to %s" repo dir)
         (package-build--run-process nil "hg" "clone" repo dir)))
       (if package-build-stable
-          (let ((tag-version
-                 (or (package-build--find-version-newest
-                      (mapcar (lambda (line)
-                                ;; Remove space and rev that follow ref.
-                                (string-match "\\`[^ ]+" line)
-                                (match-string 0))
-                              (process-lines "hg" "tags"))
-                      (plist-get config :version-regexp))
-                     (error "No valid stable versions found for %s" name))))
-            (package-build--run-process dir "hg" "update" (car tag-version))
-            ;; Return the parsed version as a string
-            (package-version-join (cdr tag-version)))
+          (cl-destructuring-bind (tag . version)
+              (or (package-build--find-version-newest
+                   (mapcar (lambda (line)
+                             ;; Remove space and rev that follow ref.
+                             (string-match "\\`[^ ]+" line)
+                             (match-string 0))
+                           (process-lines "hg" "tags"))
+                   (plist-get config :version-regexp))
+                  (error "No valid stable versions found for %s" name))
+            (package-build--run-process dir "hg" "update" tag)
+            version)
         (apply 'package-build--run-process
                dir "hg" "log" "--style" "compact" "-l1"
                (package-build--expand-source-file-list dir config))
