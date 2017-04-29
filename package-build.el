@@ -337,8 +337,6 @@ Returns the package version as a string."
                                 package-build-version-regexp)
                             min-bound)
                            (error "No valid stable versions found for %s" name)))))
-            ;; Using reset --hard here to comply with what's used for
-            ;; unstable, but maybe this should be a checkout?
             (package-build--update-git-to-ref
              dir (concat "tags/" (cadr tag-version)))
             ;; Return the parsed version as a string
@@ -370,6 +368,8 @@ Returns the package version as a string."
 
 (defun package-build--update-git-to-ref (dir ref)
   "Update the git repo in DIR so that HEAD is REF."
+  ;; TODO Checkout local ref, and in case of a
+  ;; branch reset to upstream branch if necessary.
   (package-build--run-process dir "git" "reset" "--hard" ref)
   (package-build--run-process dir "git" "submodule" "sync" "--recursive")
   (package-build--run-process dir "git" "submodule" "update" "--init" "--recursive"))
