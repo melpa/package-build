@@ -616,6 +616,12 @@ Return a cons cell whose `car' is the root and whose `cdr' is the repository."
          "HEAD branch: \\(.*\\)" dir "git" "remote" "show" "origin"))
       "master"))
 
+(defun package-build--git-head-sha (dir)
+  "Get the current head SHA for DIR."
+  (ignore-errors
+    (package-build--run-process-match
+     "\\(.*\\)" dir "git" "rev-parse" "HEAD")))
+
 (defun package-build--update-git-to-ref (dir ref)
   "Update the git repo in DIR so that HEAD is REF."
   (package-build--run-process dir "git" "reset" "--hard" ref)
@@ -1227,6 +1233,26 @@ and a cl struct in Emacs HEAD.  This wrapper normalises the results."
                                                package-build--this-file)))
           (cl-return t))))))
 
+(defun package-build-get-commit (config working-dir)
+  "Return a commit identifier as a string for CONFIG under WORKING-DIR."
+  (let* ((fetcher (plist-get config :fetcher))
+         (func (intern (format "package-build--get-commit-%s" fetcher))))
+    (when (functionp func)
+      (funcall func config (file-name-as-directory working-dir)))))
+
+(defun package-build--get-commit-git (config working-dir)
+  "Return a commit identifier.
+Works for Git repositories with CONFIG under WORKING-DIR."
+  (package-build--git-head-sha working-dir))
+(defalias 'package-build--get-commit-github #'package-build--get-commit-git)
+(defalias 'package-build--get-commit-gitlab #'package-build--get-commit-git)
+
+(defun package-build-add-to-archive (archive-entry prop value)
+  "Add to ARCHIVE-ENTRY property PROP with VALUE.
+ARCHIVE-ENTRY is destructively modified."
+  (push (cons prop value) (elt (cdr archive-entry) 4))
+  archive-entry)
+
 ;;; Building
 
 ;;;###autoload
@@ -1246,6 +1272,7 @@ and a cl struct in Emacs HEAD.  This wrapper normalises the results."
 
     (package-build--message "\n;;; %s\n" name)
     (let* ((version (package-build-checkout name rcp pkg-working-dir))
+           (commit (package-build-get-commit rcp pkg-working-dir))
            (default-directory package-build-working-dir)
            (start-time (current-time)))
       (if (package-build--up-to-date-p file-name version)
@@ -1257,6 +1284,8 @@ and a cl struct in Emacs HEAD.  This wrapper normalises the results."
                                 (package-build--config-file-list rcp)
                                 pkg-working-dir
                                 package-build-archive-dir)))
+            (when commit
+              (package-build-add-to-archive archive-entry :commit commit))
             (package-build--dump archive-entry
                                  (package-build--entry-file-name archive-entry)))
           (when package-build-write-melpa-badge-images
