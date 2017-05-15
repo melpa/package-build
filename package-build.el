@@ -1287,11 +1287,13 @@ ARCHIVE-ENTRY is destructively modified."
             (when commit
               (package-build-add-to-archive archive-entry :commit commit))
             (package-build--dump archive-entry
-                                 (package-build--entry-file-name archive-entry)))
-          (when package-build-write-melpa-badge-images
-            (package-build--write-melpa-badge-image
-             file-name
-             version package-build-archive-dir))
+                                 (package-build--entry-file-name archive-entry))
+            (when package-build-write-melpa-badge-images
+              (package-build--write-melpa-badge-image
+               file-name
+               (or (package-build--melpa-badge-image-version rcp archive-entry)
+                   version)
+               package-build-archive-dir)))
           (package-build--message "Built %s in %.3fs, finished at %s"
                                   name
                                   (time-to-seconds (time-since start-time))
@@ -1612,6 +1614,13 @@ If FILE-NAME is not specified, the default archive-contents file is used."
 ;; In future we should provide a hook, and perform this step in a
 ;; separate package.  Note also that it would be straightforward to
 ;; generate the SVG ourselves, which would save the network overhead.
+
+(defun package-build--melpa-badge-image-version (config archive-entry)
+  "For CONFIG, determine a version label for ARCHIVE-ENTRY."
+  (when (memq (plist-get config :fetcher) '(github gitlab))
+    (let ((commit (alist-get :commit (elt (cdr archive-entry) 4))))
+      (when (and commit (stringp commit) (= 40 (length commit)))
+        (substring commit nil 6)))))
 
 (defun package-build--write-melpa-badge-image (package-name version target-dir)
   (let ((badge-url (concat "https://img.shields.io/badge/"
