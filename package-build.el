@@ -295,9 +295,9 @@ Returns the package version as a string."
     (unless (eq fetcher 'wiki)
       (package-build--message "Source: %s\n"
                               (or (plist-get config :repo)
-                                  (plist-get config :url))))
-    (funcall (intern (format "package-build--checkout-%s" fetcher))
-             package-name config (file-name-as-directory working-dir))))
+                                  (plist-get config :url)))
+      (funcall (intern (format "package-build--checkout-%s" fetcher))
+               package-name config (file-name-as-directory working-dir)))))
 
 (defun package-build--princ-exists (dir)
   "Print a message that the contents of DIR will be updated."
@@ -306,85 +306,6 @@ Returns the package version as a string."
 (defun package-build--princ-checkout (repo dir)
   "Print a message that REPO will be checked out into DIR."
   (package-build--message "Cloning %s to %s" repo dir))
-
-;;;; Wiki
-
-(defvar package-build--last-wiki-fetch-time 0
-  "The time at which an emacswiki URL was last requested.
-This is used to avoid exceeding the rate limit of 1 request per 2
-seconds; the server cuts off after 10 requests in 20 seconds.")
-
-(defvar package-build--wiki-min-request-interval 3
-  "The shortest permissible interval between successive requests for Emacswiki URLs.")
-
-(defmacro package-build--with-wiki-rate-limit (&rest body)
-  "Rate-limit BODY code passed to this macro to match EmacsWiki's rate limiting."
-  (let ((elapsed (cl-gensym)))
-    `(let ((,elapsed (- (float-time) package-build--last-wiki-fetch-time)))
-       (when (< ,elapsed package-build--wiki-min-request-interval)
-         (let ((wait (- package-build--wiki-min-request-interval ,elapsed)))
-           (package-build--message
-            "Waiting %.2f secs before hitting Emacswiki again" wait)
-           (sleep-for wait)))
-       (unwind-protect
-           (progn ,@body)
-         (setq package-build--last-wiki-fetch-time (float-time))))))
-
-(require 'mm-decode)
-(defvar url-http-response-status)
-(defvar url-http-end-of-headers)
-
-(defun package-build--url-copy-file (url newname &optional ok-if-already-exists)
-  "Copy URL to NEWNAME.  Both args must be strings.
-Returns the http request's header as a string.
-Like `url-copy-file', but it produces an error if the http response is not 200.
-Signals a `file-already-exists' error if file NEWNAME already exists,
-unless a third argument OK-IF-ALREADY-EXISTS is supplied and non-nil.
-A number as third arg means request confirmation if NEWNAME already exists."
-  (if (and (file-exists-p newname)
-           (not ok-if-already-exists))
-      (error "Opening output file: File already exists, %s" newname))
-  (let ((buffer (url-retrieve-synchronously url))
-        (headers nil)
-        (handle nil))
-    (if (not buffer)
-        (error "Opening input file: No such file or directory, %s" url))
-    (with-current-buffer buffer
-      (unless (= 200 url-http-response-status)
-        (error "HTTP error %s fetching %s" url-http-response-status url))
-      (setq handle (mm-dissect-buffer t))
-      (mail-narrow-to-head)
-      (setq headers (buffer-string)))
-    (mm-save-part-to-file handle newname)
-    (kill-buffer buffer)
-    (mm-destroy-parts handle)
-    headers))
-
-(defun package-build--grab-wiki-file (filename)
-  "Download FILENAME from emacswiki, returning its last-modified time."
-  (let ((download-url
-         (format "https://www.emacswiki.org/emacs/download/%s" filename))
-        headers)
-    (package-build--with-wiki-rate-limit
-     (setq headers (package-build--url-copy-file download-url filename t)))
-    (when (zerop (nth 7 (file-attributes filename)))
-      (error "Wiki file %s was empty - has it been removed?" filename))
-    (package-build--parse-time
-     (with-temp-buffer
-       (insert headers)
-       (mail-fetch-field "last-modified")))))
-
-(defun package-build--checkout-wiki (name config dir)
-  "Checkout package NAME with config CONFIG from the EmacsWiki into DIR."
-  (unless package-build-stable
-    (with-current-buffer (get-buffer-create "*package-build-checkout*")
-      (unless (file-exists-p dir)
-        (make-directory dir))
-      (let ((files (or (plist-get config :files)
-                       (list (format "%s.el" name))))
-            (default-directory dir))
-        (car (nreverse (sort (mapcar 'package-build--grab-wiki-file files)
-                             'string-lessp)))))))
 
 ;;;; Git
 
@@ -1299,7 +1220,7 @@ If FILE-NAME is not specified, the default archive-contents file is used."
    (list (intern (read-string "Package name: "))
          (intern (completing-read "Fetcher: "
                                   (list "git" "github" "gitlab"
-                                        "hg" "bitbucket" "wiki")
+                                        "hg" "bitbucket")
                                   nil t nil nil "github"))))
   (let ((recipe-file (expand-file-name (symbol-name name)
                                        package-build-recipes-dir)))
@@ -1310,7 +1231,6 @@ If FILE-NAME is not specified, the default archive-contents file is used."
                             :fetcher ,fetcher
                             ,@(cl-case fetcher
                                 (github (list :repo "USER/REPO"))
-                                (wiki nil)
                                 (t (list :url "SCM_URL_HERE"))))))
     (emacs-lisp-mode)
     (package-build-minor-mode)
