@@ -1318,14 +1318,11 @@ If FILE-NAME is not specified, the default archive-contents file is used."
                            ".svg"))
         (badge-filename (expand-file-name (concat package-name "-badge.svg")
                                           target-dir)))
-    (if (executable-find "curl")
-        ;; Not strictly needed, but less likely to break due to gnutls issues
-        (shell-command (mapconcat #'identity
-                                  (list "curl" "-f" "-o"
-                                        (shell-quote-argument badge-filename)
-                                        (shell-quote-argument badge-url))
-                                  " "))
-      (package-build--url-copy-file badge-url badge-filename t))))
+    (shell-command (mapconcat #'identity
+                              (list "curl" "-f" "-o"
+                                    (shell-quote-argument badge-filename)
+                                    (shell-quote-argument badge-url))
+                              " "))))
 
 (provide 'package-build)
 
