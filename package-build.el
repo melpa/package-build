@@ -1309,23 +1309,16 @@ If FILE-NAME is not specified, the default archive-contents file is used."
 ;; generate the SVG ourselves, which would save the network overhead.
 
 (defun package-build--write-melpa-badge-image (package-name version target-dir)
-  (let ((badge-url (concat "https://img.shields.io/badge/"
-                           (if package-build-stable "melpa stable" "melpa")
-                           "-"
-                           (url-hexify-string version)
-                           "-"
-                           (if package-build-stable "3e999f" "922793")
-                           ".svg"))
-        (badge-filename (expand-file-name (concat package-name "-badge.svg")
-                                          target-dir)))
-    (if (executable-find "curl")
-        ;; Not strictly needed, but less likely to break due to gnutls issues
-        (shell-command (mapconcat #'identity
-                                  (list "curl" "-f" "-o"
-                                        (shell-quote-argument badge-filename)
-                                        (shell-quote-argument badge-url))
-                                  " "))
-      (package-build--url-copy-file badge-url badge-filename t))))
+  (shell-command
+   (mapconcat #'shell-quote-argument
+              (list "curl" "-f" "-o"
+                    (expand-file-name (concat package-name "-badge.svg")
+                                      target-dir)
+                    (format "https://img.shields.io/badge/%s-%s-%s.svg"
+                            (if package-build-stable "melpa stable" "melpa")
+                            (url-hexify-string version)
+                            (if package-build-stable "3e999f" "922793")))
+              " ")))
 
 (provide 'package-build)
 
