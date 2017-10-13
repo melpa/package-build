@@ -283,8 +283,8 @@ PROG is run in DIR, or if that is nil in `default-directory'."
 ;;; Checkout
 ;;;; Common
 
-(defun package-build-checkout (package-name config working-dir)
-  "Check out source for PACKAGE-NAME with CONFIG under WORKING-DIR.
+(defun package-build-checkout (name config working-dir)
+  "Check out source for the package named NAME with CONFIG under WORKING-DIR.
 In turn, this function uses the :fetcher option in the CONFIG to
 choose a source-specific fetcher function, which it calls with
 the same arguments.
@@ -297,7 +297,7 @@ Returns the package version as a string."
                               (or (plist-get config :repo)
                                   (plist-get config :url)))
       (funcall (intern (format "package-build--checkout-%s" fetcher))
-               package-name config (file-name-as-directory working-dir)))))
+               name config (file-name-as-directory working-dir)))))
 
 (defun package-build--princ-exists (dir)
   "Print a message that the contents of DIR will be updated."
@@ -676,23 +676,22 @@ of the same-named package which is to be kept."
 
 ;;; Recipes
 
-(defun package-build--read-recipe (file-name)
-  "Return the recipe of the package named FILE-NAME as a list.
+(defun package-build--read-recipe (name)
+  "Return the recipe of the package named NAME as a list.
 It performs some basic checks on the recipe to ensure that known
 keys have values of the right types, and raises an error if that
 is the not the case.  If invalid combinations of keys are
 supplied then errors will only be caught when an attempt is made
 to build the recipe."
-  (let* ((recipe (package-build--read-from-file file-name))
+  (let* ((recipe (package-build--read-from-file
+                  (expand-file-name name package-build-recipes-dir)))
          (ident (car recipe))
          (plist (cdr recipe)))
     (cl-assert ident)
     (cl-assert (symbolp ident))
-    (cl-assert (string= (symbol-name ident) (file-name-nondirectory file-name))
-               nil
-               "Recipe '%s' contains mismatched package name '%s'"
-               (file-name-nondirectory file-name)
-               ident)
+    (cl-assert (string= (symbol-name ident) name)
+               nil "Recipe '%s' contains mismatched package name '%s'"
+               name ident)
     (cl-assert plist)
     (let* ((symbol-keys '(:fetcher))
            (string-keys '(:url :repo :module :commit :branch :version-regexp))
@@ -722,17 +721,17 @@ to build the recipe."
 (defun package-build--read-recipes ()
   "Return a list of data structures for all recipes."
   (mapcar #'package-build--read-recipe
-          (directory-files package-build-recipes-dir t "^[^.]")))
+          (directory-files package-build-recipes-dir nil "^[^.]")))
 
 (defun package-build--read-recipes-ignore-errors ()
   "Return a list of data structures for all recipes."
-  (cl-mapcan (lambda (file)
+  (cl-mapcan (lambda (name)
                (condition-case err
-                   (list (package-build--read-recipe file))
+                   (list (package-build--read-recipe name))
                  (error (package-build--message "Error reading recipe %s: %s"
-                                                file (error-message-string err))
+                                                name (error-message-string err))
                         nil)))
-             (directory-files package-build-recipes-dir t "^[^.]")))
+             (directory-files package-build-recipes-dir nil "^[^.]")))
 
 (defun package-build-expand-file-specs (dir specs &optional subdir allow-empty)
   "In DIR, expand SPECS, optionally under SUBDIR.
@@ -865,8 +864,8 @@ FILES is a list of (SOURCE . DEST) relative filepath pairs."
     (copy-directory file newname))))
 
 (defun package-build--package-name-completing-read ()
-  "Prompt for a package name, returning a symbol."
-  (intern (completing-read "Package: " (package-build-packages))))
+  "Read the name of a package and return it as a string."
+  (completing-read "Package: " (package-build-packages)))
 
 (defun package-build--find-source-file (target files)
   "Search for source of TARGET in FILES."
@@ -952,12 +951,12 @@ ARCHIVE-ENTRY is destructively modified."
 (defun package-build-archive (name)
   "Build a package archive for the package named NAME."
   (interactive (list (package-build--package-name-completing-read)))
-  (let* ((file-name (symbol-name name))
-         (rcp (or (cdr (assoc name (package-build-recipe-alist)))
-                  (error "Cannot find package %s" name)))
-         (pkg-working-dir
-          (file-name-as-directory
-           (expand-file-name file-name package-build-working-dir))))
+  (let ((rcp (or (cdr (assoc (intern name)
+                             (package-build-recipe-alist)))
+                 (error "Cannot find package %s" name)))
+        (pkg-working-dir
+         (file-name-as-directory
+          (expand-file-name name package-build-working-dir))))
 
     (unless (file-exists-p package-build-archive-dir)
       (package-build--message "Creating directory %s" package-build-archive-dir)
@@ -968,12 +967,11 @@ ARCHIVE-ENTRY is destructively modified."
            (commit (package-build-get-commit rcp pkg-working-dir))
            (default-directory package-build-working-dir)
            (start-time (current-time)))
-      (if (package-build--up-to-date-p file-name version)
+      (if (package-build--up-to-date-p name version)
           (package-build--message "Package %s is up to date - skipping." name)
         (progn
           (let ((archive-entry (package-build-package
-                                file-name
-                                version
+                                name version
                                 (package-build--config-file-list rcp)
                                 pkg-working-dir
                                 package-build-archive-dir)))
@@ -983,16 +981,15 @@ ARCHIVE-ENTRY is destructively modified."
                                  (package-build--entry-file-name archive-entry)))
           (when package-build-write-melpa-badge-images
             (package-build--write-melpa-badge-image
-             file-name
-             version package-build-archive-dir))
+             name version package-build-archive-dir))
           (package-build--message "Built %s in %.3fs, finished at %s"
                                   name
                                   (float-time (time-since start-time))
                                   (current-time-string))))
-      (list file-name version))))
+      (list name version))))
 
-(defun package-build-archive-ignore-errors (pkg)
-  "Build archive for the package named PKG, ignoring any errors."
+(defun package-build-archive-ignore-errors (name)
+  "Build archive for the package named NAME, ignoring any errors."
   (interactive (list (package-build--package-name-completing-read)))
   (let* ((debug-on-error t)
          (debug-on-signal t)
@@ -1001,14 +998,14 @@ ARCHIVE-ENTRY is destructively modified."
                      (setq package-build--debugger-return
                            (with-output-to-string (backtrace))))))
     (condition-case err
-        (package-build-archive pkg)
+        (package-build-archive name)
       (error
        (package-build--message "%s" (error-message-string err))
        nil))))
 
 ;;;###autoload
-(defun package-build-package (package-name version file-specs source-dir target-dir)
-  "Create version VERSION of the package named PACKAGE-NAME.
+(defun package-build-package (name version file-specs source-dir target-dir)
+  "Create version VERSION of the package named NAME.
 
 The information in FILE-SPECS is used to gather files from
 SOURCE-DIR.
@@ -1023,23 +1020,21 @@ syntax is currently only documented in the MELPA README.  You can
 simply pass `package-build-default-files-spec' in most cases.
 
 Returns the archive entry for the package."
-  (when (symbolp package-name)
-    (setq package-name (symbol-name package-name)))
   (let ((files (package-build-expand-file-specs source-dir file-specs)))
     (unless (equal file-specs package-build-default-files-spec)
       (when (equal files (package-build-expand-file-specs
                           source-dir package-build-default-files-spec nil t))
-        (package-build--message "Note: %s :files spec is equivalent to the default."
-                                package-name)))
+        (package-build--message
+         "Note: %s :files spec is equivalent to the default." name)))
     (cond
      ((not version)
-      (error "Unable to check out repository for %s" package-name))
+      (error "Unable to check out repository for %s" name))
      ((= 1 (length files))
       (package-build--build-single-file-package
-       package-name version (caar files) source-dir target-dir))
+       name version (caar files) source-dir target-dir))
      ((< 1 (length  files))
       (package-build--build-multi-file-package
-       package-name version files source-dir target-dir))
+       name version files source-dir target-dir))
      (t (error "Unable to find files matching recipe patterns")))))
 
 (defun package-build--build-single-file-package
@@ -1214,17 +1209,16 @@ If FILE-NAME is not specified, the default archive-contents file is used."
 (defun package-build-create-recipe (name fetcher)
   "Create a new recipe for the package named NAME using FETCHER."
   (interactive
-   (list (intern (read-string "Package name: "))
+   (list (read-string "Package name: ")
          (intern (completing-read "Fetcher: "
                                   (list "git" "github" "gitlab"
                                         "hg" "bitbucket")
                                   nil t nil nil "github"))))
-  (let ((recipe-file (expand-file-name (symbol-name name)
-                                       package-build-recipes-dir)))
+  (let ((recipe-file (expand-file-name name package-build-recipes-dir)))
     (when (file-exists-p recipe-file)
       (error "Recipe already exists"))
     (find-file recipe-file)
-    (insert (pp-to-string `(,name
+    (insert (pp-to-string `(,(intern name)
                             :fetcher ,fetcher
                             ,@(cl-case fetcher
                                 (github (list :repo "USER/REPO"))
@@ -1247,20 +1241,20 @@ If FILE-NAME is not specified, the default archive-contents file is used."
       (error "Aborting")))
   (check-parens)
   (package-build-reinitialize)
-  (let ((pkg-name (intern (file-name-nondirectory (buffer-file-name)))))
-    (package-build-archive pkg-name)
+  (let ((name (file-name-nondirectory (buffer-file-name))))
+    (package-build-archive name)
     (package-build-dump-archive-contents)
     (let ((output-buffer-name "*package-build-result*"))
       (with-output-to-temp-buffer output-buffer-name
         (princ ";; Please check the following package descriptor.\n")
         (princ ";; If the correct package description or dependencies are missing,\n")
         (princ ";; then the source .el file is likely malformed, and should be fixed.\n")
-        (pp (assoc pkg-name (package-build-archive-alist))))
+        (pp (assoc (intern name) (package-build-archive-alist))))
       (with-current-buffer output-buffer-name
         (emacs-lisp-mode)
         (view-mode)))
     (when (yes-or-no-p "Install new package? ")
-      (package-install-file (package-build--find-package-file pkg-name)))))
+      (package-install-file (package-build--find-package-file name)))))
 
 ;;; Exporting Data as Json
 
@@ -1305,12 +1299,11 @@ If FILE-NAME is not specified, the default archive-contents file is used."
 ;; separate package.  Note also that it would be straightforward to
 ;; generate the SVG ourselves, which would save the network overhead.
 
-(defun package-build--write-melpa-badge-image (package-name version target-dir)
+(defun package-build--write-melpa-badge-image (name version target-dir)
   (shell-command
    (mapconcat #'shell-quote-argument
               (list "curl" "-f" "-o"
-                    (expand-file-name (concat package-name "-badge.svg")
-                                      target-dir)
+                    (expand-file-name (concat name "-badge.svg") target-dir)
                     (format "https://img.shields.io/badge/%s-%s-%s.svg"
                             (if package-build-stable "melpa stable" "melpa")
                             (url-hexify-string version)
