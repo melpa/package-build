@@ -1226,28 +1226,12 @@ If FILE-NAME is not specified, the default archive-contents file is used."
   (with-temp-file file
     (insert (json-encode (package-build--archive-alist-for-json)))))
 
-;;; Melpa Batches
-
-;; In future we should provide a hook, and perform this step in a
-;; separate package.  Note also that it would be straightforward to
-;; generate the SVG ourselves, which would save the network overhead.
-
-(defun package-build--write-melpa-badge-image (name version target-dir)
-  (shell-command
-   (mapconcat #'shell-quote-argument
-              (list "curl" "-f" "-o"
-                    (expand-file-name (concat name "-badge.svg") target-dir)
-                    (format "https://img.shields.io/badge/%s-%s-%s.svg"
-                            (if package-build-stable "melpa stable" "melpa")
-                            (url-hexify-string version)
-                            (if package-build-stable "3e999f" "922793")))
-              " ")))
-
 (provide 'package-build)
 
 ;; For the time being just require all libraries that contain code
 ;; that was previously located in this library.
 
+(require 'package-batches)
 (require 'package-recipe-mode)
 
 ;; Local Variables:
