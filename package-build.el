@@ -720,13 +720,13 @@ to build the recipe."
     pkg-info))
 
 (defun package-build--read-recipes ()
-  "Return a list of data structures for all recipes in `package-build-recipes-dir'."
-  (cl-loop for file-name in (directory-files  package-build-recipes-dir t "^[^.]")
+  "Return a list of data structures for all recipes."
+  (cl-loop for file-name in (directory-files package-build-recipes-dir t "^[^.]")
            collect (package-build--read-recipe file-name)))
 
 (defun package-build--read-recipes-ignore-errors ()
-  "Return a list of data structures for all recipes in `package-build-recipes-dir'."
-  (cl-loop for file-name in (directory-files  package-build-recipes-dir t "^[^.]")
+  "Return a list of data structures for all recipes."
+  (cl-loop for file-name in (directory-files package-build-recipes-dir t "^[^.]")
            for pkg-info = (condition-case err
                               (package-build--read-recipe file-name)
                             (error (package-build--message
