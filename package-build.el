@@ -726,16 +726,13 @@ to build the recipe."
 
 (defun package-build--read-recipes-ignore-errors ()
   "Return a list of data structures for all recipes."
-  (cl-loop for file-name in (directory-files package-build-recipes-dir t "^[^.]")
-           for pkg-info = (condition-case err
-                              (package-build--read-recipe file-name)
-                            (error (package-build--message
-                                    "Error reading recipe %s: %s"
-                                    file-name
-                                    (error-message-string err))
-                                   nil))
-           when pkg-info
-           collect pkg-info))
+  (cl-mapcan (lambda (file)
+               (condition-case err
+                   (list (package-build--read-recipe file))
+                 (error (package-build--message "Error reading recipe %s: %s"
+                                                file (error-message-string err))
+                        nil)))
+             (directory-files package-build-recipes-dir t "^[^.]")))
 
 (defun package-build-expand-file-specs (dir specs &optional subdir allow-empty)
   "In DIR, expand SPECS, optionally under SUBDIR.
