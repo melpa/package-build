@@ -876,7 +876,7 @@ FILES is a list of (SOURCE . DEST) relative filepath pairs."
   (car (rassoc target files)))
 
 (defun package-build--find-package-file (name)
-  "Return the filename of the most recently built package of NAME."
+  "Return the most recently built archive of the package named NAME."
   (package-build--archive-file-name (assoc name (package-build-archive-alist))))
 
 (defun package-build--package-buffer-info-vec ()
@@ -917,7 +917,7 @@ and a cl struct in Emacs HEAD.  This wrapper normalises the results."
 ;; older date than the version timestamp provided here, the function
 ;; will return t.
 (defun package-build--up-to-date-p (name version)
-  "Return non-nil if there is an up-to-date package for NAME with the given VERSION."
+  "Return non-nil if there is an up-to-date package named NAME with the given VERSION."
   (let* ((package-file-base (expand-file-name (format "%s-%s." name version)
                                               package-build-archive-dir))
          (recipe-file (expand-file-name name package-build-recipes-dir)))
@@ -953,7 +953,7 @@ ARCHIVE-ENTRY is destructively modified."
 
 ;;;###autoload
 (defun package-build-archive (name)
-  "Build a package archive for package NAME."
+  "Build a package archive for the package named NAME."
   (interactive (list (package-build--package-name-completing-read)))
   (let* ((file-name (symbol-name name))
          (rcp (or (cdr (assoc name (package-build-recipe-alist)))
@@ -995,7 +995,7 @@ ARCHIVE-ENTRY is destructively modified."
       (list file-name version))))
 
 (defun package-build-archive-ignore-errors (pkg)
-  "Build archive for package PKG, ignoring any errors."
+  "Build archive for the package named PKG, ignoring any errors."
   (interactive (list (package-build--package-name-completing-read)))
   (let* ((debug-on-error t)
          (debug-on-signal t)
@@ -1011,7 +1011,7 @@ ARCHIVE-ENTRY is destructively modified."
 
 ;;;###autoload
 (defun package-build-package (package-name version file-specs source-dir target-dir)
-  "Create PACKAGE-NAME with VERSION.
+  "Create version VERSION of the package named PACKAGE-NAME.
 
 The information in FILE-SPECS is used to gather files from
 SOURCE-DIR.
@@ -1215,7 +1215,7 @@ If FILE-NAME is not specified, the default archive-contents file is used."
 
 ;;;###autoload
 (defun package-build-create-recipe (name fetcher)
-  "Create a new recipe for package NAME using FETCHER."
+  "Create a new recipe for the package named NAME using FETCHER."
   (interactive
    (list (intern (read-string "Package name: "))
          (intern (completing-read "Fetcher: "
