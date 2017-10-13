@@ -721,8 +721,8 @@ to build the recipe."
 
 (defun package-build--read-recipes ()
   "Return a list of data structures for all recipes."
-  (cl-loop for file-name in (directory-files package-build-recipes-dir t "^[^.]")
-           collect (package-build--read-recipe file-name)))
+  (mapcar #'package-build--read-recipe
+          (directory-files package-build-recipes-dir t "^[^.]")))
 
 (defun package-build--read-recipes-ignore-errors ()
   "Return a list of data structures for all recipes."
