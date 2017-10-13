@@ -677,47 +677,47 @@ of the same-named package which is to be kept."
 ;;; Recipes
 
 (defun package-build--read-recipe (file-name)
-  "Return the plist of recipe info for the package called FILE-NAME.
+  "Return the recipe of the package named FILE-NAME as a list.
 It performs some basic checks on the recipe to ensure that known
 keys have values of the right types, and raises an error if that
 is the not the case.  If invalid combinations of keys are
 supplied then errors will only be caught when an attempt is made
 to build the recipe."
-  (let* ((pkg-info (package-build--read-from-file file-name))
-         (pkg-name (car pkg-info))
-         (rest (cdr pkg-info)))
-    (cl-assert pkg-name)
-    (cl-assert (symbolp pkg-name))
-    (cl-assert (string= (symbol-name pkg-name) (file-name-nondirectory file-name))
+  (let* ((recipe (package-build--read-from-file file-name))
+         (ident (car recipe))
+         (plist (cdr recipe)))
+    (cl-assert ident)
+    (cl-assert (symbolp ident))
+    (cl-assert (string= (symbol-name ident) (file-name-nondirectory file-name))
                nil
                "Recipe '%s' contains mismatched package name '%s'"
                (file-name-nondirectory file-name)
-               pkg-name)
-    (cl-assert rest)
+               ident)
+    (cl-assert plist)
     (let* ((symbol-keys '(:fetcher))
            (string-keys '(:url :repo :module :commit :branch :version-regexp))
            (list-keys '(:files :old-names))
            (all-keys (append symbol-keys string-keys list-keys)))
-      (dolist (thing rest)
+      (dolist (thing plist)
         (when (keywordp thing)
           (cl-assert (memq thing all-keys) nil "Unknown keyword %S" thing)))
-      (let ((fetcher (plist-get rest :fetcher)))
+      (let ((fetcher (plist-get plist :fetcher)))
         (cl-assert fetcher nil ":fetcher is missing")
         (when (memq fetcher '(github gitlab bitbucket))
-          (cl-assert (plist-get rest :repo) ":repo is missing")))
+          (cl-assert (plist-get plist :repo) ":repo is missing")))
       (dolist (key symbol-keys)
-        (let ((val (plist-get rest key)))
+        (let ((val (plist-get plist key)))
           (when val
             (cl-assert (symbolp val) nil "%s must be a symbol but is %S" key val))))
       (dolist (key list-keys)
-        (let ((val (plist-get rest key)))
+        (let ((val (plist-get plist key)))
           (when val
             (cl-assert (listp val) nil "%s must be a list but is %S" key val))))
       (dolist (key string-keys)
-        (let ((val (plist-get rest key)))
+        (let ((val (plist-get plist key)))
           (when val
             (cl-assert (stringp val) nil "%s must be a string but is %S" key val)))))
-    pkg-info))
+    recipe))
 
 (defun package-build--read-recipes ()
   "Return a list of data structures for all recipes."
