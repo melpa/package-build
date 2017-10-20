@@ -990,7 +990,7 @@ ARCHIVE-ENTRY is destructively modified."
              version package-build-archive-dir))
           (package-build--message "Built %s in %.3fs, finished at %s"
                                   name
-                                  (time-to-seconds (time-since start-time))
+                                  (float-time (time-since start-time))
                                   (current-time-string))))
       (list file-name version))))
 
