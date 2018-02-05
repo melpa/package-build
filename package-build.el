@@ -298,14 +298,6 @@ Returns the package version as a string."
     (funcall (intern (format "package-build--checkout-%s" fetcher))
              name config (file-name-as-directory working-dir))))
 
-(defun package-build--princ-exists (dir)
-  "Print a message that the contents of DIR will be updated."
-  (package-build--message "Updating %s" dir))
-
-(defun package-build--princ-checkout (repo dir)
-  "Print a message that REPO will be checked out into DIR."
-  (package-build--message "Cloning %s to %s" repo dir))
-
 ;;;; Git
 
 (defun package-build--git-repo (dir)
@@ -321,12 +313,12 @@ Returns the package version as a string."
       (cond
        ((and (file-exists-p (expand-file-name ".git" dir))
              (string-equal (package-build--git-repo dir) repo))
-        (package-build--princ-exists dir)
+        (package-build--message "Updating %s" dir)
         (package-build--run-process dir "git" "fetch" "--all" "--tags"))
        (t
         (when (file-exists-p dir)
           (delete-directory dir t))
-        (package-build--princ-checkout repo dir)
+        (package-build--message "Cloning %s to %s" repo dir)
         (package-build--run-process nil "git" "clone" repo dir)))
       (if package-build-stable
           (let* ((min-bound (goto-char (point-max)))
@@ -398,13 +390,13 @@ Returns the package version as a string."
       (cond
        ((and (file-exists-p (expand-file-name ".hg" dir))
              (string-equal (package-build--hg-repo dir) repo))
-        (package-build--princ-exists dir)
+        (package-build--message "Updating %s" dir)
         (package-build--run-process dir "hg" "pull")
         (package-build--run-process dir "hg" "update"))
        (t
         (when (file-exists-p dir)
           (delete-directory dir t))
-        (package-build--princ-checkout repo dir)
+        (package-build--message "Cloning %s to %s" repo dir)
         (package-build--run-process nil "hg" "clone" repo dir)))
       (if package-build-stable
           (let ((min-bound (goto-char (point-max)))
