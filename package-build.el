@@ -930,8 +930,7 @@ ARCHIVE-ENTRY is destructively modified."
           (let ((archive-entry (package-build-package
                                 name version
                                 (package-build--config-file-list rcp)
-                                pkg-working-dir
-                                package-build-archive-dir)))
+                                pkg-working-dir)))
             (when commit
               (package-build-add-to-archive archive-entry :commit commit))
             (package-build--dump archive-entry
@@ -961,14 +960,15 @@ ARCHIVE-ENTRY is destructively modified."
        nil))))
 
 ;;;###autoload
-(defun package-build-package (name version file-specs source-dir target-dir)
+(defun package-build-package (name version file-specs source-dir)
   "Create version VERSION of the package named NAME.
 
 The information in FILE-SPECS is used to gather files from
 SOURCE-DIR.
 
 The resulting package will be stored as a .el or .tar file in
-TARGET-DIR, depending on whether there are multiple files.
+`package-build-archive-dir', depending on whether there are
+multiple files.
 
 Argument FILE-SPECS is a list of specs for source files, which
 should be relative to SOURCE-DIR.  The specs can be wildcards,
@@ -988,18 +988,18 @@ Returns the archive entry for the package."
       (error "Unable to check out repository for %s" name))
      ((= 1 (length files))
       (package-build--build-single-file-package
-       name version (caar files) source-dir target-dir))
+       name version (caar files) source-dir))
      ((< 1 (length  files))
       (package-build--build-multi-file-package
-       name version files source-dir target-dir))
+       name version files source-dir))
      (t (error "Unable to find files matching recipe patterns")))))
 
 (defun package-build--build-single-file-package
-    (package-name version file source-dir target-dir)
+    (package-name version file source-dir)
   (let* ((pkg-source (expand-file-name file source-dir))
          (pkg-target (expand-file-name
                       (concat package-name "-" version ".el")
-                      target-dir))
+                      package-build-archive-dir))
          (pkg-info (package-build--merge-package-info
                     (package-build--get-package-info pkg-source)
                     package-name
@@ -1024,13 +1024,13 @@ Returns the archive entry for the package."
           (kill-buffer)))
 
       (package-build--write-pkg-readme
-       target-dir
+       package-build-archive-dir
        (package-build--find-package-commentary pkg-source)
        package-name))
     (package-build--archive-entry pkg-info 'single)))
 
 (defun package-build--build-multi-file-package
-    (package-name version files source-dir target-dir)
+    (package-name version files source-dir)
   (let ((tmp-dir (file-name-as-directory (make-temp-file package-name t))))
     (unwind-protect
         (let* ((pkg-dir-name (concat package-name "-" version))
@@ -1063,12 +1063,12 @@ Returns the archive entry for the package."
           (let ((default-directory tmp-dir))
             (package-build--create-tar
              (expand-file-name (concat package-name "-" version ".tar")
-                               target-dir)
+                               package-build-archive-dir)
              pkg-dir-name))
 
           (let ((default-directory source-dir))
             (package-build--write-pkg-readme
-             target-dir
+             package-build-archive-dir
              (package-build--find-package-commentary pkg-source)
              package-name))
           (package-build--archive-entry pkg-info 'tar))
