@@ -275,17 +275,12 @@ Returns the package version as a string."
 
 ;;;; Git
 
-(defun package-build--git-repo (dir)
-  "Get the current git repo for DIR."
-  (let ((default-directory dir))
-    (car (process-lines "git" "config" "remote.origin.url"))))
-
 (defun package-build--checkout-git (name config dir)
   "Check package NAME with config CONFIG out of git into DIR."
   (let ((url (plist-get config :url)))
     (cond
      ((and (file-exists-p (expand-file-name ".git" dir))
-           (string-equal (package-build--git-repo dir) url))
+           (string-equal (package-build--used-git-url dir) url))
       (package-build--message "Updating %s" dir)
       (package-build--run-process dir nil "git" "fetch" "--all" "--tags"))
      (t
@@ -312,6 +307,11 @@ Returns the package version as a string."
                    (package-build--expand-source-file-list dir config))) "\
 \\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\} \
 [0-9]\\{2\\}:[0-9]\\{2\\}:[0-9]\\{2\\}\\( [+-][0-9]\\{4\\}\\)?\\)"))))
+
+(defun package-build--used-git-url (dir)
+  "Get the current git repo for DIR."
+  (let ((default-directory dir))
+    (car (process-lines "git" "config" "remote.origin.url"))))
 
 (defun package-build--git-head-branch (dir)
   "Get the current git repo for DIR."
@@ -346,16 +346,12 @@ Returns the package version as a string."
 
 ;;;; Hg
 
-(defun package-build--hg-repo (dir)
-  "Get the current hg repo for DIR."
-  (package-build--run-process-match "default = \\(.*\\)" dir "hg" "paths"))
-
 (defun package-build--checkout-hg (name config dir)
   "Check package NAME with config CONFIG out of hg into DIR."
   (let ((url (plist-get config :url)))
     (cond
      ((and (file-exists-p (expand-file-name ".hg" dir))
-           (string-equal (package-build--hg-repo dir) url))
+           (string-equal (package-build--used-hg-url dir) url))
       (package-build--message "Updating %s" dir)
       (package-build--run-process dir nil "hg" "pull")
       (package-build--run-process dir nil "hg" "update"))
@@ -382,6 +378,12 @@ Returns the package version as a string."
                    (package-build--expand-source-file-list dir config))) "\
 \\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\} \
 [0-9]\\{2\\}:[0-9]\\{2\\}\\( [+-][0-9]\\{4\\}\\)?\\)"))))
+
+(defun package-build--used-hg-url (dir)
+  "Get the current hg repo for DIR."
+  (package-build--run-process-match "default = \\(.*\\)"
+                                    dir
+                                    "hg" "paths"))
 
 (defun package-build--checkout-bitbucket (name config dir)
   "Check package NAME with config CONFIG out of bitbucket into DIR."
