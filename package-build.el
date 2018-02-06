@@ -298,13 +298,9 @@ Returns the package version as a string."
                  (process-lines "git" "tag")
                  (plist-get config :version-regexp))
                 (error "No valid stable versions found for %s" name))
-          (package-build--update-git-to-ref dir (concat "tags/" tag))
+          (package-build--checkout-git-1 name config (concat "tags/" tag))
           version)
-      (package-build--update-git-to-ref
-       dir (or (plist-get config :commit)
-               (concat "origin/"
-                       (or (plist-get config :branch)
-                           (package-build--git-head-branch dir)))))
+      (package-build--checkout-git-1 name config)
       (package-build--parse-time
        (car (apply #'package-build--process-lines dir
                    "git" "log" "--first-parent" "-n1" "--pretty=format:'\%ci'"
@@ -312,24 +308,25 @@ Returns the package version as a string."
 \\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\} \
 [0-9]\\{2\\}:[0-9]\\{2\\}:[0-9]\\{2\\}\\( [+-][0-9]\\{4\\}\\)?\\)"))))
 
+(defun package-build--checkout-git-1 (name config &optional rev)
+  (let ((dir (package-recipe--working-tree name)))
+    (unless rev
+      (setq rev (or (plist-get config :commit)
+                    (concat "origin/"
+                            (or (plist-get config :branch)
+                                (ignore-errors
+                                  (package-build--run-process-match
+                                   "HEAD branch: \\(.*\\)" dir
+                                   "git" "remote" "show" "origin"))
+                                "master")))))
+    (package-build--run-process dir nil "git" "reset" "--hard" rev)
+    (package-build--run-process dir nil "git" "submodule" "sync" "--recursive")
+    (package-build--run-process dir nil "git" "submodule" "update"
+                                "--init" "--recursive")))
+
 (defun package-build--used-git-url (name)
   (let ((default-directory (package-recipe--working-tree name)))
     (car (process-lines "git" "config" "remote.origin.url"))))
-
-(defun package-build--git-head-branch (dir)
-  "Get the current git repo for DIR."
-  (or (ignore-errors
-        (package-build--run-process-match
-         "HEAD branch: \\(.*\\)" dir "git" "remote" "show" "origin"))
-      "master"))
-
-(defun package-build--update-git-to-ref (dir ref)
-  "Update the git repo in DIR so that HEAD is REF."
-  ;; TODO Checkout local ref, and in case of a
-  ;; branch reset to upstream branch if necessary.
-  (package-build--run-process dir nil "git" "reset" "--hard" ref)
-  (package-build--run-process dir nil "git" "submodule" "sync" "--recursive")
-  (package-build--run-process dir nil "git" "submodule" "update" "--init" "--recursive"))
 
 (defun package-build--checkout-github (name config)
   (let ((url (format "https://github.com/%s.git" (plist-get config :repo))))
