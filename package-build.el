@@ -323,12 +323,6 @@ Returns the package version as a string."
          "HEAD branch: \\(.*\\)" dir "git" "remote" "show" "origin"))
       "master"))
 
-(defun package-build--git-head-sha (dir)
-  "Get the current head SHA for DIR."
-  (ignore-errors
-    (package-build--run-process-match
-     "\\(.*\\)" dir "git" "rev-parse" "HEAD")))
-
 (defun package-build--update-git-to-ref (dir ref)
   "Update the git repo in DIR so that HEAD is REF."
   ;; TODO Checkout local ref, and in case of a
@@ -882,15 +876,14 @@ and a cl struct in Emacs HEAD.  This wrapper normalises the results."
           (cl-return t))))))
 
 (defun package-build-get-commit (name config)
-  (let* ((fetcher (plist-get config :fetcher))
-         (func (intern (format "package-build--get-commit-%s" fetcher))))
-    (when (functionp func)
-      (funcall func name config))))
-
-(defun package-build--get-commit-git (name config)
-  (package-build--git-head-sha (package-recipe--working-tree name)))
-(defalias 'package-build--get-commit-github #'package-build--get-commit-git)
-(defalias 'package-build--get-commit-gitlab #'package-build--get-commit-git)
+  (cl-case (plist-get config :fetcher)
+    ((git github gitlab)
+     (ignore-errors
+       (package-build--run-process-match
+        "\\(.*\\)"
+        (package-recipe--working-tree name)
+        "git" "rev-parse" "HEAD")))
+    ((hg bitbucket)))) ; TODO
 
 (defun package-build-add-to-archive (archive-entry prop value)
   "Add to ARCHIVE-ENTRY property PROP with VALUE.
