@@ -258,8 +258,8 @@ is used instead."
 ;;; Checkout
 ;;;; Common
 
-(defun package-build-checkout (name config working-dir)
-  "Check out source for the package named NAME with CONFIG under WORKING-DIR.
+(defun package-build-checkout (name config)
+  "Check out source for the package named NAME with CONFIG.
 In turn, this function uses the :fetcher option in the CONFIG to
 choose a source-specific fetcher function, which it calls with
 the same arguments.
@@ -271,16 +271,20 @@ Returns the package version as a string."
                             (or (plist-get config :repo)
                                 (plist-get config :url)))
     (funcall (intern (format "package-build--checkout-%s" fetcher))
-             name config (file-name-as-directory working-dir))))
+             name config)))
+
+(defun package-recipe--working-tree (name)
+  (file-name-as-directory
+   (expand-file-name name package-build-working-dir)))
 
 ;;;; Git
 
-(defun package-build--checkout-git (name config dir)
-  "Check package NAME with config CONFIG out of git into DIR."
-  (let ((url (plist-get config :url)))
+(defun package-build--checkout-git (name config)
+  (let ((dir (package-recipe--working-tree name))
+        (url (plist-get config :url)))
     (cond
      ((and (file-exists-p (expand-file-name ".git" dir))
-           (string-equal (package-build--used-git-url dir) url))
+           (string-equal (package-build--used-git-url name) url))
       (package-build--message "Updating %s" dir)
       (package-build--run-process dir nil "git" "fetch" "--all" "--tags"))
      (t
@@ -304,13 +308,12 @@ Returns the package version as a string."
       (package-build--parse-time
        (car (apply #'package-build--process-lines dir
                    "git" "log" "--first-parent" "-n1" "--pretty=format:'\%ci'"
-                   (package-build--expand-source-file-list dir config))) "\
+                   (package-build--expand-source-file-list name config))) "\
 \\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\} \
 [0-9]\\{2\\}:[0-9]\\{2\\}:[0-9]\\{2\\}\\( [+-][0-9]\\{4\\}\\)?\\)"))))
 
-(defun package-build--used-git-url (dir)
-  "Get the current git repo for DIR."
-  (let ((default-directory dir))
+(defun package-build--used-git-url (name)
+  (let ((default-directory (package-recipe--working-tree name)))
     (car (process-lines "git" "config" "remote.origin.url"))))
 
 (defun package-build--git-head-branch (dir)
@@ -334,24 +337,22 @@ Returns the package version as a string."
   (package-build--run-process dir nil "git" "submodule" "sync" "--recursive")
   (package-build--run-process dir nil "git" "submodule" "update" "--init" "--recursive"))
 
-(defun package-build--checkout-github (name config dir)
-  "Check package NAME with config CONFIG out of github into DIR."
+(defun package-build--checkout-github (name config)
   (let ((url (format "https://github.com/%s.git" (plist-get config :repo))))
-    (package-build--checkout-git name (plist-put (copy-sequence config) :url url) dir)))
+    (package-build--checkout-git name (plist-put (copy-sequence config) :url url))))
 
-(defun package-build--checkout-gitlab (name config dir)
-  "Check package NAME with config CONFIG out of gitlab into DIR."
+(defun package-build--checkout-gitlab (name config)
   (let ((url (format "https://gitlab.com/%s.git" (plist-get config :repo))))
-    (package-build--checkout-git name (plist-put (copy-sequence config) :url url) dir)))
+    (package-build--checkout-git name (plist-put (copy-sequence config) :url url))))
 
 ;;;; Hg
 
-(defun package-build--checkout-hg (name config dir)
-  "Check package NAME with config CONFIG out of hg into DIR."
-  (let ((url (plist-get config :url)))
+(defun package-build--checkout-hg (name config)
+  (let ((dir (package-recipe--working-tree name))
+        (url (plist-get config :url)))
     (cond
      ((and (file-exists-p (expand-file-name ".hg" dir))
-           (string-equal (package-build--used-hg-url dir) url))
+           (string-equal (package-build--used-hg-url name) url))
       (package-build--message "Updating %s" dir)
       (package-build--run-process dir nil "hg" "pull")
       (package-build--run-process dir nil "hg" "update"))
@@ -375,20 +376,18 @@ Returns the package version as a string."
       (package-build--parse-time
        (car (apply #'package-build--process-lines dir
                    "hg" "log" "--style" "compact" "-l1"
-                   (package-build--expand-source-file-list dir config))) "\
+                   (package-build--expand-source-file-list name config))) "\
 \\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\} \
 [0-9]\\{2\\}:[0-9]\\{2\\}\\( [+-][0-9]\\{4\\}\\)?\\)"))))
 
-(defun package-build--used-hg-url (dir)
-  "Get the current hg repo for DIR."
+(defun package-build--used-hg-url (name)
   (package-build--run-process-match "default = \\(.*\\)"
-                                    dir
+                                    (package-recipe--working-tree name)
                                     "hg" "paths"))
 
-(defun package-build--checkout-bitbucket (name config dir)
-  "Check package NAME with config CONFIG out of bitbucket into DIR."
+(defun package-build--checkout-bitbucket (name config)
   (let ((url (format "https://bitbucket.com/%s" (plist-get config :repo))))
-    (package-build--checkout-hg name (plist-put (copy-sequence config) :url url) dir)))
+    (package-build--checkout-hg name (plist-put (copy-sequence config) :url url))))
 
 ;;; File Utilities
 
@@ -746,11 +745,11 @@ for ALLOW-EMPTY to prevent this error."
      (t
       file-list))))
 
-(defun package-build--expand-source-file-list (dir config)
-  "Shorthand way to expand paths in DIR for source files listed in CONFIG."
+(defun package-build--expand-source-file-list (name config)
   (mapcar 'car
           (package-build-expand-file-specs
-           dir (package-build--config-file-list config))))
+           (package-recipe--working-tree name)
+           (package-build--config-file-list config))))
 
 ;;; Info Manuals
 
@@ -882,17 +881,14 @@ and a cl struct in Emacs HEAD.  This wrapper normalises the results."
                                                package-build--this-file)))
           (cl-return t))))))
 
-(defun package-build-get-commit (config working-dir)
-  "Return a commit identifier as a string for CONFIG under WORKING-DIR."
+(defun package-build-get-commit (name config)
   (let* ((fetcher (plist-get config :fetcher))
          (func (intern (format "package-build--get-commit-%s" fetcher))))
     (when (functionp func)
-      (funcall func config (file-name-as-directory working-dir)))))
+      (funcall func name config))))
 
-(defun package-build--get-commit-git (config working-dir)
-  "Return a commit identifier.
-Works for Git repositories with CONFIG under WORKING-DIR."
-  (package-build--git-head-sha working-dir))
+(defun package-build--get-commit-git (name config)
+  (package-build--git-head-sha (package-recipe--working-tree name)))
 (defalias 'package-build--get-commit-github #'package-build--get-commit-git)
 (defalias 'package-build--get-commit-gitlab #'package-build--get-commit-git)
 
@@ -910,18 +906,14 @@ ARCHIVE-ENTRY is destructively modified."
   (interactive (list (package-build--package-name-completing-read)))
   (let ((rcp (or (cdr (assoc (intern name)
                              (package-build-recipe-alist)))
-                 (error "Cannot find package %s" name)))
-        (pkg-working-dir
-         (file-name-as-directory
-          (expand-file-name name package-build-working-dir))))
-
+                 (error "Cannot find package %s" name))))
     (unless (file-exists-p package-build-archive-dir)
       (package-build--message "Creating directory %s" package-build-archive-dir)
       (make-directory package-build-archive-dir))
 
     (package-build--message "\n;;; %s\n" name)
-    (let* ((version (package-build-checkout name rcp pkg-working-dir))
-           (commit (package-build-get-commit rcp pkg-working-dir))
+    (let* ((version (package-build-checkout name rcp))
+           (commit (package-build-get-commit name rcp))
            (default-directory package-build-working-dir)
            (start-time (current-time)))
       (if (package-build--up-to-date-p name version)
@@ -929,8 +921,7 @@ ARCHIVE-ENTRY is destructively modified."
         (progn
           (let ((archive-entry (package-build-package
                                 name version
-                                (package-build--config-file-list rcp)
-                                pkg-working-dir)))
+                                (package-build--config-file-list rcp))))
             (when commit
               (package-build-add-to-archive archive-entry :commit commit))
             (package-build--dump archive-entry
@@ -960,11 +951,11 @@ ARCHIVE-ENTRY is destructively modified."
        nil))))
 
 ;;;###autoload
-(defun package-build-package (name version file-specs source-dir)
+(defun package-build-package (name version file-specs)
   "Create version VERSION of the package named NAME.
 
 The information in FILE-SPECS is used to gather files from
-SOURCE-DIR.
+the package's repository.
 
 The resulting package will be stored as a .el or .tar file in
 `package-build-archive-dir', depending on whether there are
@@ -977,7 +968,8 @@ syntax is currently only documented in the MELPA README.  You can
 simply pass `package-build-default-files-spec' in most cases.
 
 Returns the archive entry for the package."
-  (let ((files (package-build-expand-file-specs source-dir file-specs)))
+  (let* ((source-dir (package-recipe--working-tree name))
+         (files (package-build-expand-file-specs source-dir file-specs)))
     (unless (equal file-specs package-build-default-files-spec)
       (when (equal files (package-build-expand-file-specs
                           source-dir package-build-default-files-spec nil t))
