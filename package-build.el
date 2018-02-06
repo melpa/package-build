@@ -218,40 +218,41 @@ is used instead."
 
 ;;; Run Process
 
-(defun package-build--run-process (dir command &rest args)
-  "In DIR (or `default-directory' if unset) run COMMAND with ARGS.
-Output is written to the current buffer."
-  (let ((default-directory (file-name-as-directory (or dir default-directory)))
-        (argv (nconc (unless (eq system-type 'windows-nt)
-                       (list "env" "LC_ALL=C"))
-                     (if package-build-timeout-executable
-                         (nconc (list package-build-timeout-executable
-                                      "-k" "60" (number-to-string
-                                                 package-build-timeout-secs)
-                                      command)
-                                args)
-                       (cons command args)))))
-    (unless (file-directory-p default-directory)
-      (error "Can't run process in non-existent directory: %s" default-directory))
-    (let ((exit-code (apply 'process-file
-                            (car argv) nil (current-buffer) t
-                            (cdr argv))))
-      (or (zerop exit-code)
-          (error "Command '%s' exited with non-zero status %d: %s"
-                 argv exit-code (buffer-string))))))
+(defun package-build--run-process (directory destination command &rest args)
+  (with-current-buffer
+      (if (eq destination t)
+          (current-buffer)
+        (or destination (get-buffer-create "*package-build-checkout*")))
+    (let ((default-directory
+            (file-name-as-directory (or directory default-directory)))
+          (argv (nconc (unless (eq system-type 'windows-nt)
+                         (list "env" "LC_ALL=C"))
+                       (if package-build-timeout-executable
+                           (nconc (list package-build-timeout-executable
+                                        "-k" "60" (number-to-string
+                                                   package-build-timeout-secs)
+                                        command)
+                                  args)
+                         (cons command args)))))
+      (unless (file-directory-p default-directory)
+        (error "Can't run process in non-existent directory: %s" default-directory))
+      (let ((exit-code (apply 'process-file
+                              (car argv) nil (current-buffer) t
+                              (cdr argv))))
+        (or (zerop exit-code)
+            (error "Command '%s' exited with non-zero status %d: %s"
+                   argv exit-code (buffer-string)))))))
 
-(defun package-build--run-process-match (regexp dir prog &rest args)
-  "Run PROG with args and return the first match for REGEXP in its output.
-PROG is run in DIR, or if that is nil in `default-directory'."
+(defun package-build--run-process-match (regexp directory command &rest args)
   (with-temp-buffer
-    (apply 'package-build--run-process dir prog args)
+    (apply 'package-build--run-process directory t command args)
     (goto-char (point-min))
     (re-search-forward regexp)
     (match-string-no-properties 1)))
 
 (defun package-build--process-lines (directory command &rest args)
   (with-temp-buffer
-    (apply 'package-build--run-process directory command args)
+    (apply 'package-build--run-process directory t command args)
     (split-string (buffer-string) "\n" t)))
 
 ;;; Checkout
@@ -282,37 +283,35 @@ Returns the package version as a string."
 (defun package-build--checkout-git (name config dir)
   "Check package NAME with config CONFIG out of git into DIR."
   (let ((repo (plist-get config :url)))
-    (with-current-buffer (get-buffer-create "*package-build-checkout*")
-      (goto-char (point-max))
-      (cond
-       ((and (file-exists-p (expand-file-name ".git" dir))
-             (string-equal (package-build--git-repo dir) repo))
-        (package-build--message "Updating %s" dir)
-        (package-build--run-process dir "git" "fetch" "--all" "--tags"))
-       (t
-        (when (file-exists-p dir)
-          (delete-directory dir t))
-        (package-build--message "Cloning %s to %s" repo dir)
-        (package-build--run-process nil "git" "clone" repo dir)))
-      (if package-build-stable
-          (cl-destructuring-bind (tag . version)
-              (or (package-build--find-version-newest
-                   (process-lines "git" "tag")
-                   (plist-get config :version-regexp))
-                  (error "No valid stable versions found for %s" name))
-            (package-build--update-git-to-ref dir (concat "tags/" tag))
-            version)
-        (package-build--update-git-to-ref
-         dir (or (plist-get config :commit)
-                 (concat "origin/"
-                         (or (plist-get config :branch)
-                             (package-build--git-head-branch dir)))))
-        (package-build--parse-time
-         (car (apply #'package-build--process-lines dir
-                     "git" "log" "--first-parent" "-n1" "--pretty=format:'\%ci'"
-                     (package-build--expand-source-file-list dir config))) "\
+    (cond
+     ((and (file-exists-p (expand-file-name ".git" dir))
+           (string-equal (package-build--git-repo dir) repo))
+      (package-build--message "Updating %s" dir)
+      (package-build--run-process dir nil "git" "fetch" "--all" "--tags"))
+     (t
+      (when (file-exists-p dir)
+        (delete-directory dir t))
+      (package-build--message "Cloning %s to %s" repo dir)
+      (package-build--run-process nil nil "git" "clone" repo dir)))
+    (if package-build-stable
+        (cl-destructuring-bind (tag . version)
+            (or (package-build--find-version-newest
+                 (process-lines "git" "tag")
+                 (plist-get config :version-regexp))
+                (error "No valid stable versions found for %s" name))
+          (package-build--update-git-to-ref dir (concat "tags/" tag))
+          version)
+      (package-build--update-git-to-ref
+       dir (or (plist-get config :commit)
+               (concat "origin/"
+                       (or (plist-get config :branch)
+                           (package-build--git-head-branch dir)))))
+      (package-build--parse-time
+       (car (apply #'package-build--process-lines dir
+                   "git" "log" "--first-parent" "-n1" "--pretty=format:'\%ci'"
+                   (package-build--expand-source-file-list dir config))) "\
 \\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\} \
-[0-9]\\{2\\}:[0-9]\\{2\\}:[0-9]\\{2\\}\\( [+-][0-9]\\{4\\}\\)?\\)")))))
+[0-9]\\{2\\}:[0-9]\\{2\\}:[0-9]\\{2\\}\\( [+-][0-9]\\{4\\}\\)?\\)"))))
 
 (defun package-build--git-head-branch (dir)
   "Get the current git repo for DIR."
@@ -331,9 +330,9 @@ Returns the package version as a string."
   "Update the git repo in DIR so that HEAD is REF."
   ;; TODO Checkout local ref, and in case of a
   ;; branch reset to upstream branch if necessary.
-  (package-build--run-process dir "git" "reset" "--hard" ref)
-  (package-build--run-process dir "git" "submodule" "sync" "--recursive")
-  (package-build--run-process dir "git" "submodule" "update" "--init" "--recursive"))
+  (package-build--run-process dir nil "git" "reset" "--hard" ref)
+  (package-build--run-process dir nil "git" "submodule" "sync" "--recursive")
+  (package-build--run-process dir nil "git" "submodule" "update" "--init" "--recursive"))
 
 (defun package-build--checkout-github (name config dir)
   "Check package NAME with config CONFIG out of github into DIR."
@@ -354,37 +353,35 @@ Returns the package version as a string."
 (defun package-build--checkout-hg (name config dir)
   "Check package NAME with config CONFIG out of hg into DIR."
   (let ((repo (plist-get config :url)))
-    (with-current-buffer (get-buffer-create "*package-build-checkout*")
-      (goto-char (point-max))
-      (cond
-       ((and (file-exists-p (expand-file-name ".hg" dir))
-             (string-equal (package-build--hg-repo dir) repo))
-        (package-build--message "Updating %s" dir)
-        (package-build--run-process dir "hg" "pull")
-        (package-build--run-process dir "hg" "update"))
-       (t
-        (when (file-exists-p dir)
-          (delete-directory dir t))
-        (package-build--message "Cloning %s to %s" repo dir)
-        (package-build--run-process nil "hg" "clone" repo dir)))
-      (if package-build-stable
-          (cl-destructuring-bind (tag . version)
-              (or (package-build--find-version-newest
-                   (mapcar (lambda (line)
-                             ;; Remove space and rev that follow ref.
-                             (string-match "\\`[^ ]+" line)
-                             (match-string 0))
-                           (process-lines "hg" "tags"))
-                   (plist-get config :version-regexp))
-                  (error "No valid stable versions found for %s" name))
-            (package-build--run-process dir "hg" "update" tag)
-            version)
-        (package-build--parse-time
-         (car (apply #'package-build--process-lines dir
-                     "hg" "log" "--style" "compact" "-l1"
-                     (package-build--expand-source-file-list dir config))) "\
+    (cond
+     ((and (file-exists-p (expand-file-name ".hg" dir))
+           (string-equal (package-build--hg-repo dir) repo))
+      (package-build--message "Updating %s" dir)
+      (package-build--run-process dir nil "hg" "pull")
+      (package-build--run-process dir nil "hg" "update"))
+     (t
+      (when (file-exists-p dir)
+        (delete-directory dir t))
+      (package-build--message "Cloning %s to %s" repo dir)
+      (package-build--run-process nil nil "hg" "clone" repo dir)))
+    (if package-build-stable
+        (cl-destructuring-bind (tag . version)
+            (or (package-build--find-version-newest
+                 (mapcar (lambda (line)
+                           ;; Remove space and rev that follow ref.
+                           (string-match "\\`[^ ]+" line)
+                           (match-string 0))
+                         (process-lines "hg" "tags"))
+                 (plist-get config :version-regexp))
+                (error "No valid stable versions found for %s" name))
+          (package-build--run-process dir nil "hg" "update" tag)
+          version)
+      (package-build--parse-time
+       (car (apply #'package-build--process-lines dir
+                   "hg" "log" "--style" "compact" "-l1"
+                   (package-build--expand-source-file-list dir config))) "\
 \\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\} \
-[0-9]\\{2\\}:[0-9]\\{2\\}\\( [+-][0-9]\\{4\\}\\)?\\)")))))
+[0-9]\\{2\\}:[0-9]\\{2\\}\\( [+-][0-9]\\{4\\}\\)?\\)"))))
 
 (defun package-build--checkout-bitbucket (name config dir)
   "Check package NAME with config CONFIG out of bitbucket into DIR."
@@ -771,16 +768,12 @@ deleted."
                        (concat (file-name-sans-extension dest-file) ".info")
                        target-dir)))
       (when (string-match ".texi\\(nfo\\)?$" source-file)
-        (when (not (file-exists-p info-path))
-          (with-current-buffer (get-buffer-create "*package-build-info*")
-            (ignore-errors
-              (package-build--run-process
-               (file-name-directory source-path)
-               "makeinfo"
-               source-path
-               "-o"
-               info-path)
-              (package-build--message "Created %s" info-path))))
+        (unless (file-exists-p info-path)
+          (ignore-errors
+            (package-build--run-process
+             (file-name-directory source-path) nil
+             "makeinfo" source-path "-o" info-path)
+            (package-build--message "Created %s" info-path)))
         (package-build--message "Removing %s"
                                 (expand-file-name dest-file target-dir))
         (delete-file (expand-file-name dest-file target-dir))))))
@@ -796,13 +789,12 @@ deleted."
       (when (and (or (string-match ".info$" source-file)
                      (string-match ".texi\\(nfo\\)?$" source-file))
                  (file-exists-p info-path))
-        (with-current-buffer (get-buffer-create "*package-build-info*")
-          (ignore-errors
-            (package-build--run-process
-             nil
-             "install-info"
-             (concat "--dir=" (expand-file-name "dir" target-dir))
-             info-path)))))))
+        (ignore-errors
+          (package-build--run-process
+           nil nil
+           "install-info"
+           (concat "--dir=" (expand-file-name "dir" target-dir))
+           info-path))))))
 
 ;;; Utilities
 
