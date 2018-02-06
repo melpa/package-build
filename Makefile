@@ -4,6 +4,7 @@ PKG = package-build
 
 ELS   = $(PKG).el
 ELS  += package-build-badges.el
+ELS  += package-recipe.el
 ELS  += package-recipe-mode.el
 ELCS  = $(ELS:.el=.elc)
 

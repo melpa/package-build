@@ -45,6 +45,8 @@
 (require 'lisp-mnt)
 (require 'json)
 
+(require 'package-recipe)
+
 ;;; Options
 
 (defconst package-build--melpa-base
@@ -258,33 +260,20 @@ is used instead."
 ;;; Checkout
 ;;;; Common
 
-(defun package-build-checkout (name config)
-  "Check out source for the package named NAME with CONFIG.
-In turn, this function uses the :fetcher option in the CONFIG to
-choose a source-specific fetcher function, which it calls with
-the same arguments.
-
-Returns the package version as a string."
-  (let ((fetcher (plist-get config :fetcher)))
-    (package-build--message "Fetcher: %s" fetcher)
-    (package-build--message "Source: %s\n"
-                            (or (plist-get config :repo)
-                                (plist-get config :url)))
-    (funcall (intern (format "package-build--checkout-%s" fetcher))
-             name config)))
-
-(defun package-recipe--working-tree (name)
-  (file-name-as-directory
-   (expand-file-name name package-build-working-dir)))
+(cl-defmethod package-build--checkout :before ((rcp package-recipe))
+  (package-build--message "Fetcher: %s"
+                          (substring (symbol-name (eieio-object-class rcp))
+                                     8 -7))
+  (package-build--message "Source:  %s\n" (package-recipe--upstream-url rcp)))
 
 ;;;; Git
 
-(defun package-build--checkout-git (name config)
-  (let ((dir (package-recipe--working-tree name))
-        (url (plist-get config :url)))
+(cl-defmethod package-build--checkout ((rcp package-git-recipe))
+  (let ((dir (package-recipe--working-tree rcp))
+        (url (package-recipe--upstream-url rcp)))
     (cond
      ((and (file-exists-p (expand-file-name ".git" dir))
-           (string-equal (package-build--used-git-url name) url))
+           (string-equal (package-build--used-url rcp) url))
       (package-build--message "Updating %s" dir)
       (package-build--run-process dir nil "git" "fetch" "--all" "--tags"))
      (t
@@ -296,24 +285,23 @@ Returns the package version as a string."
         (cl-destructuring-bind (tag . version)
             (or (package-build--find-version-newest
                  (process-lines "git" "tag")
-                 (plist-get config :version-regexp))
-                (error "No valid stable versions found for %s" name))
-          (package-build--checkout-git-1 name config (concat "tags/" tag))
+                 (oref rcp version-regexp))
+                (error "No valid stable versions found for %s" (oref rcp name)))
+          (package-build--checkout-1 rcp (concat "tags/" tag))
           version)
-      (package-build--checkout-git-1 name config)
+      (package-build--checkout-1 rcp)
       (package-build--parse-time
        (car (apply #'package-build--process-lines dir
                    "git" "log" "--first-parent" "-n1" "--pretty=format:'\%ci'"
-                   (package-build--expand-source-file-list name config))) "\
-\\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\} \
-[0-9]\\{2\\}:[0-9]\\{2\\}:[0-9]\\{2\\}\\( [+-][0-9]\\{4\\}\\)?\\)"))))
+                   (package-build--expand-source-file-list rcp)))
+       (oref rcp tag-regexp)))))
 
-(defun package-build--checkout-git-1 (name config &optional rev)
-  (let ((dir (package-recipe--working-tree name)))
+(cl-defmethod package-build--checkout-1 ((rcp package-git-recipe) &optional rev)
+  (let ((dir (package-recipe--working-tree rcp)))
     (unless rev
-      (setq rev (or (plist-get config :commit)
+      (setq rev (or (oref rcp commit)
                     (concat "origin/"
-                            (or (plist-get config :branch)
+                            (or (oref rcp branch)
                                 (ignore-errors
                                   (package-build--run-process-match
                                    "HEAD branch: \\(.*\\)" dir
@@ -324,26 +312,18 @@ Returns the package version as a string."
     (package-build--run-process dir nil "git" "submodule" "update"
                                 "--init" "--recursive")))
 
-(defun package-build--used-git-url (name)
-  (let ((default-directory (package-recipe--working-tree name)))
+(cl-defmethod package-build--used-url ((rcp package-git-recipe))
+  (let ((default-directory (package-recipe--working-tree rcp)))
     (car (process-lines "git" "config" "remote.origin.url"))))
-
-(defun package-build--checkout-github (name config)
-  (let ((url (format "https://github.com/%s.git" (plist-get config :repo))))
-    (package-build--checkout-git name (plist-put (copy-sequence config) :url url))))
-
-(defun package-build--checkout-gitlab (name config)
-  (let ((url (format "https://gitlab.com/%s.git" (plist-get config :repo))))
-    (package-build--checkout-git name (plist-put (copy-sequence config) :url url))))
 
 ;;;; Hg
 
-(defun package-build--checkout-hg (name config)
-  (let ((dir (package-recipe--working-tree name))
-        (url (plist-get config :url)))
+(cl-defmethod package-build--checkout ((rcp package-hg-recipe))
+  (let ((dir (package-recipe--working-tree rcp))
+        (url (package-recipe--upstream-url rcp)))
     (cond
      ((and (file-exists-p (expand-file-name ".hg" dir))
-           (string-equal (package-build--used-hg-url name) url))
+           (string-equal (package-build--used-url rcp) url))
       (package-build--message "Updating %s" dir)
       (package-build--run-process dir nil "hg" "pull")
       (package-build--run-process dir nil "hg" "update"))
@@ -360,25 +340,20 @@ Returns the package version as a string."
                            (string-match "\\`[^ ]+" line)
                            (match-string 0))
                          (process-lines "hg" "tags"))
-                 (plist-get config :version-regexp))
-                (error "No valid stable versions found for %s" name))
+                 (oref rcp version-regexp))
+                (error "No valid stable versions found for %s" (oref rcp name)))
           (package-build--run-process dir nil "hg" "update" tag)
           version)
       (package-build--parse-time
        (car (apply #'package-build--process-lines dir
                    "hg" "log" "--style" "compact" "-l1"
-                   (package-build--expand-source-file-list name config))) "\
-\\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\} \
-[0-9]\\{2\\}:[0-9]\\{2\\}\\( [+-][0-9]\\{4\\}\\)?\\)"))))
+                   (package-build--expand-source-file-list rcp)))
+       (oref rcp tag-regexp)))))
 
-(defun package-build--used-hg-url (name)
+(cl-defmethod package-build--used-url ((rcp package-hg-recipe))
   (package-build--run-process-match "default = \\(.*\\)"
-                                    (package-recipe--working-tree name)
+                                    (package-recipe--working-tree rcp)
                                     "hg" "paths"))
-
-(defun package-build--checkout-bitbucket (name config)
-  (let ((url (format "https://bitbucket.com/%s" (plist-get config :repo))))
-    (package-build--checkout-hg name (plist-put (copy-sequence config) :url url))))
 
 ;;; File Utilities
 
@@ -725,9 +700,8 @@ for ALLOW-EMPTY to prevent this error."
       (error "No matching file(s) found in %s: %s" dir specs))
     lst))
 
-(defun package-build--config-file-list (config)
-  "Get the :files spec from CONFIG, or return `package-build-default-files-spec'."
-  (let ((file-list (plist-get config :files)))
+(defun package-build--config-file-list (rcp)
+  (let ((file-list (oref rcp files)))
     (cond
      ((null file-list)
       package-build-default-files-spec)
@@ -736,11 +710,11 @@ for ALLOW-EMPTY to prevent this error."
      (t
       file-list))))
 
-(defun package-build--expand-source-file-list (name config)
+(defun package-build--expand-source-file-list (rcp)
   (mapcar 'car
           (package-build-expand-file-specs
-           (package-recipe--working-tree name)
-           (package-build--config-file-list config))))
+           (package-recipe--working-tree rcp)
+           (package-build--config-file-list rcp))))
 
 ;;; Info Manuals
 
@@ -872,15 +846,14 @@ and a cl struct in Emacs HEAD.  This wrapper normalises the results."
                                                package-build--this-file)))
           (cl-return t))))))
 
-(defun package-build-get-commit (name config)
-  (cl-case (plist-get config :fetcher)
-    ((git github gitlab)
-     (ignore-errors
-       (package-build--run-process-match
-        "\\(.*\\)"
-        (package-recipe--working-tree name)
-        "git" "rev-parse" "HEAD")))
-    ((hg bitbucket)))) ; TODO
+(cl-defmethod package-build-get-commit ((rcp package-git-recipe))
+  (ignore-errors
+    (package-build--run-process-match
+     "\\(.*\\)"
+     (package-recipe--working-tree rcp)
+     "git" "rev-parse" "HEAD")))
+
+(cl-defmethod package-build-get-commit ((rcp package-hg-recipe))) ; TODO
 
 (defun package-build-add-to-archive (archive-entry prop value)
   "Add to ARCHIVE-ENTRY property PROP with VALUE.
@@ -895,22 +868,18 @@ ARCHIVE-ENTRY is destructively modified."
   "Build a package archive for the package named NAME."
   (interactive (list (package-build--package-name-completing-read)))
   (let ((start-time (current-time))
-        (rcp (or (cdr (assq (intern name)
-                            (package-build-recipe-alist)))
-                 (error "Cannot find package %s" name))))
+        (rcp (package-recipe-lookup name)))
     (unless (file-exists-p package-build-archive-dir)
       (package-build--message "Creating directory %s" package-build-archive-dir)
       (make-directory package-build-archive-dir))
     (package-build--message "\n;;; %s\n" name)
     (let ((default-directory package-build-working-dir)
-          (version (package-build-checkout name rcp)))
+          (version (package-build--checkout rcp)))
       (if (package-build--up-to-date-p name version)
           (package-build--message "Package %s is up to date - skipping." name)
         (progn
-          (let ((archive-entry (package-build-package
-                                name version
-                                (package-build--config-file-list rcp)))
-                (commit (package-build-get-commit name rcp)))
+          (let ((archive-entry (package-build-package rcp version))
+                (commit (package-build-get-commit rcp)))
             (when commit
               (package-build-add-to-archive archive-entry :commit commit))
             (package-build--dump archive-entry
@@ -940,25 +909,14 @@ ARCHIVE-ENTRY is destructively modified."
        nil))))
 
 ;;;###autoload
-(defun package-build-package (name version file-specs)
-  "Create version VERSION of the package named NAME.
-
-The information in FILE-SPECS is used to gather files from
-the package's repository.
-
-The resulting package will be stored as a .el or .tar file in
-`package-build-archive-dir', depending on whether there are
-multiple files.
-
-Argument FILE-SPECS is a list of specs for source files, which
-should be relative to SOURCE-DIR.  The specs can be wildcards,
-and optionally specify different target paths.  They extended
-syntax is currently only documented in the MELPA README.  You can
-simply pass `package-build-default-files-spec' in most cases.
-
-Returns the archive entry for the package."
-  (let* ((source-dir (package-recipe--working-tree name))
-         (files (package-build-expand-file-specs source-dir file-specs)))
+(defun package-build-package (rcp version)
+  "Create version VERSION of the package specified by RCP.
+Return the archive entry for the package and store the package
+in `package-build-archive-dir'."
+  (let* ((source-dir (package-recipe--working-tree rcp))
+         (file-specs (package-build--config-file-list rcp))
+         (files (package-build-expand-file-specs source-dir file-specs))
+         (name (oref rcp name)))
     (unless (equal file-specs package-build-default-files-spec)
       (when (equal files (package-build-expand-file-specs
                           source-dir package-build-default-files-spec nil t))
