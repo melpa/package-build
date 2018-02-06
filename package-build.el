@@ -282,17 +282,17 @@ Returns the package version as a string."
 
 (defun package-build--checkout-git (name config dir)
   "Check package NAME with config CONFIG out of git into DIR."
-  (let ((repo (plist-get config :url)))
+  (let ((url (plist-get config :url)))
     (cond
      ((and (file-exists-p (expand-file-name ".git" dir))
-           (string-equal (package-build--git-repo dir) repo))
+           (string-equal (package-build--git-repo dir) url))
       (package-build--message "Updating %s" dir)
       (package-build--run-process dir nil "git" "fetch" "--all" "--tags"))
      (t
       (when (file-exists-p dir)
         (delete-directory dir t))
-      (package-build--message "Cloning %s to %s" repo dir)
-      (package-build--run-process nil nil "git" "clone" repo dir)))
+      (package-build--message "Cloning %s to %s" url dir)
+      (package-build--run-process nil nil "git" "clone" url dir)))
     (if package-build-stable
         (cl-destructuring-bind (tag . version)
             (or (package-build--find-version-newest
@@ -352,18 +352,18 @@ Returns the package version as a string."
 
 (defun package-build--checkout-hg (name config dir)
   "Check package NAME with config CONFIG out of hg into DIR."
-  (let ((repo (plist-get config :url)))
+  (let ((url (plist-get config :url)))
     (cond
      ((and (file-exists-p (expand-file-name ".hg" dir))
-           (string-equal (package-build--hg-repo dir) repo))
+           (string-equal (package-build--hg-repo dir) url))
       (package-build--message "Updating %s" dir)
       (package-build--run-process dir nil "hg" "pull")
       (package-build--run-process dir nil "hg" "update"))
      (t
       (when (file-exists-p dir)
         (delete-directory dir t))
-      (package-build--message "Cloning %s to %s" repo dir)
-      (package-build--run-process nil nil "hg" "clone" repo dir)))
+      (package-build--message "Cloning %s to %s" url dir)
+      (package-build--run-process nil nil "hg" "clone" url dir)))
     (if package-build-stable
         (cl-destructuring-bind (tag . version)
             (or (package-build--find-version-newest
