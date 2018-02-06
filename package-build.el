@@ -904,7 +904,8 @@ ARCHIVE-ENTRY is destructively modified."
 (defun package-build-archive (name)
   "Build a package archive for the package named NAME."
   (interactive (list (package-build--package-name-completing-read)))
-  (let ((rcp (or (cdr (assq (intern name)
+  (let ((start-time (current-time))
+        (rcp (or (cdr (assq (intern name)
                             (package-build-recipe-alist)))
                  (error "Cannot find package %s" name))))
     (unless (file-exists-p package-build-archive-dir)
@@ -912,8 +913,7 @@ ARCHIVE-ENTRY is destructively modified."
       (make-directory package-build-archive-dir))
     (package-build--message "\n;;; %s\n" name)
     (let ((default-directory package-build-working-dir)
-          (version (package-build-checkout name rcp))
-          (start-time (current-time)))
+          (version (package-build-checkout name rcp)))
       (if (package-build--up-to-date-p name version)
           (package-build--message "Package %s is up to date - skipping." name)
         (progn
