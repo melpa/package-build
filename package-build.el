@@ -537,6 +537,12 @@ If PKG-INFO is nil, an empty one is created."
     (aset merged 3 version)
     merged))
 
+(defun package-build--write-archive-entry (rcp entry)
+  (let ((commit (package-build-get-commit rcp)))
+    (when commit
+      (package-build-add-to-archive entry :commit commit))
+    (package-build--dump entry (package-build--entry-file-name entry))))
+
 (defun package-build--archive-entry (pkg-info type)
   "Return the archive-contents cons cell for PKG-INFO and TYPE."
   (let ((name (intern (aref pkg-info 0)))
@@ -877,20 +883,14 @@ ARCHIVE-ENTRY is destructively modified."
           (version (package-build--checkout rcp)))
       (if (package-build--up-to-date-p name version)
           (package-build--message "Package %s is up to date - skipping." name)
-        (progn
-          (let ((archive-entry (package-build-package rcp version))
-                (commit (package-build-get-commit rcp)))
-            (when commit
-              (package-build-add-to-archive archive-entry :commit commit))
-            (package-build--dump archive-entry
-                                 (package-build--entry-file-name archive-entry)))
-          (when package-build-write-melpa-badge-images
-            (package-build--write-melpa-badge-image
-             name version package-build-archive-dir))
-          (package-build--message "Built %s in %.3fs, finished at %s"
-                                  name
-                                  (float-time (time-since start-time))
-                                  (current-time-string))))
+        (package-build-package rcp version)
+        (when package-build-write-melpa-badge-images
+          (package-build--write-melpa-badge-image
+           name version package-build-archive-dir))
+        (package-build--message "Built %s in %.3fs, finished at %s"
+                                name
+                                (float-time (time-since start-time))
+                                (current-time-string)))
       (list name version))))
 
 (defun package-build-archive-ignore-errors (name)
@@ -965,7 +965,8 @@ in `package-build-archive-dir'."
        package-build-archive-dir
        (package-build--find-package-commentary pkg-source)
        name))
-    (package-build--archive-entry pkg-info 'single)))
+    (package-build--write-archive-entry
+     rcp (package-build--archive-entry pkg-info 'single))))
 
 (defun package-build--build-multi-file-package
     (rcp version files source-dir)
@@ -1009,7 +1010,8 @@ in `package-build-archive-dir'."
              package-build-archive-dir
              (package-build--find-package-commentary pkg-source)
              name))
-          (package-build--archive-entry pkg-info 'tar))
+          (package-build--write-archive-entry
+           rcp (package-build--archive-entry pkg-info 'tar)))
       (delete-directory tmp-dir t nil))))
 
 ;;;###autoload
