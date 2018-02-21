@@ -653,20 +653,16 @@ If PKG-INFO is nil, an empty one is created."
      (format "%s-%s.entry" name version)
      package-build-archive-dir)))
 
-(defun package-build--delete-file-if-exists (file)
-  "Delete FILE if it exists."
-  (when (file-exists-p file)
-    (delete-file file)))
-
 (defun package-build--remove-archive-files (archive-entry)
   "Remove ARCHIVE-ENTRY from archive-contents, and delete associated file.
 Note that the working directory (if present) is not deleted by
 this function, since the archive list may contain another version
 of the same-named package which is to be kept."
   (package-build--message "Removing archive: %s" archive-entry)
-  (mapcar 'package-build--delete-file-if-exists
-          (list  (package-build--archive-file-name archive-entry)
-                 (package-build--entry-file-name archive-entry))))
+  (dolist (file (list (package-build--archive-file-name archive-entry)
+                      (package-build--entry-file-name archive-entry)))
+    (when (file-exists-p file)
+      (delete-file file))))
 
 ;;; Recipes
 
