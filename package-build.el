@@ -927,26 +927,25 @@ in `package-build-archive-dir'."
       (error "Unable to check out repository for %s" name))
      ((= 1 (length files))
       (package-build--build-single-file-package
-       name version (caar files) source-dir))
+       rcp version (caar files) source-dir))
      ((< 1 (length  files))
       (package-build--build-multi-file-package
-       name version files source-dir))
+       rcp version files source-dir))
      (t (error "Unable to find files matching recipe patterns")))))
 
-(defun package-build--build-single-file-package
-    (package-name version file source-dir)
-  (let* ((pkg-source (expand-file-name file source-dir))
+(defun package-build--build-single-file-package (rcp version file source-dir)
+  (let* ((name (oref rcp name))
+         (pkg-source (expand-file-name file source-dir))
          (pkg-target (expand-file-name
-                      (concat package-name "-" version ".el")
+                      (concat name "-" version ".el")
                       package-build-archive-dir))
          (pkg-info (package-build--merge-package-info
                     (package-build--get-package-info pkg-source)
-                    package-name
-                    version)))
-    (unless (string-equal (downcase (concat package-name ".el"))
+                    name version)))
+    (unless (string-equal (downcase (concat name ".el"))
                           (downcase (file-name-nondirectory pkg-source)))
       (error "Single file %s does not match package name %s"
-             (file-name-nondirectory pkg-source) package-name))
+             (file-name-nondirectory pkg-source) name))
     (if (file-exists-p pkg-target)
         (package-build--message "Skipping rebuild of %s" pkg-target)
       (copy-file pkg-source pkg-target)
@@ -965,19 +964,20 @@ in `package-build-archive-dir'."
       (package-build--write-pkg-readme
        package-build-archive-dir
        (package-build--find-package-commentary pkg-source)
-       package-name))
+       name))
     (package-build--archive-entry pkg-info 'single)))
 
 (defun package-build--build-multi-file-package
-    (package-name version files source-dir)
-  (let ((tmp-dir (file-name-as-directory (make-temp-file package-name t))))
+    (rcp version files source-dir)
+  (let* ((name (oref rcp name))
+         (tmp-dir (file-name-as-directory (make-temp-file name t))))
     (unwind-protect
-        (let* ((pkg-dir-name (concat package-name "-" version))
+        (let* ((pkg-dir-name (concat name "-" version))
                (pkg-tmp-dir (expand-file-name pkg-dir-name tmp-dir))
-               (pkg-file (concat package-name "-pkg.el"))
+               (pkg-file (concat name "-pkg.el"))
                (pkg-file-source (or (package-build--find-source-file pkg-file files)
                                     pkg-file))
-               (file-source (concat package-name ".el"))
+               (file-source (concat name ".el"))
                (pkg-source (or (package-build--find-source-file file-source files)
                                file-source))
                (pkg-info (package-build--merge-package-info
@@ -988,8 +988,7 @@ in `package-build-archive-dir'."
                                  (expand-file-name (concat pkg-file ".in")
                                                    (file-name-directory pkg-source)))
                                 (package-build--get-package-info pkg-source)))
-                          package-name
-                          version)))
+                          name version)))
           (package-build--copy-package-files files source-dir pkg-tmp-dir)
           (package-build--write-pkg-file (expand-file-name
                                           pkg-file
@@ -1001,7 +1000,7 @@ in `package-build-archive-dir'."
 
           (let ((default-directory tmp-dir))
             (package-build--create-tar
-             (expand-file-name (concat package-name "-" version ".tar")
+             (expand-file-name (concat name "-" version ".tar")
                                package-build-archive-dir)
              pkg-dir-name))
 
@@ -1009,7 +1008,7 @@ in `package-build-archive-dir'."
             (package-build--write-pkg-readme
              package-build-archive-dir
              (package-build--find-package-commentary pkg-source)
-             package-name))
+             name))
           (package-build--archive-entry pkg-info 'tar))
       (delete-directory tmp-dir t nil))))
 
