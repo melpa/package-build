@@ -493,6 +493,36 @@ Optionally PRETTY-PRINT the data."
         (cl-flet ((package-strip-rcs-id (str) "0"))
           (package-build--package-buffer-info-vec))))))
 
+(defun package-build--package-buffer-info-vec ()
+  "Return a vector of package info.
+`package-buffer-info' returns a vector in older Emacs versions,
+and a cl struct in Emacs HEAD.  This wrapper normalises the results."
+  (let ((desc (package-buffer-info))
+        (keywords (lm-keywords-list)))
+    (if (fboundp 'package-desc-create)
+        (let ((extras (package-desc-extras desc)))
+          (when (and keywords (not (assq :keywords extras)))
+            ;; Add keywords to package properties, if not already present
+            (push (cons :keywords keywords) extras))
+          (vector (package-desc-name desc)
+                  (package-desc-reqs desc)
+                  (package-desc-summary desc)
+                  (package-desc-version desc)
+                  extras))
+      ;; The regexp and the processing is taken from `lm-homepage' in Emacs 24.4
+      (let* ((page (lm-header "\\(?:x-\\)?\\(?:homepage\\|url\\)"))
+             (homepage (if (and page (string-match "^<.+>$" page))
+                           (substring page 1 -1)
+                         page))
+             extras)
+        (when keywords (push (cons :keywords keywords) extras))
+        (when homepage (push (cons :url homepage) extras))
+        (vector  (aref desc 0)
+                 (aref desc 1)
+                 (aref desc 2)
+                 (aref desc 3)
+                 extras)))))
+
 (defun package-build--get-pkg-file-info (file-path)
   "Get a vector of package info from \"-pkg.el\" file FILE-PATH."
   (when (file-exists-p file-path)
@@ -797,36 +827,6 @@ FILES is a list of (SOURCE . DEST) relative filepath pairs."
   "Return the most recently built archive of the package named NAME."
   (package-build--archive-file-name
    (assq (intern name) (package-build-archive-alist))))
-
-(defun package-build--package-buffer-info-vec ()
-  "Return a vector of package info.
-`package-buffer-info' returns a vector in older Emacs versions,
-and a cl struct in Emacs HEAD.  This wrapper normalises the results."
-  (let ((desc (package-buffer-info))
-        (keywords (lm-keywords-list)))
-    (if (fboundp 'package-desc-create)
-        (let ((extras (package-desc-extras desc)))
-          (when (and keywords (not (assq :keywords extras)))
-            ;; Add keywords to package properties, if not already present
-            (push (cons :keywords keywords) extras))
-          (vector (package-desc-name desc)
-                  (package-desc-reqs desc)
-                  (package-desc-summary desc)
-                  (package-desc-version desc)
-                  extras))
-      ;; The regexp and the processing is taken from `lm-homepage' in Emacs 24.4
-      (let* ((page (lm-header "\\(?:x-\\)?\\(?:homepage\\|url\\)"))
-             (homepage (if (and page (string-match "^<.+>$" page))
-                           (substring page 1 -1)
-                         page))
-             extras)
-        (when keywords (push (cons :keywords keywords) extras))
-        (when homepage (push (cons :url homepage) extras))
-        (vector  (aref desc 0)
-                 (aref desc 1)
-                 (aref desc 2)
-                 (aref desc 3)
-                 extras)))))
 
 (defconst package-build--this-file load-file-name)
 
