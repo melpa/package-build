@@ -668,7 +668,22 @@ of the same-named package which is to be kept."
           (list  (package-build--archive-file-name archive-entry)
                  (package-build--entry-file-name archive-entry))))
 
-;;; Recipes (1/2)
+;;; Recipes
+
+(defun package-build-recipe-alist ()
+  "Return the list of available package recipes."
+  (or package-build--recipe-alist
+      (setq package-build--recipe-alist
+            (package-build--read-recipes-ignore-errors))))
+
+(defun package-build-packages ()
+  "Return the list of the names of available packages."
+  (mapcar #'car (package-build-recipe-alist)))
+
+(defun package-build-reinitialize ()
+  "Forget any information about packages which have already been built."
+  (interactive)
+  (setq package-build--recipe-alist nil))
 
 (defun package-build--read-recipe (name)
   "Return the recipe of the package named NAME as a list.
@@ -1137,23 +1152,6 @@ Returns the archive entry for the package."
                                   collect built)))
     (mapc 'package-build--remove-archive-files stale-archives)
     (package-build-dump-archive-contents)))
-
-;;; Recipes (2/2)
-
-(defun package-build-recipe-alist ()
-  "Return the list of available package recipes."
-  (or package-build--recipe-alist
-      (setq package-build--recipe-alist
-            (package-build--read-recipes-ignore-errors))))
-
-(defun package-build-packages ()
-  "Return the list of the names of available packages."
-  (mapcar #'car (package-build-recipe-alist)))
-
-(defun package-build-reinitialize ()
-  "Forget any information about packages which have already been built."
-  (interactive)
-  (setq package-build--recipe-alist nil))
 
 ;;; Archive
 
