@@ -1093,7 +1093,7 @@ Returns the archive entry for the package."
                (pkg-info (package-build--merge-package-info
                           (let ((default-directory source-dir))
                             (or (package-build--get-pkg-file-info pkg-file-source)
-                                ;; some packages (like magit) provide name-pkg.el.in
+                                ;; Some packages provide NAME-pkg.el.in
                                 (package-build--get-pkg-file-info
                                  (expand-file-name (concat pkg-file ".in")
                                                    (file-name-directory pkg-source)))
