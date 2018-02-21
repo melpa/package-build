@@ -779,6 +779,8 @@ for ALLOW-EMPTY to prevent this error."
           (package-build-expand-file-specs
            dir (package-build--config-file-list config))))
 
+;;; Info Manuals
+
 (defun package-build--generate-info-files (files source-dir target-dir)
   "Create .info files from any .texi files listed in FILES.
 
@@ -808,8 +810,6 @@ deleted."
         (package-build--message "Removing %s"
                                 (expand-file-name dest-file target-dir))
         (delete-file (expand-file-name dest-file target-dir))))))
-
-;;; Info Manuals
 
 (defun package-build--generate-dir-file (files target-dir)
   "Create dir file from any .info files listed in FILES in TARGET-DIR."
