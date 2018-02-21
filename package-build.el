@@ -699,7 +699,7 @@ to build the recipe."
                name ident)
     (cl-assert plist)
     (let* ((symbol-keys '(:fetcher))
-           (string-keys '(:url :repo :module :commit :branch :version-regexp))
+           (string-keys '(:url :repo :commit :branch :version-regexp))
            (list-keys '(:files :old-names))
            (all-keys (append symbol-keys string-keys list-keys)))
       (dolist (thing plist)
