@@ -707,8 +707,11 @@ to build the recipe."
           (cl-assert (memq thing all-keys) nil "Unknown keyword %S" thing)))
       (let ((fetcher (plist-get plist :fetcher)))
         (cl-assert fetcher nil ":fetcher is missing")
-        (when (memq fetcher '(github gitlab bitbucket))
-          (cl-assert (plist-get plist :repo) ":repo is missing")))
+        (if (memq fetcher '(github gitlab bitbucket))
+            (progn
+              (cl-assert (plist-get plist :repo) ":repo is missing")
+              (cl-assert (not (plist-get plist :url)) ":url is redundant"))
+          (cl-assert (plist-get plist :url) ":url is missing")))
       (dolist (key symbol-keys)
         (let ((val (plist-get plist key)))
           (when val
