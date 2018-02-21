@@ -807,7 +807,7 @@ deleted."
            (concat "--dir=" (expand-file-name "dir" target-dir))
            info-path))))))
 
-;;; Utilities
+;;; Building Utilities
 
 (defun package-build--copy-package-files (files source-dir target-dir)
   "Copy FILES from SOURCE-DIR to TARGET-DIR.
