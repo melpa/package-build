@@ -537,20 +537,20 @@ If PKG-INFO is nil, an empty one is created."
     (aset merged 3 version)
     merged))
 
-(defun package-build--write-archive-entry (rcp entry)
-  (let ((commit (package-build-get-commit rcp)))
-    (when commit
-      (package-build-add-to-archive entry :commit commit))
+(defun package-build--write-archive-entry (rcp pkg-info type)
+  (let ((entry (package-build--archive-entry rcp pkg-info type)))
     (package-build--dump entry (package-build--entry-file-name entry))))
 
-(defun package-build--archive-entry (pkg-info type)
-  "Return the archive-contents cons cell for PKG-INFO and TYPE."
+(defun package-build--archive-entry (rcp pkg-info type)
   (let ((name (intern (aref pkg-info 0)))
         (requires (aref pkg-info 1))
         (desc (or (aref pkg-info 2) "No description available."))
         (version (aref pkg-info 3))
         (extras (and (> (length pkg-info) 4)
-                     (aref pkg-info 4))))
+                     (aref pkg-info 4)))
+        (commit (package-build-get-commit rcp)))
+    (when commit
+      (push (cons :commit commit) extras))
     (cons name
           (vector (version-to-list version)
                   requires
@@ -861,12 +861,6 @@ and a cl struct in Emacs HEAD.  This wrapper normalises the results."
 
 (cl-defmethod package-build-get-commit ((rcp package-hg-recipe))) ; TODO
 
-(defun package-build-add-to-archive (archive-entry prop value)
-  "Add to ARCHIVE-ENTRY property PROP with VALUE.
-ARCHIVE-ENTRY is destructively modified."
-  (push (cons prop value) (elt (cdr archive-entry) 4))
-  archive-entry)
-
 ;;; Building
 
 ;;;###autoload
@@ -965,8 +959,7 @@ in `package-build-archive-dir'."
        package-build-archive-dir
        (package-build--find-package-commentary pkg-source)
        name))
-    (package-build--write-archive-entry
-     rcp (package-build--archive-entry pkg-info 'single))))
+    (package-build--write-archive-entry rcp pkg-info 'single)))
 
 (defun package-build--build-multi-file-package
     (rcp version files source-dir)
@@ -1010,8 +1003,7 @@ in `package-build-archive-dir'."
              package-build-archive-dir
              (package-build--find-package-commentary pkg-source)
              name))
-          (package-build--write-archive-entry
-           rcp (package-build--archive-entry pkg-info 'tar)))
+          (package-build--write-archive-entry rcp pkg-info 'tar))
       (delete-directory tmp-dir t nil))))
 
 ;;;###autoload
