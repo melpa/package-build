@@ -142,7 +142,7 @@ Use function `package-build-archive-alist' instead of this variable.")
     (:exclude ".dir-locals.el" "test.el" "tests.el" "*-test.el" "*-tests.el"))
   "Default value for :files attribute in recipes.")
 
-;;; Utilities
+;;; Generic Utilities
 
 (defun package-build--message (format-string &rest args)
   "Behave like `message' if `package-build-verbose' is non-nil.
@@ -437,7 +437,7 @@ Returns the package version as a string."
   (let ((url (format "https://bitbucket.com/%s" (plist-get config :repo))))
     (package-build--checkout-hg name (plist-put (copy-sequence config) :url url) dir)))
 
-;;; Utilities
+;;; File Utilities
 
 (defun package-build--dump (data file &optional pretty-print)
   "Write DATA to FILE as a Lisp sexp.
@@ -447,6 +447,13 @@ Optionally PRETTY-PRINT the data."
     (if pretty-print
         (pp data (current-buffer))
       (print data (current-buffer)))))
+
+(defun package-build--read-from-file (file)
+  "Read and return the Lisp data stored in FILE, or nil if no such file exists."
+  (when (file-exists-p file)
+    (car (read-from-string (package-build--slurp-file file)))))
+
+;;; Various Files
 
 (defun package-build--write-pkg-file (pkg-file pkg-info)
   "Write PKG-FILE containing PKG-INFO."
@@ -476,11 +483,6 @@ Optionally PRETTY-PRINT the data."
      (current-buffer))
     (princ ";; Local Variables:\n;; no-byte-compile: t\n;; End:\n"
            (current-buffer))))
-
-(defun package-build--read-from-file (file)
-  "Read and return the Lisp data stored in FILE, or nil if no such file exists."
-  (when (file-exists-p file)
-    (car (read-from-string (package-build--slurp-file file)))))
 
 (defun package-build--create-tar (file dir &optional files)
   "Create a tar FILE containing the contents of DIR, or just FILES if non-nil."
@@ -526,6 +528,8 @@ Optionally PRETTY-PRINT the data."
   "Name of the readme file in TARGET-DIR for the package FILE-NAME."
   (expand-file-name (concat file-name "-readme.txt")
                     target-dir))
+
+;;; Entries
 
 (defun package-build--update-or-insert-version (version)
   "Ensure current buffer has a \"Package-Version: VERSION\" header."
@@ -664,7 +668,7 @@ of the same-named package which is to be kept."
           (list  (package-build--archive-file-name archive-entry)
                  (package-build--entry-file-name archive-entry))))
 
-;;; Recipes
+;;; Recipes (1/2)
 
 (defun package-build--read-recipe (name)
   "Return the recipe of the package named NAME as a list.
@@ -722,6 +726,8 @@ to build the recipe."
                                                 name (error-message-string err))
                         nil)))
              (directory-files package-build-recipes-dir nil "^[^.]")))
+
+;;; File Specs
 
 (defun package-build-expand-file-specs (dir specs &optional subdir allow-empty)
   "In DIR, expand SPECS, optionally under SUBDIR.
@@ -1132,6 +1138,8 @@ Returns the archive entry for the package."
     (mapc 'package-build--remove-archive-files stale-archives)
     (package-build-dump-archive-contents)))
 
+;;; Recipes (2/2)
+
 (defun package-build-recipe-alist ()
   "Return the list of available package recipes."
   (or package-build--recipe-alist
@@ -1142,16 +1150,18 @@ Returns the archive entry for the package."
   "Return the list of the names of available packages."
   (mapcar #'car (package-build-recipe-alist)))
 
+(defun package-build-reinitialize ()
+  "Forget any information about packages which have already been built."
+  (interactive)
+  (setq package-build--recipe-alist nil))
+
+;;; Archive
+
 (defun package-build-archive-alist ()
   "Return the archive list."
   (cdr (package-build--read-from-file
         (expand-file-name "archive-contents"
                           package-build-archive-dir))))
-
-(defun package-build-reinitialize ()
-  "Forget any information about packages which have already been built."
-  (interactive)
-  (setq package-build--recipe-alist nil))
 
 (defun package-build-dump-archive-contents (&optional file pretty-print)
   "Dump the list of built packages to FILE.
