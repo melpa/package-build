@@ -793,10 +793,6 @@ FILES is a list of (SOURCE . DEST) relative filepath pairs."
   "Read the name of a package and return it as a string."
   (completing-read "Package: " (package-build-packages)))
 
-(defun package-build--find-source-file (target files)
-  "Search for source of TARGET in FILES."
-  (car (rassoc target files)))
-
 (defun package-build--find-package-file (name)
   "Return the most recently built archive of the package named NAME."
   (package-build--archive-file-name
@@ -969,10 +965,10 @@ in `package-build-archive-dir'."
         (let* ((pkg-dir-name (concat name "-" version))
                (pkg-tmp-dir (expand-file-name pkg-dir-name tmp-dir))
                (pkg-file (concat name "-pkg.el"))
-               (pkg-file-source (or (package-build--find-source-file pkg-file files)
+               (pkg-file-source (or (car (rassoc pkg-file files))
                                     pkg-file))
                (file-source (concat name ".el"))
-               (pkg-source (or (package-build--find-source-file file-source files)
+               (pkg-source (or (car (rassoc file-source files))
                                file-source))
                (pkg-info (package-build--merge-package-info
                           (let ((default-directory source-dir))
