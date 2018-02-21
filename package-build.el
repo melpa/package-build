@@ -571,14 +571,14 @@ If PKG-INFO is nil, an empty one is created."
   (let ((entry (package-build--archive-entry rcp pkg-info type)))
     (package-build--dump entry (package-build--entry-file-name entry))))
 
-(cl-defmethod package-build-get-commit ((rcp package-git-recipe))
+(cl-defmethod package-build--get-commit ((rcp package-git-recipe))
   (ignore-errors
     (package-build--run-process-match
      "\\(.*\\)"
      (package-recipe--working-tree rcp)
      "git" "rev-parse" "HEAD")))
 
-(cl-defmethod package-build-get-commit ((rcp package-hg-recipe))) ; TODO
+(cl-defmethod package-build--get-commit ((rcp package-hg-recipe))) ; TODO
 
 (defun package-build--archive-entry (rcp pkg-info type)
   (let ((name (intern (aref pkg-info 0)))
@@ -587,7 +587,7 @@ If PKG-INFO is nil, an empty one is created."
         (version (aref pkg-info 3))
         (extras (and (> (length pkg-info) 4)
                      (aref pkg-info 4)))
-        (commit (package-build-get-commit rcp)))
+        (commit (package-build--get-commit rcp)))
     (when commit
       (push (cons :commit commit) extras))
     (cons name
