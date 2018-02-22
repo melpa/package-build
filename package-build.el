@@ -260,6 +260,11 @@ PROG is run in DIR, or if that is nil in `default-directory'."
     (re-search-forward regexp)
     (match-string-no-properties 1)))
 
+(defun package-build--process-lines (directory command &rest args)
+  (with-temp-buffer
+    (apply 'package-build--run-process directory command args)
+    (split-string (buffer-string) "\n" t)))
+
 ;;; Checkout
 ;;;; Common
 
