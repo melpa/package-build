@@ -852,16 +852,21 @@ deleted."
 (defun package-build--copy-package-files (files source-dir target-dir)
   "Copy FILES from SOURCE-DIR to TARGET-DIR.
 FILES is a list of (SOURCE . DEST) relative filepath pairs."
+  (package-build--message
+   "Copying files (->) and directories (=>)\n  from %s\n  to %s"
+   source-dir target-dir)
   (pcase-dolist (`(,src . ,dst) files)
-    (setq src (expand-file-name src source-dir))
-    (setq dst (expand-file-name dst target-dir))
-    (make-directory (file-name-directory dst) t)
-    (cond ((file-regular-p src)
-           (package-build--message "%s -> %s" src dst)
-           (copy-file src dst))
-          ((file-directory-p src)
-           (package-build--message "%s => %s" src dst)
-           (copy-directory src dst)))))
+    (let ((src* (expand-file-name src source-dir))
+          (dst* (expand-file-name dst target-dir)))
+      (make-directory (file-name-directory dst*) t)
+      (cond ((file-regular-p src*)
+             (package-build--message
+              "  %s %s -> %s" (if (equal src dst) " " "!") src dst)
+             (copy-file src* dst*))
+            ((file-directory-p src*)
+             (package-build--message
+              "  %s %s => %s" (if (equal src dst) " " "!") src dst)
+             (copy-directory src* dst*))))))
 
 (defun package-build--package-name-completing-read ()
   "Read the name of a package and return it as a string."
