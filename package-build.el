@@ -261,6 +261,7 @@ is used instead."
 ;;;; Common
 
 (cl-defmethod package-build--checkout :before ((rcp package-recipe))
+  (package-build--message "Package: %s" (oref rcp name))
   (package-build--message "Fetcher: %s"
                           (substring (symbol-name (eieio-object-class rcp))
                                      8 -7))
@@ -867,7 +868,6 @@ FILES is a list of (SOURCE . DEST) relative filepath pairs."
     (unless (file-exists-p package-build-archive-dir)
       (package-build--message "Creating directory %s" package-build-archive-dir)
       (make-directory package-build-archive-dir))
-    (package-build--message "\n;;; %s\n" name)
     (let ((default-directory package-build-working-dir)
           (version (package-build--checkout rcp)))
       (if (package-build--up-to-date-p name version)
