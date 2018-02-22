@@ -361,7 +361,6 @@ is used instead."
   "Write DATA to FILE as a Lisp sexp.
 Optionally PRETTY-PRINT the data."
   (with-temp-file file
-    (package-build--message "File: %s" file)
     (if pretty-print
         (pp data (current-buffer))
       (print data (current-buffer)))))
