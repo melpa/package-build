@@ -84,7 +84,6 @@
         (save-buffer)
       (error "Aborting")))
   (check-parens)
-  (package-build-reinitialize)
   (let ((name (file-name-nondirectory (buffer-file-name))))
     (package-build-archive name t)
     (let ((output-buffer-name "*package-build-result*"))

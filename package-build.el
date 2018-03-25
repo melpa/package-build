@@ -129,10 +129,6 @@ The string in the capture group should be parsed as valid by `version-to-list'."
 
 ;;; Internal Variables
 
-(defvar package-build--recipe-alist nil
-  "Internal list of package recipes.
-Use function `package-build-recipe-alist' instead of this variable.")
-
 (defvar package-build--archive-alist nil
   "Internal list of already-built packages, in the standard package.el format.
 Use function `package-build-archive-alist' instead of this variable.")
@@ -609,86 +605,6 @@ of the same-named package which is to be kept."
     (when (file-exists-p file)
       (delete-file file))))
 
-;;; Recipes
-
-(defun package-build-recipe-alist ()
-  "Return the list of available package recipes."
-  (or package-build--recipe-alist
-      (setq package-build--recipe-alist
-            (package-build--read-recipes-ignore-errors))))
-
-(defun package-build-packages ()
-  "Return the list of the names of available packages."
-  (mapcar #'car (package-build-recipe-alist)))
-
-(defun package-build-reinitialize ()
-  "Forget any information about packages which have already been built."
-  (interactive)
-  (setq package-build--recipe-alist nil))
-
-(defun package-build--read-recipe (name)
-  "Return the recipe of the package named NAME as a list.
-It performs some basic checks on the recipe to ensure that known
-keys have values of the right types, and raises an error if that
-is the not the case.  If invalid combinations of keys are
-supplied then errors will only be caught when an attempt is made
-to build the recipe."
-  (let* ((file (expand-file-name name package-build-recipes-dir))
-         (recipe (and (file-exists-p file)
-                      (with-temp-buffer
-                        (insert-file-contents file)
-                        (read (current-buffer)))))
-         (ident (car recipe))
-         (plist (cdr recipe)))
-    (cl-assert ident)
-    (cl-assert (symbolp ident))
-    (cl-assert (string= (symbol-name ident) name)
-               nil "Recipe '%s' contains mismatched package name '%s'"
-               name ident)
-    (cl-assert plist)
-    (let* ((symbol-keys '(:fetcher))
-           (string-keys '(:url :repo :commit :branch :version-regexp))
-           (list-keys '(:files :old-names))
-           (all-keys (append symbol-keys string-keys list-keys)))
-      (dolist (thing plist)
-        (when (keywordp thing)
-          (cl-assert (memq thing all-keys) nil "Unknown keyword %S" thing)))
-      (let ((fetcher (plist-get plist :fetcher)))
-        (cl-assert fetcher nil ":fetcher is missing")
-        (if (memq fetcher '(github gitlab bitbucket))
-            (progn
-              (cl-assert (plist-get plist :repo) ":repo is missing")
-              (cl-assert (not (plist-get plist :url)) ":url is redundant"))
-          (cl-assert (plist-get plist :url) ":url is missing")))
-      (dolist (key symbol-keys)
-        (let ((val (plist-get plist key)))
-          (when val
-            (cl-assert (symbolp val) nil "%s must be a symbol but is %S" key val))))
-      (dolist (key list-keys)
-        (let ((val (plist-get plist key)))
-          (when val
-            (cl-assert (listp val) nil "%s must be a list but is %S" key val))))
-      (dolist (key string-keys)
-        (let ((val (plist-get plist key)))
-          (when val
-            (cl-assert (stringp val) nil "%s must be a string but is %S" key val)))))
-    recipe))
-
-(defun package-build--read-recipes ()
-  "Return a list of data structures for all recipes."
-  (mapcar #'package-build--read-recipe
-          (directory-files package-build-recipes-dir nil "^[^.]")))
-
-(defun package-build--read-recipes-ignore-errors ()
-  "Return a list of data structures for all recipes."
-  (cl-mapcan (lambda (name)
-               (condition-case err
-                   (list (package-build--read-recipe name))
-                 (error (package-build--message "Error reading recipe %s: %s"
-                                                name (error-message-string err))
-                        nil)))
-             (directory-files package-build-recipes-dir nil "^[^.]")))
-
 ;;; File Specs
 
 (defun package-build-expand-file-specs (dir specs &optional subdir allow-empty)
@@ -816,8 +732,8 @@ FILES is a list of (SOURCE . DEST) relative filepath pairs."
              (copy-directory src* dst*))))))
 
 (defun package-build--package-name-completing-read ()
-  "Read the name of a package and return it as a string."
-  (completing-read "Package: " (package-build-packages)))
+  "Read the name of a package for which a recipe is available."
+  (completing-read "Package: " (package-recipe-recipes)))
 
 (defun package-build--find-package-file (name)
   "Return the most recently built archive of the package named NAME."
@@ -870,21 +786,6 @@ FILES is a list of (SOURCE . DEST) relative filepath pairs."
       (list name version)))
   (when dump-archive-contents
     (package-build-dump-archive-contents)))
-
-(defun package-build-archive-ignore-errors (name)
-  "Build archive for the package named NAME, ignoring any errors."
-  (interactive (list (package-build--package-name-completing-read)))
-  (let* ((debug-on-error t)
-         (debug-on-signal t)
-         (package-build--debugger-return nil)
-         (debugger (lambda (&rest args)
-                     (setq package-build--debugger-return
-                           (with-output-to-string (backtrace))))))
-    (condition-case err
-        (package-build-archive name)
-      (error
-       (package-build--message "%s" (error-message-string err))
-       nil))))
 
 ;;;###autoload
 (defun package-build--package (rcp version)
@@ -991,26 +892,41 @@ in `package-build-archive-dir'."
 
 ;;;###autoload
 (defun package-build-all ()
-  "Build all packages in the `package-build-recipe-alist'."
+  "Build a package for each of the available recipes."
   (interactive)
-  (let ((failed (cl-loop for pkg in (package-build-packages)
-                         when (not (package-build-archive-ignore-errors pkg))
-                         collect pkg)))
-    (if (not failed)
-        (princ "\nSuccessfully Compiled All Packages\n")
-      (princ "\nFailed to Build the Following Packages\n")
-      (princ (mapconcat #'symbol-name failed "\n"))
-      (princ "\n")))
+  (let* ((recipes (package-recipe-recipes))
+         (total (length recipes))
+         (success 0)
+         invalid failed)
+    (dolist (name recipes)
+      (let ((rcp (with-demoted-errors (package-recipe-lookup name))))
+        (if rcp
+            (if (with-demoted-errors (package-build-archive rcp))
+                (cl-incf success)
+              (push name failed))
+          (push name invalid))))
+    (if (not (or invalid failed))
+        (message "Successfully built all %s packages" total)
+      (message
+       (concat
+        (format "Successfully built %i of %s packages" success total)
+        (and invalid
+             (format "Did not built packages for %i invalid recipes:\n%s"
+                     (length invalid)
+                     (mapconcat (lambda (n) (concat "  " n)) invalid "\n")))
+        (and failed
+             (format "Building %i packages failed:\n%s"
+                     (length failed)
+                     (mapconcat (lambda (n) (concat "  " n)) invalid "\n")))))))
   (package-build-cleanup))
 
 (defun package-build-cleanup ()
   "Remove previously built packages that no longer have recipes."
   (interactive)
-  (let* ((known-package-names (package-build-packages))
-         (stale-archives (cl-loop for built in (package-build--archive-entries)
-                                  when (not (memq (car built) known-package-names))
-                                  collect built)))
-    (mapc 'package-build--remove-archive-files stale-archives)
+  (let ((recipes (package-recipe-recipes)))
+    (dolist (built (package-build--archive-entries))
+      (unless (memq (car built) recipes)
+        (package-build--remove-archive-files built)))
     (package-build-dump-archive-contents)))
 
 ;;; Archive
@@ -1060,7 +976,16 @@ If FILE-NAME is not specified, the default archive-contents file is used."
   "Dump the recipe list to FILE as json."
   (interactive)
   (with-temp-file file
-    (insert (json-encode (package-build-recipe-alist)))))
+    (insert
+     (json-encode
+      (cl-mapcan (lambda (name)
+                   (condition-case nil
+                       ;; Filter out invalid recipes.
+                       (when (with-demoted-errors (package-recipe-lookup name))
+                         (with-temp-buffer
+                           (insert-file-contents file)
+                           (list (read (current-buffer)))))))
+                 (package-recipe-recipes))))))
 
 (defun package-build--pkg-info-for-json (info)
   "Convert INFO into a data structure which will serialize to JSON in the desired shape."
