@@ -859,7 +859,7 @@ FILES is a list of (SOURCE . DEST) relative filepath pairs."
           (version (package-build--checkout rcp)))
       (if (package-build--up-to-date-p name version)
           (package-build--message "Package %s is up to date - skipping." name)
-        (package-build-package rcp version)
+        (package-build--package rcp version)
         (when package-build-write-melpa-badge-images
           (package-build--write-melpa-badge-image
            name version package-build-archive-dir))
@@ -885,7 +885,7 @@ FILES is a list of (SOURCE . DEST) relative filepath pairs."
        nil))))
 
 ;;;###autoload
-(defun package-build-package (rcp version)
+(defun package-build--package (rcp version)
   "Create version VERSION of the package specified by RCP.
 Return the archive entry for the package and store the package
 in `package-build-archive-dir'."
