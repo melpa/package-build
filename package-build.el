@@ -152,13 +152,6 @@ Otherwise do nothing."
   (when package-build-verbose
     (apply 'message format-string args)))
 
-(defun package-build--slurp-file (file)
-  "Return the contents of FILE as a string, or nil if no such file exists."
-  (when (file-exists-p file)
-    (with-temp-buffer
-      (insert-file-contents file)
-      (buffer-substring-no-properties (point-min) (point-max)))))
-
 (defun package-build--string-rtrim (str)
   "Remove trailing whitespace from `STR'."
   (replace-regexp-in-string "[ \t\n\r]+$" "" str))
@@ -367,11 +360,6 @@ Optionally PRETTY-PRINT the data."
         (pp data (current-buffer))
       (print data (current-buffer)))))
 
-(defun package-build--read-from-file (file)
-  "Read and return the Lisp data stored in FILE, or nil if no such file exists."
-  (when (file-exists-p file)
-    (car (read-from-string (package-build--slurp-file file)))))
-
 ;;; Various Files
 
 (defun package-build--write-pkg-file (pkg-file pkg-info)
@@ -527,7 +515,9 @@ and a cl struct in Emacs HEAD.  This wrapper normalises the results."
 (defun package-build--get-pkg-file-info (file-path)
   "Get a vector of package info from \"-pkg.el\" file FILE-PATH."
   (when (file-exists-p file-path)
-    (let ((package-def (package-build--read-from-file file-path)))
+    (let ((package-def (with-temp-buffer
+                         (insert-file-contents file-path)
+                         (read (current-buffer)))))
       (if (eq 'define-package (car package-def))
           (let* ((pkgfile-info (cdr package-def))
                  (descr (nth 2 pkgfile-info))
@@ -652,8 +642,11 @@ keys have values of the right types, and raises an error if that
 is the not the case.  If invalid combinations of keys are
 supplied then errors will only be caught when an attempt is made
 to build the recipe."
-  (let* ((recipe (package-build--read-from-file
-                  (expand-file-name name package-build-recipes-dir)))
+  (let* ((file (expand-file-name name package-build-recipes-dir))
+         (recipe (and (file-exists-p file)
+                      (with-temp-buffer
+                        (insert-file-contents file)
+                        (read (current-buffer)))))
          (ident (car recipe))
          (plist (cdr recipe)))
     (cl-assert ident)
@@ -1031,9 +1024,11 @@ in `package-build-archive-dir'."
 
 (defun package-build-archive-alist ()
   "Return the archive list."
-  (cdr (package-build--read-from-file
-        (expand-file-name "archive-contents"
-                          package-build-archive-dir))))
+  (let ((file (expand-file-name "archive-contents" package-build-archive-dir)))
+    (and (file-exists-p file)
+         (with-temp-buffer
+           (insert-file-contents file)
+           (cdr (read (current-buffer)))))))
 
 (defun package-build-dump-archive-contents (&optional file pretty-print)
   "Dump the list of built packages to FILE.
@@ -1048,7 +1043,10 @@ If FILE-NAME is not specified, the default archive-contents file is used."
 (defun package-build--archive-entries ()
   "Read all .entry files from the archive directory and return a list of all entries."
   (let ((entries '()))
-    (dolist (new (mapcar 'package-build--read-from-file
+    (dolist (new (mapcar (lambda (file)
+                           (with-temp-buffer
+                             (insert-file-contents file)
+                             (read (current-buffer))))
                          (directory-files package-build-archive-dir t
                                           ".*\.entry$"))
                  entries)
