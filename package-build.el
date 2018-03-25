@@ -1002,7 +1002,7 @@ in `package-build-archive-dir'."
   (package-build-cleanup))
 
 (defun package-build-cleanup ()
-  "Remove previously-built packages that no longer have recipes."
+  "Remove previously built packages that no longer have recipes."
   (interactive)
   (let* ((known-package-names (package-build-packages))
          (stale-archives (cl-loop for built in (package-build--archive-entries)
