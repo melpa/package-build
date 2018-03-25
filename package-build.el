@@ -959,8 +959,7 @@ in `package-build-archive-dir'."
        name))
     (package-build--write-archive-entry rcp pkg-info 'single)))
 
-(defun package-build--build-multi-file-package
-    (rcp version files source-dir)
+(defun package-build--build-multi-file-package (rcp version files source-dir)
   (let* ((name (oref rcp name))
          (tmp-dir (file-name-as-directory (make-temp-file name t))))
     (unwind-protect
