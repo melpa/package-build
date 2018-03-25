@@ -350,16 +350,6 @@ is used instead."
                                     (package-recipe--working-tree rcp)
                                     "hg" "paths"))
 
-;;; File Utilities
-
-(defun package-build--dump (data file &optional pretty-print)
-  "Write DATA to FILE as a Lisp sexp.
-Optionally PRETTY-PRINT the data."
-  (with-temp-file file
-    (if pretty-print
-        (pp data (current-buffer))
-      (print data (current-buffer)))))
-
 ;;; Various Files
 
 (defun package-build--write-pkg-file (pkg-file pkg-info)
@@ -560,7 +550,8 @@ If PKG-INFO is nil, an empty one is created."
 
 (defun package-build--write-archive-entry (rcp pkg-info type)
   (let ((entry (package-build--archive-entry rcp pkg-info type)))
-    (package-build--dump entry (package-build--entry-file-name entry))))
+    (with-temp-file (package-build--entry-file-name entry)
+      (print entry (current-buffer)))))
 
 (defmethod package-build--get-commit ((rcp package-git-recipe))
   (ignore-errors
@@ -1034,11 +1025,12 @@ in `package-build-archive-dir'."
   "Dump the list of built packages to FILE.
 
 If FILE-NAME is not specified, the default archive-contents file is used."
-  (package-build--dump (cons 1 (package-build--archive-entries))
-                       (or file
-                           (expand-file-name "archive-contents"
-                                             package-build-archive-dir))
-                       pretty-print))
+  (with-temp-file
+      (or file (expand-file-name "archive-contents" package-build-archive-dir))
+    (let ((data (cons 1 (package-build--archive-entries))))
+      (if pretty-print
+          (pp data (current-buffer))
+        (print data (current-buffer))))))
 
 (defun package-build--archive-entries ()
   "Read all .entry files from the archive directory and return a list of all entries."
