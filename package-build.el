@@ -847,9 +847,9 @@ FILES is a list of (SOURCE . DEST) relative filepath pairs."
 ;;; Building
 
 ;;;###autoload
-(defun package-build-archive (name)
+(defun package-build-archive (name &optional dump-archive-contents)
   "Build a package archive for the package named NAME."
-  (interactive (list (package-build--package-name-completing-read)))
+  (interactive (list (package-build--package-name-completing-read) t))
   (let ((start-time (current-time))
         (rcp (package-recipe-lookup name)))
     (unless (file-exists-p package-build-archive-dir)
@@ -867,7 +867,9 @@ FILES is a list of (SOURCE . DEST) relative filepath pairs."
                                 name
                                 (float-time (time-since start-time))
                                 (current-time-string)))
-      (list name version))))
+      (list name version)))
+  (when dump-archive-contents
+    (package-build-dump-archive-contents)))
 
 (defun package-build-archive-ignore-errors (name)
   "Build archive for the package named NAME, ignoring any errors."

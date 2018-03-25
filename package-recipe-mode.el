@@ -86,8 +86,7 @@
   (check-parens)
   (package-build-reinitialize)
   (let ((name (file-name-nondirectory (buffer-file-name))))
-    (package-build-archive name)
-    (package-build-dump-archive-contents)
+    (package-build-archive name t)
     (let ((output-buffer-name "*package-build-result*"))
       (with-output-to-temp-buffer output-buffer-name
         (princ ";; Please check the following package descriptor.\n")
