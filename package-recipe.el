@@ -64,11 +64,11 @@
                  :name name args))
       (error "Cannot find valid recipe for package %s" name))))
 
-(cl-defmethod package-recipe--working-tree ((rcp package-recipe))
+(defmethod package-recipe--working-tree ((rcp package-recipe))
   (file-name-as-directory
    (expand-file-name (oref rcp name) package-build-working-dir)))
 
-(cl-defmethod package-recipe--upstream-url ((rcp package-recipe))
+(defmethod package-recipe--upstream-url ((rcp package-recipe))
   (or (oref rcp url)
       (format (oref rcp url-format)
               (oref rcp repo))))

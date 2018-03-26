@@ -260,7 +260,7 @@ is used instead."
 ;;; Checkout
 ;;;; Common
 
-(cl-defmethod package-build--checkout :before ((rcp package-recipe))
+(defmethod package-build--checkout :before ((rcp package-recipe))
   (package-build--message "Package: %s" (oref rcp name))
   (package-build--message "Fetcher: %s"
                           (substring (symbol-name (eieio-object-class rcp))
@@ -269,7 +269,7 @@ is used instead."
 
 ;;;; Git
 
-(cl-defmethod package-build--checkout ((rcp package-git-recipe))
+(defmethod package-build--checkout ((rcp package-git-recipe))
   (let ((dir (package-recipe--working-tree rcp))
         (url (package-recipe--upstream-url rcp)))
     (cond
@@ -297,7 +297,7 @@ is used instead."
                    (package-build--expand-source-file-list rcp)))
        (oref rcp tag-regexp)))))
 
-(cl-defmethod package-build--checkout-1 ((rcp package-git-recipe) &optional rev)
+(defmethod package-build--checkout-1 ((rcp package-git-recipe) &optional rev)
   (let ((dir (package-recipe--working-tree rcp)))
     (unless rev
       (setq rev (or (oref rcp commit)
@@ -313,13 +313,13 @@ is used instead."
     (package-build--run-process dir nil "git" "submodule" "update"
                                 "--init" "--recursive")))
 
-(cl-defmethod package-build--used-url ((rcp package-git-recipe))
+(defmethod package-build--used-url ((rcp package-git-recipe))
   (let ((default-directory (package-recipe--working-tree rcp)))
     (car (process-lines "git" "config" "remote.origin.url"))))
 
 ;;;; Hg
 
-(cl-defmethod package-build--checkout ((rcp package-hg-recipe))
+(defmethod package-build--checkout ((rcp package-hg-recipe))
   (let ((dir (package-recipe--working-tree rcp))
         (url (package-recipe--upstream-url rcp)))
     (cond
@@ -351,7 +351,7 @@ is used instead."
                    (package-build--expand-source-file-list rcp)))
        (oref rcp tag-regexp)))))
 
-(cl-defmethod package-build--used-url ((rcp package-hg-recipe))
+(defmethod package-build--used-url ((rcp package-hg-recipe))
   (package-build--run-process-match "default = \\(.*\\)"
                                     (package-recipe--working-tree rcp)
                                     "hg" "paths"))
@@ -571,14 +571,14 @@ If PKG-INFO is nil, an empty one is created."
   (let ((entry (package-build--archive-entry rcp pkg-info type)))
     (package-build--dump entry (package-build--entry-file-name entry))))
 
-(cl-defmethod package-build--get-commit ((rcp package-git-recipe))
+(defmethod package-build--get-commit ((rcp package-git-recipe))
   (ignore-errors
     (package-build--run-process-match
      "\\(.*\\)"
      (package-recipe--working-tree rcp)
      "git" "rev-parse" "HEAD")))
 
-(cl-defmethod package-build--get-commit ((rcp package-hg-recipe))) ; TODO
+(defmethod package-build--get-commit ((rcp package-hg-recipe))) ; TODO
 
 (defun package-build--archive-entry (rcp pkg-info type)
   (let ((name (intern (aref pkg-info 0)))
