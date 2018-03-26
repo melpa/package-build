@@ -415,12 +415,8 @@ is used instead."
       (delete-trailing-whitespace)
       (let ((coding-system-for-write buffer-file-coding-system))
         (write-region nil nil
-                      (package-build--readme-file-name target-dir file-name))))))
-
-(defun package-build--readme-file-name (target-dir file-name)
-  "Name of the readme file in TARGET-DIR for the package FILE-NAME."
-  (expand-file-name (concat file-name "-readme.txt")
-                    target-dir))
+                      (expand-file-name (concat file-name "-readme.txt")
+                                        target-dir))))))
 
 ;;; Entries
 
