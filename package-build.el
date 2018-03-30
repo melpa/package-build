@@ -135,12 +135,6 @@ Otherwise do nothing."
   (when package-build-verbose
     (apply 'message format-string args)))
 
-(defun package-build--trim (str &optional chr)
-  "Return a copy of STR without any trailing CHR (or space if unspecified)."
-  (if (equal (elt str (1- (length str))) (or chr ? ))
-      (substring str 0 (1- (length str)))
-    str))
-
 ;;; Version Handling
 
 (defun package-build--parse-time (str &optional regexp)
