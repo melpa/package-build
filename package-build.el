@@ -129,10 +129,6 @@ The string in the capture group should be parsed as valid by `version-to-list'."
 
 ;;; Internal Variables
 
-(defvar package-build--archive-alist nil
-  "Internal list of already-built packages, in the standard package.el format.
-Use function `package-build-archive-alist' instead of this variable.")
-
 (defconst package-build-default-files-spec
   '("*.el" "*.el.in" "dir"
     "*.info" "*.texi" "*.texinfo"
