@@ -519,7 +519,7 @@ If PKG-INFO is nil, an empty one is created."
 
 (defun package-build--write-archive-entry (rcp pkg-info type)
   (let ((entry (package-build--archive-entry rcp pkg-info type)))
-    (with-temp-file (package-build--entry-file-name entry)
+    (with-temp-file (package-build--archive-entry-file entry)
       (print entry (current-buffer)))))
 
 (defmethod package-build--get-commit ((rcp package-git-recipe))
@@ -558,7 +558,7 @@ If PKG-INFO is nil, an empty one is created."
      (format "%s-%s.%s" name version (if (eq flavour 'single) "el" "tar"))
      package-build-archive-dir)))
 
-(defun package-build--entry-file-name (archive-entry)
+(defun package-build--archive-entry-file (archive-entry)
   "Return the path of the file in which the package for ARCHIVE-ENTRY is stored."
   (let* ((name (car archive-entry))
          (pkg-info (cdr archive-entry))
@@ -929,7 +929,7 @@ artifacts, and return a list of the up-to-date archive entries."
           (let ((file (package-build--artifact-file old)))
             (when (file-exists-p file)
               (delete-file file)))
-          (let ((file (package-build--entry-file-name old)))
+          (let ((file (package-build--archive-entry-file old)))
             (when (file-exists-p file)
               (delete-file file)))
           (setq entries (remove old entries)))
