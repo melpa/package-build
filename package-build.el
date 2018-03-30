@@ -567,17 +567,6 @@ If PKG-INFO is nil, an empty one is created."
      (format "%s-%s.entry" name version)
      package-build-archive-dir)))
 
-(defun package-build--remove-archive-files (archive-entry)
-  "Remove ARCHIVE-ENTRY from archive-contents, and delete associated file.
-Note that the working directory (if present) is not deleted by
-this function, since the archive list may contain another version
-of the same-named package which is to be kept."
-  (package-build--message "Removing archive: %s" archive-entry)
-  (dolist (file (list (package-build--archive-file-name archive-entry)
-                      (package-build--entry-file-name archive-entry)))
-    (when (file-exists-p file)
-      (delete-file file))))
-
 ;;; File Specs
 
 (defconst package-build-default-files-spec
@@ -899,11 +888,8 @@ in `package-build-archive-dir'."
 (defun package-build-cleanup ()
   "Remove previously built packages that no longer have recipes."
   (interactive)
-  (let ((recipes (package-recipe-recipes)))
-    (dolist (built (package-build--archive-entries))
-      (unless (memq (car built) recipes)
-        (package-build--remove-archive-files built)))
-    (package-build-dump-archive-contents)))
+  (package-build--archive-entries)
+  (package-build-dump-archive-contents))
 
 ;;; Archive
 
@@ -927,8 +913,10 @@ If FILE-NAME is not specified, the default archive-contents file is used."
         (print data (current-buffer))))))
 
 (defun package-build--archive-entries ()
-  "Read all .entry files from the archive directory and return a list of all entries."
-  (let ((entries '()))
+  "Return up-to-date archive list.
+Read archive entry files, remove obsolete entry files and
+artifacts, and return a list of the up-to-date archive entries."
+  (let (entries)
     (dolist (new (mapcar (lambda (file)
                            (with-temp-buffer
                              (insert-file-contents file)
@@ -942,7 +930,13 @@ If FILE-NAME is not specified, the default archive-contents file is used."
                                 (elt (cdr old) 0))
             ;; swap old and new
             (cl-rotatef old new))
-          (package-build--remove-archive-files old)
+          (package-build--message "Removing archive: %s" old)
+          (let ((file (package-build--archive-file-name old)))
+            (when (file-exists-p file)
+              (delete-file file)))
+          (let ((file (package-build--entry-file-name old)))
+            (when (file-exists-p file)
+              (delete-file file)))
           (setq entries (remove old entries)))
         (add-to-list 'entries new)))))
 
