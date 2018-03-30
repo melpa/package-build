@@ -92,6 +92,10 @@
   "Return a list of the names of packages with available recipes."
   (directory-files package-build-recipes-dir nil "^[^.]"))
 
+(defun package-recipe-read-name ()
+  "Read the name of a package for which a recipe is available."
+  (completing-read "Package: " (package-recipe-recipes)))
+
 (defun package-recipe-lookup (name)
   "Return a recipe object for the package named NAME.
 If no such recipe file exists or if the contents of the recipe

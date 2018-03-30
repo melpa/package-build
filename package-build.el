@@ -711,10 +711,6 @@ FILES is a list of (SOURCE . DEST) relative filepath pairs."
               "  %s %s => %s" (if (equal src dst) " " "!") src dst)
              (copy-directory src* dst*))))))
 
-(defun package-build--package-name-completing-read ()
-  "Read the name of a package for which a recipe is available."
-  (completing-read "Package: " (package-recipe-recipes)))
-
 (defun package-build--find-package-file (name)
   "Return the most recently built archive of the package named NAME."
   (package-build--archive-file-name
@@ -745,7 +741,7 @@ FILES is a list of (SOURCE . DEST) relative filepath pairs."
 ;;;###autoload
 (defun package-build-archive (name &optional dump-archive-contents)
   "Build a package archive for the package named NAME."
-  (interactive (list (package-build--package-name-completing-read) t))
+  (interactive (list (package-recipe-read-name) t))
   (let ((start-time (current-time))
         (rcp (package-recipe-lookup name)))
     (unless (file-exists-p package-build-archive-dir)
