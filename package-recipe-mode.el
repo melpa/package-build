@@ -96,7 +96,9 @@
         (emacs-lisp-mode)
         (view-mode)))
     (when (yes-or-no-p "Install new package? ")
-      (package-install-file (package-build--find-package-file name)))))
+      (package-install-file
+       (package-build--archive-file-name
+        (assq (intern name) (package-build-archive-alist)))))))
 
 (provide 'package-recipe-mode)
 

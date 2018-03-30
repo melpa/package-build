@@ -700,11 +700,6 @@ FILES is a list of (SOURCE . DEST) relative filepath pairs."
               "  %s %s => %s" (if (equal src dst) " " "!") src dst)
              (copy-directory src* dst*))))))
 
-(defun package-build--find-package-file (name)
-  "Return the most recently built archive of the package named NAME."
-  (package-build--archive-file-name
-   (assq (intern name) (package-build-archive-alist))))
-
 (defconst package-build--this-file load-file-name)
 
 ;; TODO: This function should be fairly sound, but it has a few
