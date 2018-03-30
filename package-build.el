@@ -548,7 +548,7 @@ If PKG-INFO is nil, an empty one is created."
                   type
                   extras))))
 
-(defun package-build--archive-file-name (archive-entry)
+(defun package-build--artifact-file (archive-entry)
   "Return the path of the file in which the package for ARCHIVE-ENTRY is stored."
   (let* ((name (car archive-entry))
          (pkg-info (cdr archive-entry))
@@ -926,7 +926,7 @@ artifacts, and return a list of the up-to-date archive entries."
             ;; swap old and new
             (cl-rotatef old new))
           (package-build--message "Removing archive: %s" old)
-          (let ((file (package-build--archive-file-name old)))
+          (let ((file (package-build--artifact-file old)))
             (when (file-exists-p file)
               (delete-file file)))
           (let ((file (package-build--entry-file-name old)))

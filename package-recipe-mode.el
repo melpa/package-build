@@ -97,7 +97,7 @@
         (view-mode)))
     (when (yes-or-no-p "Install new package? ")
       (package-install-file
-       (package-build--archive-file-name
+       (package-build--artifact-file
         (assq (intern name) (package-build-archive-alist)))))))
 
 (provide 'package-recipe-mode)
