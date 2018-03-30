@@ -135,10 +135,6 @@ Otherwise do nothing."
   (when package-build-verbose
     (apply 'message format-string args)))
 
-(defun package-build--string-rtrim (str)
-  "Remove trailing whitespace from `STR'."
-  (replace-regexp-in-string "[ \t\n\r]+$" "" str))
-
 (defun package-build--trim (str &optional chr)
   "Return a copy of STR without any trailing CHR (or space if unspecified)."
   (if (equal (elt str (1- (length str))) (or chr ? ))
