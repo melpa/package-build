@@ -127,15 +127,6 @@ The string in the capture group should be parsed as valid by `version-to-list'."
   :group 'package-build
   :type 'string)
 
-;;; Internal Variables
-
-(defconst package-build-default-files-spec
-  '("*.el" "*.el.in" "dir"
-    "*.info" "*.texi" "*.texinfo"
-    "doc/dir" "doc/*.info" "doc/*.texi" "doc/*.texinfo"
-    (:exclude ".dir-locals.el" "test.el" "tests.el" "*-test.el" "*-tests.el"))
-  "Default value for :files attribute in recipes.")
-
 ;;; Generic Utilities
 
 (defun package-build--message (format-string &rest args)
@@ -598,6 +589,13 @@ of the same-named package which is to be kept."
       (delete-file file))))
 
 ;;; File Specs
+
+(defconst package-build-default-files-spec
+  '("*.el" "*.el.in" "dir"
+    "*.info" "*.texi" "*.texinfo"
+    "doc/dir" "doc/*.info" "doc/*.texi" "doc/*.texinfo"
+    (:exclude ".dir-locals.el" "test.el" "tests.el" "*-test.el" "*-tests.el"))
+  "Default value for :files attribute in recipes.")
 
 (defun package-build-expand-file-specs (dir specs &optional subdir allow-empty)
   "In DIR, expand SPECS, optionally under SUBDIR.
