@@ -263,7 +263,7 @@ is used instead."
 (defmethod package-build--checkout :before ((rcp package-recipe))
   (package-build--message "Package: %s" (oref rcp name))
   (package-build--message "Fetcher: %s"
-                          (substring (symbol-name (eieio-object-class rcp))
+                          (substring (symbol-name (object-class-fast rcp))
                                      8 -7))
   (package-build--message "Source:  %s\n" (package-recipe--upstream-url rcp)))
 
