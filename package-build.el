@@ -229,7 +229,11 @@ is used instead."
 (defmethod package-build--checkout :before ((rcp package-recipe))
   (package-build--message "Package: %s" (oref rcp name))
   (package-build--message "Fetcher: %s"
-                          (substring (symbol-name (object-class-fast rcp))
+                          (substring (symbol-name
+                                      (with-no-warnings
+                                        ;; Use eieio-object-class once we
+                                        ;; no longer support Emacs 24.3.
+                                        (object-class-fast rcp)))
                                      8 -7))
   (package-build--message "Source:  %s\n" (package-recipe--upstream-url rcp)))
 
