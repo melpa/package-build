@@ -776,6 +776,17 @@ in `package-build-archive-dir'."
        rcp version files source-dir))
      (t (error "Unable to find files matching recipe patterns")))))
 
+(define-obsolete-function-alias 'package-build-package 'package-build--package
+  "Package-Build 2.0.
+
+The purpose of this alias is to get Cask working again.
+
+This alias is only a temporary kludge and is going to be removed
+again.  It will likely be replaced by a function with the same
+name but a different signature.
+
+Do not use this alias elsewhere.")
+
 (defun package-build--build-single-file-package (rcp version file source-dir)
   (let* ((name (oref rcp name))
          (pkg-source (expand-file-name file source-dir))
