@@ -549,8 +549,7 @@ If PKG-INFO is nil, an empty one is created."
           (vector (version-to-list version)
                   requires
                   desc
-                  type
-                  extras))))
+                  type))))
 
 (defun package-build--artifact-file (archive-entry)
   "Return the path of the file in which the package for ARCHIVE-ENTRY is stored."
