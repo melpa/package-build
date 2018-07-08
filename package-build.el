@@ -454,7 +454,6 @@ and a cl struct in Emacs HEAD.  This wrapper normalises the results."
     (if (fboundp 'package-desc-create)
         (let ((extras (package-desc-extras desc)))
           (when (and keywords (not (assq :keywords extras)))
-            ;; Add keywords to package properties, if not already present
             (push (cons :keywords keywords) extras))
           (vector (package-desc-name desc)
                   (package-desc-reqs desc)
