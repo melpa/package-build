@@ -549,7 +549,8 @@ If PKG-INFO is nil, an empty one is created."
           (vector (version-to-list version)
                   requires
                   desc
-                  type))))
+                  type
+                  extras))))
 
 (defun package-build--artifact-file (archive-entry)
   "Return the path of the file in which the package for ARCHIVE-ENTRY is stored."
@@ -988,7 +989,23 @@ artifacts, and return a list of the up-to-date archive entries."
   "Return the archive alist in a form suitable for JSON encoding."
   (cl-mapcan (lambda (entry)
                (list (intern (format ":%s" (car entry)))
-                     (package-build--pkg-info-for-json (cdr entry))))
+                     (let* ((info (cdr entry))
+                            (extra (aref info 4))
+                            (maintainer (assq :maintainer extra))
+                            (authors (assq :authors extra)))
+                       (when maintainer
+                         (setcdr maintainer
+                                 (format "%s <%s>"
+                                         (cadr maintainer)
+                                         (cddr maintainer))))
+                       (when authors
+                         (setcdr authors
+                                 (mapcar (lambda (author)
+                                           (format "%s <%s>"
+                                                   (car author)
+                                                   (cdr author)))
+                                         (cdr authors))))
+                       (package-build--pkg-info-for-json info))))
              (package-build-archive-alist)))
 
 (defun package-build-archive-alist-as-json (file)
