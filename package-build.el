@@ -461,12 +461,8 @@ and a cl struct in Emacs HEAD.  This wrapper normalises the results."
                   (package-desc-summary desc)
                   (package-desc-version desc)
                   extras))
-      ;; The regexp and the processing is taken from `lm-homepage' in Emacs 24.4
-      (let* ((page (lm-header "\\(?:x-\\)?\\(?:homepage\\|url\\)"))
-             (homepage (if (and page (string-match "^<.+>$" page))
-                           (substring page 1 -1)
-                         page))
-             extras)
+      (let ((homepage (package-build--lm-homepage))
+            extras)
         (when keywords (push (cons :keywords keywords) extras))
         (when homepage (push (cons :url homepage) extras))
         (vector  (aref desc 0)
@@ -1007,6 +1003,19 @@ artifacts, and return a list of the up-to-date archive entries."
   "Dump the build packages list to FILE as json."
   (with-temp-file file
     (insert (json-encode (package-build--archive-alist-for-json)))))
+
+;;; Backports
+
+(defun package-build--lm-homepage (&optional file)
+  "Return the homepage in file FILE, or current buffer if FILE is nil.
+This is a copy of `lm-homepage', which first appeared in Emacs 24.4."
+  (let ((page (lm-with-file file
+		(lm-header "\\(?:x-\\)?\\(?:homepage\\|url\\)"))))
+    (if (and page (string-match "^<.+>$" page))
+	(substring page 1 -1)
+      page)))
+
+;;; _
 
 (provide 'package-build)
 
