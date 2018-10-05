@@ -853,7 +853,7 @@ Do not use this alias elsewhere.")
     (dolist (name recipes)
       (let ((rcp (with-demoted-errors (package-recipe-lookup name))))
         (if rcp
-            (if (with-demoted-errors (package-build-archive rcp))
+            (if (with-demoted-errors (package-build-archive name))
                 (cl-incf success)
               (push name failed))
           (push name invalid))))
