@@ -896,13 +896,24 @@ Do not use this alias elsewhere.")
 (defun package-build-dump-archive-contents (&optional file pretty-print)
   "Dump the list of built packages to FILE.
 
-If FILE-NAME is not specified, the default archive-contents file is used."
+If FILE-NAME is not specified, the default archive-contents file is used.
+
+When PRETTY-PRINT is non-nil, fully pretty-print the output.
+This can be very slow when the list of known packages is extremely long."
   (with-temp-file
       (or file (expand-file-name "archive-contents" package-build-archive-dir))
-    (let ((data (cons 1 (package-build--archive-entries))))
+    (let ((entries (package-build--archive-entries))
+          ;; Avoid truncation
+          print-level
+          print-length)
       (if pretty-print
-          (pp data (current-buffer))
-        (print data (current-buffer))))))
+          (pp (cons 1 entries) (current-buffer))
+        ;; Pseudo-pretty-printing, placing each entry on one line
+        (insert "(1")
+        (dolist (entry entries)
+          (newline)
+          (prin1 entry (current-buffer)))
+        (insert ")")))))
 
 (defun package-build--archive-entries ()
   "Return up-to-date archive list.
