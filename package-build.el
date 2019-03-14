@@ -246,7 +246,7 @@ is used instead."
      ((and (file-exists-p (expand-file-name ".git" dir))
            (string-equal (package-build--used-url rcp) url))
       (package-build--message "Updating %s" dir)
-      (package-build--run-process dir nil "git" "fetch" "--all" "--tags"))
+      (package-build--run-process dir nil "git" "fetch" "-f" "--all" "--tags"))
      (t
       (when (file-exists-p dir)
         (delete-directory dir t))
@@ -1009,9 +1009,9 @@ artifacts, and return a list of the up-to-date archive entries."
   "Return the homepage in file FILE, or current buffer if FILE is nil.
 This is a copy of `lm-homepage', which first appeared in Emacs 24.4."
   (let ((page (lm-with-file file
-		(lm-header "\\(?:x-\\)?\\(?:homepage\\|url\\)"))))
+                            (lm-header "\\(?:x-\\)?\\(?:homepage\\|url\\)"))))
     (if (and page (string-match "^<.+>$" page))
-	(substring page 1 -1)
+        (substring page 1 -1)
       page)))
 
 ;;; _
