@@ -86,24 +86,23 @@
   :group 'package-build
   :type 'boolean)
 
-(defcustom package-build-timeout-executable
-  (let ((prog (or (executable-find "timeout")
-                  (executable-find "gtimeout"))))
-    (when (and prog
-               (string-match-p "^ *-k"
-                               (shell-command-to-string (concat prog " --help"))))
-      prog))
+(defcustom package-build-timeout-executable "timeout"
   "Path to a GNU coreutils \"timeout\" command if available.
-This must be a version which supports the \"-k\" option."
+This must be a version which supports the \"-k\" option.
+
+On MacOS it is possible to install coreutils using Homebrew or
+similar, which will provide the GNU timeout program as
+\"gtimeout\"."
   :group 'package-build
   :type '(file :must-match t))
 
-(defcustom package-build-timeout-secs 600
+(defcustom package-build-timeout-secs nil
   "Wait this many seconds for external processes to complete.
 
 If an external process takes longer than specified here to
-complete, then it is terminated.  This only has an effect
-if `package-build-timeout-executable' is non-nil."
+complete, then it is terminated.  If nil, then no time limit is
+applied.  This setting requires
+`package-build-timeout-executable' to be set."
   :group 'package-build
   :type 'number)
 
@@ -195,7 +194,7 @@ is used instead."
             (file-name-as-directory (or directory default-directory)))
           (argv (nconc (unless (eq system-type 'windows-nt)
                          (list "env" "LC_ALL=C"))
-                       (if package-build-timeout-executable
+                       (if (and package-build-timeout-secs package-build-timeout-executable)
                            (nconc (list package-build-timeout-executable
                                         "-k" "60" (number-to-string
                                                    package-build-timeout-secs)
