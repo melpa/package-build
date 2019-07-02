@@ -86,17 +86,21 @@
   :group 'package-build
   :type 'boolean)
 
-(defcustom package-build-timeout-executable
-  (let ((prog (or (executable-find "timeout")
-                  (executable-find "gtimeout"))))
-    (when (and prog
-               (string-match-p "^ *-k"
-                               (shell-command-to-string (concat prog " --help"))))
-      prog))
+(defcustom package-build-timeout-executable nil
   "Path to a GNU coreutils \"timeout\" command if available.
-This must be a version which supports the \"-k\" option."
+This must be a version which supports the \"-k\" option.
+
+Use the function `package-build-timeout-executable' to access
+this variable."
   :group 'package-build
-  :type '(file :must-match t))
+  :type `(radio
+          ,@(cl-remove-if-not
+             #'identity
+             (list
+              (when (executable-find "timeout") `(const ,(executable-find "timeout") ))
+              (when (executable-find "gtimeout") `(const ,(executable-find "gtimeout") ))))
+          (file :must-match t)
+          (const :tag "Do not use timeout" nil)))
 
 (defcustom package-build-timeout-secs 600
   "Wait this many seconds for external processes to complete.
@@ -186,6 +190,30 @@ is used instead."
 
 ;;; Run Process
 
+(defvar package-build--timeout-executable-cached nil
+  "Cached path to timeout executable.")
+
+(defun package-build-timeout-executable ()
+  "Return timeout executable.
+
+If the defcustom `package-build-timeout-executable' is set,
+respect it.  Otherwise try to guess the executable.
+
+The result is cached for efficiency as the test can take
+considerable time. "
+  ;; respect nil if explicitly set
+  (if (eq nil package-build-timeout-executable)
+      package-build-timeout-executable
+    (setq package-build--timeout-executable-cached
+          (or package-build--timeout-executable-cached
+              (let ((prog (or package-build-timeout-executable
+                              (executable-find "timeout")
+                              (executable-find "gtimeout"))))
+                (when (and prog
+                           (string-match-p "^ *-k"
+                                           (shell-command-to-string (concat prog " --help"))))
+                  prog))))))
+
 (defun package-build--run-process (directory destination command &rest args)
   (with-current-buffer
       (if (eq destination t)
@@ -195,8 +223,8 @@ is used instead."
             (file-name-as-directory (or directory default-directory)))
           (argv (nconc (unless (eq system-type 'windows-nt)
                          (list "env" "LC_ALL=C"))
-                       (if package-build-timeout-executable
-                           (nconc (list package-build-timeout-executable
+                       (if (package-build-timeout-executable)
+                           (nconc (list (package-build-timeout-executable)
                                         "-k" "60" (number-to-string
                                                    package-build-timeout-secs)
                                         command)
