@@ -106,11 +106,13 @@ applied.  This setting requires
   :group 'package-build
   :type 'number)
 
-(defcustom package-build-tar-executable
-  (or (executable-find "gtar")
-      (executable-find "tar"))
+(defcustom package-build-tar-executable "tar"
   "Path to a (preferably GNU) tar command.
-Certain package names (e.g. \"@\") may not work properly with a BSD tar."
+Certain package names (e.g. \"@\") may not work properly with a BSD tar.
+
+On MacOS it is possible to install coreutils using Homebrew or
+similar, which will provide the GNU timeout program as
+\"gtar\"."
   :group 'package-build
   :type '(file :must-match t))
 
