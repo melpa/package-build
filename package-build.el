@@ -854,23 +854,21 @@ Do not use this alias elsewhere.")
     (dolist (name recipes)
       (let ((rcp (with-demoted-errors (package-recipe-lookup name))))
         (if rcp
-            (if (with-demoted-errors (package-build-archive name))
+            (if (with-demoted-errors (package-build-archive name) t)
                 (cl-incf success)
               (push name failed))
           (push name invalid))))
     (if (not (or invalid failed))
         (message "Successfully built all %s packages" total)
-      (message
-       (concat
-        (format "Successfully built %i of %s packages" success total)
-        (and invalid
-             (format "Did not built packages for %i invalid recipes:\n%s"
-                     (length invalid)
-                     (mapconcat (lambda (n) (concat "  " n)) invalid "\n")))
-        (and failed
-             (format "Building %i packages failed:\n%s"
-                     (length failed)
-                     (mapconcat (lambda (n) (concat "  " n)) invalid "\n")))))))
+      (message "Successfully built %i of %s packages" success total)
+      (when invalid
+        (message "Did not built packages for %i invalid recipes:\n%s"
+                 (length invalid)
+                 (mapconcat (lambda (n) (concat "  " n)) invalid "\n")))
+      (when failed
+        (message "Building %i packages failed:\n%s"
+                 (length failed)
+                 (mapconcat (lambda (n) (concat "  " n)) failed "\n")))))
   (package-build-cleanup))
 
 (defun package-build-cleanup ()
