@@ -39,9 +39,17 @@ loaddefs: $(PKG)-autoloads.el
 
 CLEAN  = $(ELCS) $(PKG)-autoloads.el
 
-clean:
+clean: test-clean
 	@printf "Cleaning...\n"
 	@rm -rf $(CLEAN)
+
+test-clean:
+	@rm -rf tests/test-deps.dir
+
+test: test-clean test-deps
+
+test-deps:
+	$(EMACS) -Q --batch -L . -L tests -l tests/test-deps.el -f ert-run-tests-batch-and-exit
 
 define LOADDEFS_TMPL
 ;;; $(PKG)-autoloads.el --- automatically extracted autoloads

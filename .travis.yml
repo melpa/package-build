@@ -1,0 +1,37 @@
+sudo: false
+
+addons:
+  apt:
+    packages:
+    - gnutls-bin
+    - sharutils
+    - git
+
+cache:
+  directories:
+  - $HOME/.cask
+  - $HOME/.cache/pip
+  - $HOME/.evm
+  - $HOME/.emacs.d
+  - $HOME/Library/Caches/Homebrew
+  - $HOME/.pyenv
+
+matrix:
+  include:
+    - env: EVM_EMACS=emacs-25.1-travis
+    - env: EVM_EMACS=emacs-26.2-travis
+
+before_script:
+  - |
+    if [ -d $HOME/.evm ]; then
+      (cd $HOME/.evm ; git pull origin master)
+    else
+      git clone https://github.com/rejeep/evm.git $HOME/.evm
+    fi
+  - export PATH=$HOME/.evm/bin:$PATH
+  - evm config path /tmp
+  - evm install $EVM_EMACS --use --skip
+  - emacs --version
+
+script:
+  - make test
