@@ -953,7 +953,11 @@ artifacts, and return a list of the up-to-date archive entries."
                 (with-temp-buffer
                   (insert-file-contents
                    (expand-file-name name package-build-recipes-dir))
-                  (list (read (current-buffer)))))))
+                  (let ((exp (read (current-buffer))))
+                    (when (plist-member (cdr exp) :files)
+                      (plist-put (cdr exp) :files
+                                 (format "%S" (plist-get (cdr exp) :files))))
+                    (list exp))))))
        (package-recipe-recipes))))))
 
 (defun package-build--pkg-info-for-json (info)
