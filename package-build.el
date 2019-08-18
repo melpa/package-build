@@ -946,15 +946,15 @@ artifacts, and return a list of the up-to-date archive entries."
   (with-temp-file file
     (insert
      (json-encode
-      (cl-mapcan (lambda (name)
-                   (condition-case nil
-                       ;; Filter out invalid recipes.
-                       (when (with-demoted-errors (package-recipe-lookup name))
-                         (with-temp-buffer
-                           (insert-file-contents
-                            (expand-file-name name package-build-recipes-dir))
-                           (list (read (current-buffer)))))))
-                 (package-recipe-recipes))))))
+      (cl-mapcan
+       (lambda (name)
+         (ignore-errors ; Silently ignore corrupted recipes.
+           (and (package-recipe-lookup name)
+                (with-temp-buffer
+                  (insert-file-contents
+                   (expand-file-name name package-build-recipes-dir))
+                  (list (read (current-buffer)))))))
+       (package-recipe-recipes))))))
 
 (defun package-build--pkg-info-for-json (info)
   "Convert INFO into a data structure which will serialize to JSON in the desired shape."
