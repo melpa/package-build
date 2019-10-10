@@ -996,10 +996,9 @@ artifacts, and return a list of the up-to-date archive entries."
                          (when maintainer
                            (setcdr maintainer
                                    (format-person (cdr maintainer))))
-                         (if (and authors (cl-every #'listp authors))
-                             (setcdr authors
-                                     (mapcar #'format-person (cdr authors)))
-                           (setcdr authors nil))
+                         (when authors
+                           (setcdr authors
+                                   (mapcar #'format-person (cdr authors))))
                          (package-build--pkg-info-for-json info))))
                (package-build-archive-alist))))
 
@@ -1014,7 +1013,7 @@ artifacts, and return a list of the up-to-date archive entries."
   "Return the homepage in file FILE, or current buffer if FILE is nil.
 This is a copy of `lm-homepage', which first appeared in Emacs 24.4."
   (let ((page (lm-with-file file
-                (lm-header "\\(?:x-\\)?\\(?:homepage\\|url\\)"))))
+                            (lm-header "\\(?:x-\\)?\\(?:homepage\\|url\\)"))))
     (if (and page (string-match "^<.+>$" page))
         (substring page 1 -1)
       page)))
