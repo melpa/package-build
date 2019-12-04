@@ -362,8 +362,6 @@ is used instead."
 
 (defun package-build--create-tar (file dir &optional files)
   "Create a tar FILE containing the contents of DIR, or just FILES if non-nil."
-  (when (eq system-type 'windows-nt)
-    (setq file (replace-regexp-in-string "^\\([a-z]\\):" "/\\1" file)))
   (apply 'process-file
          package-build-tar-executable nil
          (get-buffer-create "*package-build-checkout*")
