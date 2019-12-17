@@ -8,7 +8,7 @@
 ;; Author: Donald Ephraim Curtis <dcurtis@milkbox.net>
 ;; Keywords: tools
 ;; Homepage: https://github.com/melpa/package-build
-;; Package-Requires: ((cl-lib "0.5") (emacs "24.1"))
+;; Package-Requires: ((cl-lib "0.5") (emacs "25.1"))
 ;; Package-Version: 0-git
 
 ;; This file is not (yet) part of GNU Emacs.
@@ -231,7 +231,7 @@ is used instead."
 ;;; Checkout
 ;;;; Common
 
-(defmethod package-build--checkout :before ((rcp package-recipe))
+(cl-defmethod package-build--checkout :before ((rcp package-recipe))
   (package-build--message "Package: %s" (oref rcp name))
   (package-build--message "Fetcher: %s"
                           (substring (symbol-name
@@ -244,7 +244,7 @@ is used instead."
 
 ;;;; Git
 
-(defmethod package-build--checkout ((rcp package-git-recipe))
+(cl-defmethod package-build--checkout ((rcp package-git-recipe))
   (let ((dir (package-recipe--working-tree rcp))
         (url (package-recipe--upstream-url rcp)))
     (cond
@@ -273,7 +273,7 @@ is used instead."
                    (package-build--expand-source-file-list rcp)))
        (oref rcp tag-regexp)))))
 
-(defmethod package-build--checkout-1 ((rcp package-git-recipe) &optional rev)
+(cl-defmethod package-build--checkout-1 ((rcp package-git-recipe) &optional rev)
   (let ((dir (package-recipe--working-tree rcp)))
     (unless rev
       (setq rev (or (oref rcp commit)
@@ -289,13 +289,13 @@ is used instead."
     (package-build--run-process dir nil "git" "submodule" "update"
                                 "--init" "--recursive")))
 
-(defmethod package-build--used-url ((rcp package-git-recipe))
+(cl-defmethod package-build--used-url ((rcp package-git-recipe))
   (let ((default-directory (package-recipe--working-tree rcp)))
     (car (process-lines "git" "config" "remote.origin.url"))))
 
 ;;;; Hg
 
-(defmethod package-build--checkout ((rcp package-hg-recipe))
+(cl-defmethod package-build--checkout ((rcp package-hg-recipe))
   (let ((dir (package-recipe--working-tree rcp))
         (url (package-recipe--upstream-url rcp)))
     (cond
@@ -327,7 +327,7 @@ is used instead."
                    (package-build--expand-source-file-list rcp)))
        (oref rcp tag-regexp)))))
 
-(defmethod package-build--used-url ((rcp package-hg-recipe))
+(cl-defmethod package-build--used-url ((rcp package-hg-recipe))
   (package-build--run-process-match "default = \\(.*\\)"
                                     (package-recipe--working-tree rcp)
                                     "hg" "paths"))
@@ -535,14 +535,14 @@ is included, a corresponding :commit metadata value is included."
     (with-temp-file (package-build--archive-entry-file entry)
       (print entry (current-buffer)))))
 
-(defmethod package-build--get-commit ((rcp package-git-recipe))
+(cl-defmethod package-build--get-commit ((rcp package-git-recipe))
   (ignore-errors
     (package-build--run-process-match
      "\\(.*\\)"
      (package-recipe--working-tree rcp)
      "git" "rev-parse" "HEAD")))
 
-(defmethod package-build--get-commit ((rcp package-hg-recipe))
+(cl-defmethod package-build--get-commit ((rcp package-hg-recipe))
   (ignore-errors
     (package-build--run-process-match
      "changeset:[[:space:]]+[[:digit:]]+:\\([[:xdigit:]]+\\)"
