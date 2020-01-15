@@ -880,7 +880,7 @@ Do not use this alias elsewhere.")
 ;;; Archive
 
 (defun package-build-archive-alist ()
-  "Return the archive list."
+  "Return the archive contents, without updating it first."
   (let ((file (expand-file-name "archive-contents" package-build-archive-dir)))
     (and (file-exists-p file)
          (with-temp-buffer
@@ -888,31 +888,12 @@ Do not use this alias elsewhere.")
            (cdr (read (current-buffer)))))))
 
 (defun package-build-dump-archive-contents (&optional file pretty-print)
-  "Dump the list of built packages to FILE.
+  "Update and return the archive contents.
 
-If FILE-NAME is not specified, the default archive-contents file is used.
-
-When PRETTY-PRINT is non-nil, fully pretty-print the output.
-This can be very slow when the list of known packages is extremely long."
-  (with-temp-file
-      (or file (expand-file-name "archive-contents" package-build-archive-dir))
-    (let ((entries (package-build--archive-entries))
-          ;; Avoid truncation
-          print-level
-          print-length)
-      (if pretty-print
-          (pp (cons 1 entries) (current-buffer))
-        (insert "(1")
-        (dolist (entry entries)
-          (newline)
-          (insert " ")
-          (prin1 entry (current-buffer)))
-        (insert ")")))))
-
-(defun package-build--archive-entries ()
-  "Return up-to-date archive list.
-Read archive entry files, remove obsolete entry files and
-artifacts, and return a list of the up-to-date archive entries."
+If non-nil, then store the archive contents in FILE instead of in
+the \"archive-contents\" file inside `package-build-archive-dir'.
+If PRETTY-PRINT is non-nil, then pretty-print insted of using one
+line per entry."
   (let (entries)
     (dolist (file (directory-files package-build-archive-dir t ".*\.entry$"))
       (let* ((entry (with-temp-buffer
@@ -930,7 +911,23 @@ artifacts, and return a list of the up-to-date archive entries."
             (package-build--remove-archive-files entry)
             (setq entries (remove other-entry entries)))
           (add-to-list 'entries entry))))
-    (nreverse entries)))
+    (setq entries (nreverse entries))
+    (with-temp-file
+        (or file
+            (expand-file-name "archive-contents" package-build-archive-dir))
+      (let ((print-level nil)
+            (print-length nil))
+        (if pretty-print
+            (pp (cons 1 entries) (current-buffer))
+          (insert "(1")
+          (dolist (entry entries)
+            (newline)
+            (insert " ")
+            (prin1 entry (current-buffer)))
+          (insert ")"))))
+    entries))
+
+(defalias 'package-build--archive-entries 'package-build-dump-archive-contents)
 
 (defun package-build--remove-archive-files (archive-entry)
   "Remove the entry and archive file for ARCHIVE-ENTRY."
