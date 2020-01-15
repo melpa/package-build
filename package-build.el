@@ -915,28 +915,27 @@ This can be very slow when the list of known packages is extremely long."
 Read archive entry files, remove obsolete entry files and
 artifacts, and return a list of the up-to-date archive entries."
   (let (entries)
-    (dolist (new (mapcar (lambda (file)
-                           (with-temp-buffer
-                             (insert-file-contents file)
-                             (read (current-buffer))))
-                         (directory-files package-build-archive-dir t
-                                          ".*\.entry$"))
-                 entries)
-      (let ((old (assq (car new) entries)))
-        (when old
-          (when (version-list-< (elt (cdr new) 0)
-                                (elt (cdr old) 0))
-            ;; swap old and new
-            (cl-rotatef old new))
-          (package-build--message "Removing archive: %s" old)
-          (let ((file (package-build--artifact-file old)))
+    (dolist (file (directory-files package-build-archive-dir t ".*\.entry$"))
+      (let* ((entry (with-temp-buffer
+                      (insert-file-contents file)
+                      (read (current-buffer))))
+             (name (car entry))
+             (other-entry (assq name entries)))
+        (when other-entry
+          (when (version-list-< (elt (cdr entry) 0)
+                                (elt (cdr other-entry) 0))
+            ;; swap other-entry and entry
+            (cl-rotatef other-entry entry))
+          (package-build--message "Removing archive: %s" other-entry)
+          (let ((file (package-build--artifact-file other-entry)))
             (when (file-exists-p file)
               (delete-file file)))
-          (let ((file (package-build--archive-entry-file old)))
+          (let ((file (package-build--archive-entry-file other-entry)))
             (when (file-exists-p file)
               (delete-file file)))
-          (setq entries (remove old entries)))
-        (add-to-list 'entries new)))))
+          (setq entries (remove other-entry entries)))
+        (add-to-list 'entries entry)))
+    entries))
 
 ;;; Exporting Data as Json
 
