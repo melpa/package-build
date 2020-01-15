@@ -903,10 +903,10 @@ This can be very slow when the list of known packages is extremely long."
           print-length)
       (if pretty-print
           (pp (cons 1 entries) (current-buffer))
-        ;; Pseudo-pretty-printing, placing each entry on one line
         (insert "(1")
         (dolist (entry entries)
           (newline)
+          (insert " ")
           (prin1 entry (current-buffer)))
         (insert ")")))))
 
