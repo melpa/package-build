@@ -935,7 +935,7 @@ artifacts, and return a list of the up-to-date archive entries."
               (delete-file file)))
           (setq entries (remove other-entry entries)))
         (add-to-list 'entries entry)))
-    entries))
+    (nreverse entries)))
 
 ;;; Exporting Data as Json
 
