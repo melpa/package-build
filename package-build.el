@@ -920,21 +920,27 @@ artifacts, and return a list of the up-to-date archive entries."
                       (read (current-buffer))))
              (name (car entry))
              (other-entry (assq name entries)))
-        (when other-entry
-          (when (version-list-< (elt (cdr entry) 0)
-                                (elt (cdr other-entry) 0))
-            ;; swap other-entry and entry
-            (cl-rotatef other-entry entry))
-          (package-build--message "Removing archive: %s" other-entry)
-          (let ((file (package-build--artifact-file other-entry)))
-            (when (file-exists-p file)
-              (delete-file file)))
-          (let ((file (package-build--archive-entry-file other-entry)))
-            (when (file-exists-p file)
-              (delete-file file)))
-          (setq entries (remove other-entry entries)))
-        (add-to-list 'entries entry)))
+        (if (not (file-exists-p (expand-file-name (symbol-name name)
+                                                  package-build-recipes-dir)))
+            (package-build--remove-archive-files entry)
+          (when other-entry
+            (when (version-list-< (elt (cdr entry) 0)
+                                  (elt (cdr other-entry) 0))
+              (cl-rotatef other-entry entry))
+            (package-build--remove-archive-files entry)
+            (setq entries (remove other-entry entries)))
+          (add-to-list 'entries entry))))
     (nreverse entries)))
+
+(defun package-build--remove-archive-files (archive-entry)
+  "Remove the entry and archive file for ARCHIVE-ENTRY."
+  (package-build--message "Removing archive: %s" archive-entry)
+  (let ((file (package-build--artifact-file archive-entry)))
+    (when (file-exists-p file)
+      (delete-file file)))
+  (let ((file (package-build--archive-entry-file archive-entry)))
+    (when (file-exists-p file)
+      (delete-file file))))
 
 ;;; Exporting Data as Json
 
