@@ -875,7 +875,6 @@ Do not use this alias elsewhere.")
 (defun package-build-cleanup ()
   "Remove previously built packages that no longer have recipes."
   (interactive)
-  (package-build--archive-entries)
   (package-build-dump-archive-contents))
 
 ;;; Archive
