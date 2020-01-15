@@ -931,7 +931,9 @@ line per entry."
 
 (defun package-build--remove-archive-files (archive-entry)
   "Remove the entry and archive file for ARCHIVE-ENTRY."
-  (package-build--message "Removing archive: %s" archive-entry)
+  (package-build--message "Removing archive: %s-%s"
+                          (car archive-entry)
+                          (package-version-join (aref (cdr archive-entry) 0)))
   (let ((file (package-build--artifact-file archive-entry)))
     (when (file-exists-p file)
       (delete-file file)))
