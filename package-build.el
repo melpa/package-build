@@ -8,7 +8,7 @@
 ;; Created: 2011-09-30
 ;; Version: 0.1
 ;; Keywords: tools
-;; Package-Requires: ((cl-lib "0.5"))
+;; Package-Requires: ((cl-lib "0.5") (emacs "24.1"))
 
 ;; This file is not (yet) part of GNU Emacs.
 ;; However, it is distributed under the same license.
