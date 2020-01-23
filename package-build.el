@@ -405,11 +405,14 @@ is used instead."
 
 ;;; Entries
 
-(defun package-build--update-or-insert-version (version)
-  "Ensure current buffer has a \"Package-Version: VERSION\" header."
+(defun package-build--update-or-insert-header (name value)
+  "Ensure current buffer has NAME header with the given VALUE.
+Any existing header will be preserved and given the \"X-Original-\" prefix.
+If VALUE is nil, the new header will not be inserted, but any original will
+still be renamed."
   (goto-char (point-min))
   (if (let ((case-fold-search t))
-        (re-search-forward "^;+* *Package-Version *: *" nil t))
+        (re-search-forward (concat "^;+* *" (regexp-quote name)  " *: *") nil t))
       (progn
         (move-beginning-of-line nil)
         (search-forward "V" nil t)
@@ -420,7 +423,7 @@ is used instead."
     (re-search-forward "^;+* *\\(Version\\|Package-Requires\\|Keywords\\|URL\\) *:"
                        nil t)
     (forward-line))
-  (insert (format ";; Package-Version: %s" version))
+  (insert (format ";; %s: %s" name value))
   (newline))
 
 (defun package-build--ensure-ends-here-line (file-path)
@@ -444,7 +447,7 @@ is used instead."
         (insert-file-contents file-path)
         ;; next few lines are a hack for some packages that aren't
         ;; commented properly.
-        (package-build--update-or-insert-version "0")
+        (package-build--update-or-insert-header "Package-Version" "0")
         (package-build--ensure-ends-here-line file-path)
         (cl-flet ((package-strip-rcs-id (str) "0"))
           (package-build--package-buffer-info-vec))))))
@@ -790,7 +793,8 @@ Do not use this alias elsewhere.")
     (let ((enable-local-variables nil)
           (make-backup-files nil))
       (with-current-buffer (find-file pkg-target)
-        (package-build--update-or-insert-version version)
+        (package-build--update-or-insert-header "Package-Commit" commit)
+        (package-build--update-or-insert-header "Package-Version" version)
         (package-build--ensure-ends-here-line pkg-source)
         (write-file pkg-target nil)
         (condition-case err
