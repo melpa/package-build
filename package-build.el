@@ -6,8 +6,6 @@
 ;; Copyright (C) 2009 Phil Hagelberg <technomancy@gmail.com>
 
 ;; Author: Donald Ephraim Curtis <dcurtis@milkbox.net>
-;; Created: 2011-09-30
-;; Version: 0.1
 ;; Keywords: tools
 ;; Package-Requires: ((cl-lib "0.5") (emacs "24.1"))
 
