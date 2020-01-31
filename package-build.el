@@ -612,14 +612,13 @@ for ALLOW-EMPTY to prevent this error."
                           t)))
               (nconc
                lst (mapcar (lambda (f)
-                             (let ((destname)))
                              (cons f
                                    (concat prefix
                                            (replace-regexp-in-string
                                             "\\.el\\.in\\'"
                                             ".el"
                                             (file-name-nondirectory f)))))
-                           (file-expand-wildcards entry))))))
+                           (file-expand-wildcards (concat prefix entry)))))))
     (when (and (null lst) (not allow-empty))
       (error "No matching file(s) found in %s: %s" dir specs))
     lst))
