@@ -9,6 +9,7 @@
 ;; Keywords: tools
 ;; Homepage: https://github.com/melpa/package-build
 ;; Package-Requires: ((cl-lib "0.5") (emacs "24.1"))
+;; Package-Version: 0-git
 
 ;; This file is not (yet) part of GNU Emacs.
 ;; However, it is distributed under the same license.
