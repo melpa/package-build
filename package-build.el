@@ -7,6 +7,7 @@
 
 ;; Author: Donald Ephraim Curtis <dcurtis@milkbox.net>
 ;; Keywords: tools
+;; Homepage: https://github.com/melpa/package-build
 ;; Package-Requires: ((cl-lib "0.5") (emacs "24.1"))
 
 ;; This file is not (yet) part of GNU Emacs.
@@ -457,7 +458,10 @@ still be renamed."
 and a cl struct in Emacs HEAD.  This wrapper normalises the results."
   (let ((desc (package-buffer-info))
         (keywords (lm-keywords-list)))
-    (if (fboundp 'package-desc-create)
+    (if (and (fboundp 'package-desc-name)
+             (fboundp 'package-desc-extras)
+             (fboundp 'package-desc-summary)
+             (fboundp 'package-desc-version))
         (let ((extras (package-desc-extras desc)))
           (when (and keywords (not (assq :keywords extras)))
             (push (cons :keywords keywords) extras))
@@ -515,7 +519,8 @@ and a cl struct in Emacs HEAD.  This wrapper normalises the results."
 
 (defun package-build--merge-package-info (pkg-info name version commit)
   "Return a version of PKG-INFO updated with NAME, VERSION and info from CONFIG.
-If PKG-INFO is nil, an empty one is created."
+If PKG-INFO is nil, an empty one is created.  If a COMMIT string
+is included, a corresponding :commit metadata value is included."
   (let ((merged (or (copy-sequence pkg-info)
                     (vector name nil "No description available." version nil))))
     (aset merged 0 name)
