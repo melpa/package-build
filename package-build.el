@@ -905,7 +905,7 @@ Do not use this alias elsewhere.")
 
 If non-nil, then store the archive contents in FILE instead of in
 the \"archive-contents\" file inside `package-build-archive-dir'.
-If PRETTY-PRINT is non-nil, then pretty-print insted of using one
+If PRETTY-PRINT is non-nil, then pretty-print instead of using one
 line per entry."
   (let (entries)
     (dolist (file (directory-files package-build-archive-dir t ".*\.entry$"))
