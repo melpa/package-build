@@ -52,8 +52,16 @@
   :abstract t)
 
 (defmethod package-recipe--working-tree ((rcp package-recipe))
-  (file-name-as-directory
-   (expand-file-name (oref rcp name) package-build-working-dir)))
+  (let* ((url (package-recipe--upstream-url rcp))
+         (basedir (s-replace ":" "" url))
+         (basedir (s-replace "//" "/" basedir)))
+    (file-name-as-directory
+     ;; Not using (oref rcp name) as
+     ;; multiple clone or checkout of same repository, in case multiple
+     ;; packages are from same repository
+
+     ;; (expand-file-name (oref rcp name) package-build-working-dir)
+     (expand-file-name basedir package-build-working-dir))))
 
 (defmethod package-recipe--upstream-url ((rcp package-recipe))
   (or (oref rcp url)
