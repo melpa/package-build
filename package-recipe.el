@@ -35,7 +35,7 @@
 
 ;;; Classes
 
-(defclass package-recipe ()
+(cl-defclass package-recipe ()
   ((url-format      :allocation :class       :initform nil)
    (repopage-format :allocation :class       :initform nil)
    (tag-regexp      :allocation :class       :initform nil)
@@ -62,22 +62,22 @@
 
 ;;;; Git
 
-(defclass package-git-recipe (package-recipe)
+(cl-defclass package-git-recipe (package-recipe)
   ((tag-regexp      :initform "\
 \\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\} \
 [0-9]\\{2\\}:[0-9]\\{2\\}:[0-9]\\{2\\}\\( [+-][0-9]\\{4\\}\\)?\\)")))
 
-(defclass package-github-recipe (package-git-recipe)
+(cl-defclass package-github-recipe (package-git-recipe)
   ((url-format      :initform "https://github.com/%s.git")
    (repopage-format :initform "https://github.com/%s")))
 
-(defclass package-gitlab-recipe (package-git-recipe)
+(cl-defclass package-gitlab-recipe (package-git-recipe)
   ((url-format      :initform "https://gitlab.com/%s.git")
    (repopage-format :initform "https://gitlab.com/%s")))
 
 ;;;; Mercurial
 
-(defclass package-hg-recipe (package-recipe)
+(cl-defclass package-hg-recipe (package-recipe)
   ((tag-regexp      :initform "\
 \\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\} \
 [0-9]\\{2\\}:[0-9]\\{2\\}\\( [+-][0-9]\\{4\\}\\)?\\)")))
