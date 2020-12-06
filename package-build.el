@@ -955,7 +955,7 @@ line per entry."
 
 (defun package-build-recipe-alist-as-json (file)
   "Dump the recipe list to FILE as json."
-  (interactive)
+  (interactive "fjson file to create: ")
   (with-temp-file file
     (insert
      (json-encode
