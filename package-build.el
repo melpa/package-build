@@ -929,8 +929,6 @@ line per entry."
           (insert ")"))))
     entries))
 
-(defalias 'package-build--archive-entries 'package-build-dump-archive-contents)
-
 (defun package-build--remove-archive-files (archive-entry)
   "Remove the entry and archive file for ARCHIVE-ENTRY."
   (package-build--message "Removing archive: %s-%s"
@@ -1015,6 +1013,9 @@ line per entry."
     (insert (json-encode (package-build--archive-alist-for-json)))))
 
 ;;; _
+
+(define-obsolete-function-alias 'package-build--archive-entries
+  'package-build-dump-archive-contents "Package-Build 3.0")
 
 (provide 'package-build)
 
