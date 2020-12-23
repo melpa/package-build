@@ -477,42 +477,45 @@ and a cl struct in Emacs HEAD.  This wrapper normalises the results."
                  (aref desc 3)
                  extras)))))
 
-(defun package-build--get-pkg-file-info (file-path)
-  "Get a vector of package info from \"-pkg.el\" file FILE-PATH."
-  (when (file-exists-p file-path)
-    (let ((package-def (with-temp-buffer
-                         (insert-file-contents file-path)
-                         (read (current-buffer)))))
-      (if (eq 'define-package (car package-def))
-          (let* ((pkgfile-info (cdr package-def))
-                 (descr (nth 2 pkgfile-info))
-                 (rest-plist (cl-subseq pkgfile-info (min 4 (length pkgfile-info))))
-                 (extras (let (alist)
-                           (while rest-plist
-                             (unless (memq (car rest-plist) '(:kind :archive))
-                               (let ((value (cadr rest-plist)))
-                                 (when value
-                                   (push (cons (car rest-plist)
-                                               (if (eq (car-safe value) 'quote)
-                                                   (cadr value)
-                                                 value))
-                                         alist))))
-                             (setq rest-plist (cddr rest-plist)))
-                           alist)))
-            (when (string-match "[\r\n]" descr)
-              (error "Illegal multi-line package description in %s" file-path))
-            (vector
-             (nth 0 pkgfile-info)
-             (mapcar
-              (lambda (elt)
-                (unless (symbolp (car elt))
-                  (error "Invalid package name in dependency: %S" (car elt)))
-                (list (car elt) (version-to-list (cadr elt))))
-              (eval (nth 3 pkgfile-info)))
-             descr
-             (nth 1 pkgfile-info)
-             extras))
-        (error "No define-package found in %s" file-path)))))
+(defun package-build--get-pkg-file-info (name files)
+  (let* ((file (concat name "-pkg.el"))
+         (file (or (car (rassoc file files))
+                   file)))
+    (and (or (file-exists-p file)
+             (file-exists-p (setq file (concat file ".in"))))
+         (let ((package-def (with-temp-buffer
+                              (insert-file-contents file)
+                              (read (current-buffer)))))
+           (if (eq 'define-package (car package-def))
+               (let* ((pkgfile-info (cdr package-def))
+                      (descr (nth 2 pkgfile-info))
+                      (rest-plist (cl-subseq pkgfile-info (min 4 (length pkgfile-info))))
+                      (extras (let (alist)
+                                (while rest-plist
+                                  (unless (memq (car rest-plist) '(:kind :archive))
+                                    (let ((value (cadr rest-plist)))
+                                      (when value
+                                        (push (cons (car rest-plist)
+                                                    (if (eq (car-safe value) 'quote)
+                                                        (cadr value)
+                                                      value))
+                                              alist))))
+                                  (setq rest-plist (cddr rest-plist)))
+                                alist)))
+                 (when (string-match "[\r\n]" descr)
+                   (error "Illegal multi-line package description in %s" file))
+                 (vector
+                  (nth 0 pkgfile-info)
+                  (mapcar
+                   (lambda (elt)
+                     (unless (symbolp (car elt))
+                       (error "Invalid package name in dependency: %S" (car elt)))
+                     (list (car elt) (version-to-list (cadr elt))))
+                   (eval (nth 3 pkgfile-info)))
+                  descr
+                  (nth 1 pkgfile-info)
+                  extras))
+             (error "No define-package found in %s" file))))))
 
 (defun package-build--merge-package-info (pkg-info name version commit)
   "Return a version of PKG-INFO updated with NAME and VERSION.
@@ -767,18 +770,12 @@ in `package-build-archive-dir'."
         (let* ((pkg-dir-name (concat name "-" version))
                (pkg-tmp-dir (expand-file-name pkg-dir-name tmp-dir))
                (pkg-file (concat name "-pkg.el"))
-               (pkg-file-source (or (car (rassoc pkg-file files))
-                                    pkg-file))
                (file-source (concat name ".el"))
                (pkg-source (or (car (rassoc file-source files))
                                file-source))
                (pkg-info (package-build--merge-package-info
                           (let ((default-directory source-dir))
-                            (or (package-build--get-pkg-file-info pkg-file-source)
-                                ;; Some packages provide NAME-pkg.el.in
-                                (package-build--get-pkg-file-info
-                                 (expand-file-name (concat pkg-file ".in")
-                                                   (file-name-directory pkg-source)))
+                            (or (package-build--get-pkg-file-info name files)
                                 (package-build--get-package-info pkg-source)))
                           name version commit)))
           (package-build--copy-package-files files source-dir pkg-tmp-dir)
