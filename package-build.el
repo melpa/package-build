@@ -353,24 +353,28 @@ is used instead."
     (princ ";; Local Variables:\n;; no-byte-compile: t\n;; End:\n"
            (current-buffer))))
 
-(defun package-build--create-tar (file dir &optional files)
-  "Create a tar FILE containing the contents of DIR, or just FILES if non-nil."
-  (when (eq system-type 'windows-nt)
-    (setq file (replace-regexp-in-string "^\\([a-z]\\):" "/\\1" file)))
-  (apply 'process-file
-         package-build-tar-executable nil
-         (get-buffer-create "*package-build-checkout*")
-         nil "-cvf"
-         file
-         "--exclude=.git"
-         "--exclude=.hg"
-         (or (mapcar (lambda (fn) (concat dir "/" fn)) files) (list dir)))
-  (when (and package-build-verbose noninteractive)
-    (message "Created %s containing:" (file-name-nondirectory file))
-    (dolist (line (sort (process-lines package-build-tar-executable
-                                       "--list" "--file" file)
-                        #'string<))
-      (message "  %s" line))))
+(defun package-build--create-tar (name version directory &optional files)
+  "Create a tar file containing the contents of VERSION of package NAME."
+  (let ((tar (expand-file-name (concat name "-" version ".tar")
+                                package-build-archive-dir))
+        (dir (concat name "-" version)))
+    (when (eq system-type 'windows-nt)
+      (setq tar (replace-regexp-in-string "^\\([a-z]\\):" "/\\1" tar)))
+    (let ((default-directory directory))
+      (apply #'process-file
+             package-build-tar-executable nil
+             (get-buffer-create "*package-build-checkout*")
+             nil "-cvf"
+             tar
+             "--exclude=.git"
+             "--exclude=.hg"
+             (or (mapcar (lambda (file) (concat dir "/" file)) files) (list dir))))
+    (when (and package-build-verbose noninteractive)
+      (message "Created %s containing:" (file-name-nondirectory tar))
+      (dolist (line (sort (process-lines package-build-tar-executable
+                                         "--list" "--file" tar)
+                          #'string<))
+        (message "  %s" line)))))
 
 (defun package-build--find-package-commentary (file-path)
   "Get commentary section from FILE-PATH."
@@ -785,12 +789,7 @@ in `package-build-archive-dir'."
                                          pkg-info)
 
           (package-build--generate-info-files files source-dir pkg-tmp-dir)
-          (let ((default-directory tmp-dir))
-            (package-build--create-tar
-             (expand-file-name (concat name "-" version ".tar")
-                               package-build-archive-dir)
-             pkg-dir-name))
-
+          (package-build--create-tar name version tmp-dir)
           (let ((default-directory source-dir))
             (package-build--write-pkg-readme
              package-build-archive-dir
