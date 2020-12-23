@@ -41,6 +41,7 @@
 ;;; Code:
 
 (require 'cl-lib)
+(require 'pcase)
 
 (require 'package)
 (require 'lisp-mnt)
@@ -560,19 +561,17 @@ is included, a corresponding :commit metadata value is included."
 
 (defun package-build--artifact-file (archive-entry)
   "Return the path of the file in which the package for ARCHIVE-ENTRY is stored."
-  (let* ((name (car archive-entry))
-         (pkg-info (cdr archive-entry))
-         (version (package-version-join (aref pkg-info 0)))
-         (flavour (aref pkg-info 3)))
+  (pcase-let* ((`(,name . ,pkg-info) archive-entry)
+               (version (package-version-join (aref pkg-info 0)))
+               (flavour (aref pkg-info 3)))
     (expand-file-name
      (format "%s-%s.%s" name version (if (eq flavour 'single) "el" "tar"))
      package-build-archive-dir)))
 
 (defun package-build--archive-entry-file (archive-entry)
   "Return the path of the file in which the package for ARCHIVE-ENTRY is stored."
-  (let* ((name (car archive-entry))
-         (pkg-info (cdr archive-entry))
-         (version (package-version-join (aref pkg-info 0))))
+  (pcase-let* ((`(,name . ,pkg-info) archive-entry)
+               (version (package-version-join (aref pkg-info 0))))
     (expand-file-name
      (format "%s-%s.entry" name version)
      package-build-archive-dir)))
@@ -650,10 +649,8 @@ and TARGET-DIR respectively.
 
 Any of the original .texi(nfo) files found in TARGET-DIR are
 deleted."
-  (dolist (spec files)
-    (let* ((source-file (car spec))
-           (source-path (expand-file-name source-file source-dir))
-           (dest-file (cdr spec))
+  (pcase-dolist (`(,source-file . ,dest-file) files)
+    (let* ((source-path (expand-file-name source-file source-dir))
            (info-path (expand-file-name
                        (concat (file-name-sans-extension dest-file) ".info")
                        target-dir)))
@@ -670,12 +667,10 @@ deleted."
 
 (defun package-build--generate-dir-file (files target-dir)
   "Create dir file from any .info files listed in FILES in TARGET-DIR."
-  (dolist (spec files)
-    (let* ((source-file (car spec))
-           (dest-file (cdr spec))
-           (info-path (expand-file-name
-                       (concat (file-name-sans-extension dest-file) ".info")
-                       target-dir)))
+  (pcase-dolist (`(,source-file . ,dest-file) files)
+    (let ((info-path (expand-file-name
+                      (concat (file-name-sans-extension dest-file) ".info")
+                      target-dir)))
       (when (and (or (string-match ".info$" source-file)
                      (string-match ".texi\\(nfo\\)?$" source-file))
                  (file-exists-p info-path))
@@ -694,11 +689,9 @@ FILES is a list of (SOURCE . DEST) relative filepath pairs."
   (package-build--message
    "Copying files (->) and directories (=>)\n  from %s\n  to %s"
    source-dir target-dir)
-  (dolist (elt files)
-    (let* ((src  (car elt))
-           (dst  (cdr elt))
-           (src* (expand-file-name src source-dir))
-           (dst* (expand-file-name dst target-dir)))
+  (pcase-dolist (`(,src . ,dst) files)
+    (let ((src* (expand-file-name src source-dir))
+          (dst* (expand-file-name dst target-dir)))
       (make-directory (file-name-directory dst*) t)
       (cond ((file-regular-p src*)
              (package-build--message
