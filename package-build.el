@@ -436,26 +436,25 @@ still be renamed."
         (newline)))))
 
 (defun package-build--desc-from-library (file)
-  "Get a vector of package info from the docstrings in FILE."
-  (when (file-exists-p file)
-    (ignore-errors
-      (with-temp-buffer
-        (insert-file-contents file)
-        ;; next few lines are a hack for some packages that aren't
-        ;; commented properly.
-        (package-build--update-or-insert-header "Package-Version" "0")
-        (package-build--ensure-ends-here-line file)
-        (cl-flet ((package-strip-rcs-id (str) "0"))
-          (let* ((desc (package-buffer-info))
-                 (keywords (lm-keywords-list))
-                 (extras (package-desc-extras desc)))
-            (when (and keywords (not (assq :keywords extras)))
-              (push (cons :keywords keywords) extras))
-            (vector (package-desc-name desc)
-                    (package-desc-reqs desc)
-                    (package-desc-summary desc)
-                    (package-desc-version desc)
-                    extras)))))))
+  (and (file-exists-p file)
+       (ignore-errors
+         (with-temp-buffer
+           (insert-file-contents file)
+           ;; next few lines are a hack for some packages that aren't
+           ;; commented properly.
+           (package-build--update-or-insert-header "Package-Version" "0")
+           (package-build--ensure-ends-here-line file)
+           (cl-flet ((package-strip-rcs-id (str) "0"))
+             (let* ((desc (package-buffer-info))
+                    (keywords (lm-keywords-list))
+                    (extras (package-desc-extras desc)))
+               (when (and keywords (not (assq :keywords extras)))
+                 (push (cons :keywords keywords) extras))
+               (vector (package-desc-name desc)
+                       (package-desc-reqs desc)
+                       (package-desc-summary desc)
+                       (package-desc-version desc)
+                       extras)))))))
 
 (defun package-build--desc-from-package (name files)
   (let* ((file (concat name "-pkg.el"))
