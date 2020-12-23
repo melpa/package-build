@@ -385,9 +385,7 @@ is used instead."
   (when-let ((commentary
               (let ((file (expand-file-name (concat name ".el") directory)))
                 (and (file-exists-p file)
-                     (with-temp-buffer
-                       (insert-file-contents file)
-                       (lm-commentary))))))
+                     (lm-commentary file)))))
     (with-temp-buffer
       (insert commentary)
       ;; Adapted from `describe-package-1'.
