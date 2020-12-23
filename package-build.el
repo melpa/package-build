@@ -330,9 +330,9 @@ is used instead."
 
 ;;; Various Files
 
-(defun package-build--write-pkg-file (pkg-file pkg-info)
+(defun package-build--write-pkg-file (pkg-info dir)
   "Write PKG-FILE containing PKG-INFO."
-  (with-temp-file pkg-file
+  (with-temp-file (expand-file-name (aref pkg-info 0) dir)
     (pp
      `(define-package
         ,(aref pkg-info 0)
@@ -764,7 +764,6 @@ in `package-build-archive-dir'."
          (tmp-dir (file-name-as-directory (make-temp-file name t))))
     (unwind-protect
         (let* ((pkg-tmp-dir (expand-file-name (concat name "-" version) tmp-dir))
-               (pkg-file (concat name "-pkg.el"))
                (file-source (concat name ".el"))
                (pkg-source (or (car (rassoc file-source files))
                                file-source))
@@ -774,11 +773,7 @@ in `package-build-archive-dir'."
                                 (package-build--get-package-info pkg-source)))
                           name version commit)))
           (package-build--copy-package-files files source-dir pkg-tmp-dir)
-          (package-build--write-pkg-file (expand-file-name
-                                          pkg-file
-                                          (file-name-as-directory pkg-tmp-dir))
-                                         pkg-info)
-
+          (package-build--write-pkg-file pkg-info pkg-tmp-dir)
           (package-build--generate-info-files files source-dir pkg-tmp-dir)
           (package-build--create-tar name version tmp-dir)
           (package-build--write-pkg-readme name pkg-tmp-dir)
