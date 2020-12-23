@@ -366,7 +366,13 @@ is used instead."
          file
          "--exclude=.git"
          "--exclude=.hg"
-         (or (mapcar (lambda (fn) (concat dir "/" fn)) files) (list dir))))
+         (or (mapcar (lambda (fn) (concat dir "/" fn)) files) (list dir)))
+  (when (and package-build-verbose noninteractive)
+    (message "Created %s containing:" (file-name-nondirectory file))
+    (dolist (line (sort (process-lines package-build-tar-executable
+                                       "--list" "--file" file)
+                        #'string<))
+      (message "  %s" line))))
 
 (defun package-build--find-package-commentary (file-path)
   "Get commentary section from FILE-PATH."
