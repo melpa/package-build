@@ -642,44 +642,24 @@ for ALLOW-EMPTY to prevent this error."
 ;;; Info Manuals
 
 (defun package-build--generate-info-files (files source-dir target-dir)
-  "Create .info files from any .texi files listed in FILES.
-
-The source and destination file paths are expanded in SOURCE-DIR
-and TARGET-DIR respectively.
-
-Any of the original .texi(nfo) files found in TARGET-DIR are
-deleted."
-  (pcase-dolist (`(,source-file . ,dest-file) files)
-    (let* ((source-path (expand-file-name source-file source-dir))
-           (info-path (expand-file-name
-                       (concat (file-name-sans-extension dest-file) ".info")
-                       target-dir)))
-      (when (string-match ".texi\\(nfo\\)?$" source-file)
-        (unless (file-exists-p info-path)
-          (ignore-errors
-            (package-build--run-process
-             (file-name-directory source-path) nil
-             "makeinfo" source-path "-o" info-path)
-            (package-build--message "Created %s" info-path)))
-        (package-build--message "Removing %s"
-                                (expand-file-name dest-file target-dir))
-        (delete-file (expand-file-name dest-file target-dir))))))
-
-(defun package-build--generate-dir-file (files target-dir)
-  "Create dir file from any .info files listed in FILES in TARGET-DIR."
-  (pcase-dolist (`(,source-file . ,dest-file) files)
-    (let ((info-path (expand-file-name
-                      (concat (file-name-sans-extension dest-file) ".info")
-                      target-dir)))
-      (when (and (or (string-match ".info$" source-file)
-                     (string-match ".texi\\(nfo\\)?$" source-file))
-                 (file-exists-p info-path))
-        (ignore-errors
-          (package-build--run-process
-           nil nil
-           "install-info"
-           (concat "--dir=" (expand-file-name "dir" target-dir))
-           info-path))))))
+  "Create an info file for each texinfo file listed in FILES.
+Also create the info dir file.  Remove each original texinfo
+file.  The source and destination file paths are expanded in
+SOURCE-DIR and TARGET-DIR respectively."
+  (pcase-dolist (`(,src . ,tmp) files)
+    (when (member (file-name-extension tmp) '("texi" "texinfo"))
+      (setq src (expand-file-name src source-dir))
+      (setq tmp (expand-file-name tmp target-dir))
+      (unwind-protect
+          (let ((info (concat (file-name-sans-extension tmp) ".info")))
+            (unless (file-exists-p info)
+              (ignore-errors
+                (package-build--run-process
+                 source-dir nil "makeinfo" src "-o" info)
+                (package-build--run-process
+                 target-dir nil "install-info" "--dir=dir" info)
+                (package-build--message "Created %s" info))))
+        (delete-file tmp)))))
 
 ;;; Building Utilities
 
@@ -808,8 +788,6 @@ in `package-build-archive-dir'."
                                          pkg-info)
 
           (package-build--generate-info-files files source-dir pkg-tmp-dir)
-          (package-build--generate-dir-file files pkg-tmp-dir)
-
           (let ((default-directory tmp-dir))
             (package-build--create-tar
              (expand-file-name (concat name "-" version ".tar")
