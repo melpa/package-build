@@ -509,7 +509,18 @@ is included, a corresponding :commit metadata value is included."
     merged))
 
 (defun package-build--write-archive-entry (rcp desc type)
-  (let ((entry (package-build--archive-entry rcp desc type)))
+  (let ((entry (let ((name (intern (aref desc 0)))
+                     (requires (aref desc 1))
+                     (summary (or (aref desc 2) "No description available."))
+                     (version (aref desc 3))
+                     (extras (and (> (length desc) 4)
+                                  (aref desc 4))))
+                 (cons name
+                       (vector (version-to-list version)
+                               requires
+                               summary
+                               type
+                               extras)))))
     (with-temp-file (package-build--archive-entry-file entry)
       (print entry (current-buffer)))))
 
@@ -526,20 +537,6 @@ is included, a corresponding :commit metadata value is included."
      "changeset:[[:space:]]+[[:digit:]]+:\\([[:xdigit:]]+\\)"
      (package-recipe--working-tree rcp)
      "hg" "log" "--debug" "--limit=1")))
-
-(defun package-build--archive-entry (rcp desc type)
-  (let ((name (intern (aref desc 0)))
-        (requires (aref desc 1))
-        (summary (or (aref desc 2) "No description available."))
-        (version (aref desc 3))
-        (extras (and (> (length desc) 4)
-                     (aref desc 4))))
-    (cons name
-          (vector (version-to-list version)
-                  requires
-                  summary
-                  type
-                  extras))))
 
 (defun package-build--artifact-file (archive-entry)
   "Return the path of the file in which the package for ARCHIVE-ENTRY is stored."
