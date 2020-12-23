@@ -713,8 +713,6 @@ FILES is a list of (SOURCE . DEST) relative filepath pairs."
               "  %s %s => %s" (if (equal src dst) " " "!") src dst)
              (copy-directory src* dst*))))))
 
-(defconst package-build--this-file load-file-name)
-
 ;;; Building
 
 ;;;###autoload
