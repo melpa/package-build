@@ -541,23 +541,6 @@ still be renamed."
                       (package-desc-extras  desc)))
         (current-buffer))))
 
-(defun package-build--artifact-file (archive-entry)
-  "Return the path of the file in which the package for ARCHIVE-ENTRY is stored."
-  (pcase-let* ((`(,name . ,desc) archive-entry)
-               (version (package-version-join (aref desc 0)))
-               (flavour (aref desc 3)))
-    (expand-file-name
-     (format "%s-%s.%s" name version (if (eq flavour 'single) "el" "tar"))
-     package-build-archive-dir)))
-
-(defun package-build--archive-entry-file (archive-entry)
-  "Return the path of the file in which the package for ARCHIVE-ENTRY is stored."
-  (pcase-let* ((`(,name . ,desc) archive-entry)
-               (version (package-version-join (aref desc 0))))
-    (expand-file-name
-     (format "%s-%s.entry" name version)
-     package-build-archive-dir)))
-
 ;;; File Specs
 
 (defconst package-build-default-files-spec
@@ -831,6 +814,23 @@ line per entry."
   (let ((file (package-build--archive-entry-file archive-entry)))
     (when (file-exists-p file)
       (delete-file file))))
+
+(defun package-build--artifact-file (archive-entry)
+  "Return the path of the file in which the package for ARCHIVE-ENTRY is stored."
+  (pcase-let* ((`(,name . ,desc) archive-entry)
+               (version (package-version-join (aref desc 0)))
+               (flavour (aref desc 3)))
+    (expand-file-name
+     (format "%s-%s.%s" name version (if (eq flavour 'single) "el" "tar"))
+     package-build-archive-dir)))
+
+(defun package-build--archive-entry-file (archive-entry)
+  "Return the path of the file in which the package for ARCHIVE-ENTRY is stored."
+  (pcase-let* ((`(,name . ,desc) archive-entry)
+               (version (package-version-join (aref desc 0))))
+    (expand-file-name
+     (format "%s-%s.entry" name version)
+     package-build-archive-dir)))
 
 ;;; Exporting Data as Json
 
