@@ -617,7 +617,6 @@ for ALLOW-EMPTY to prevent this error."
                           t)))
               (nconc
                lst (mapcar (lambda (f)
-                             (let ((destname)))
                              (cons f
                                    (concat prefix
                                            (replace-regexp-in-string
@@ -738,8 +737,7 @@ are subsequently dumped."
       (package-build--message "Built %s in %.3fs, finished at %s"
                               name
                               (float-time (time-since start-time))
-                              (current-time-string))
-      (list name version)))
+                              (current-time-string))))
   (when dump-archive-contents
     (package-build-dump-archive-contents)))
 
