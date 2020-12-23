@@ -422,12 +422,12 @@ still be renamed."
   (insert (format ";; %s: %s" name value))
   (newline))
 
-(defun package-build--ensure-ends-here-line (file-path)
-  "Add a 'FILE-PATH ends here' trailing line if missing."
+(defun package-build--ensure-ends-here-line (file)
+  "Add a 'FILE ends here' trailing line if missing."
   (save-excursion
     (goto-char (point-min))
     (let ((trailer (concat ";;; "
-                           (file-name-nondirectory file-path)
+                           (file-name-nondirectory file)
                            " ends here")))
       (unless (search-forward trailer nil t)
         (goto-char (point-max))
@@ -435,16 +435,16 @@ still be renamed."
         (insert trailer)
         (newline)))))
 
-(defun package-build--get-package-info (file-path)
-  "Get a vector of package info from the docstrings in FILE-PATH."
-  (when (file-exists-p file-path)
+(defun package-build--get-package-info (file)
+  "Get a vector of package info from the docstrings in FILE."
+  (when (file-exists-p file)
     (ignore-errors
       (with-temp-buffer
-        (insert-file-contents file-path)
+        (insert-file-contents file)
         ;; next few lines are a hack for some packages that aren't
         ;; commented properly.
         (package-build--update-or-insert-header "Package-Version" "0")
-        (package-build--ensure-ends-here-line file-path)
+        (package-build--ensure-ends-here-line file)
         (cl-flet ((package-strip-rcs-id (str) "0"))
           (let* ((desc (package-buffer-info))
                  (keywords (lm-keywords-list))
@@ -719,45 +719,44 @@ in `package-build-archive-dir'."
 
 (defun package-build--build-single-file-package (rcp version commit file source-dir)
   (let* ((name (oref rcp name))
-         (pkg-source (expand-file-name file source-dir))
-         (pkg-target (expand-file-name (concat name "-" version ".el")
-                                       package-build-archive-dir))
+         (source (expand-file-name file source-dir))
+         (target (expand-file-name (concat name "-" version ".el")
+                                   package-build-archive-dir))
          (desc (package-build--merge-package-info
-                (package-build--get-package-info pkg-source)
+                (package-build--get-package-info source)
                 name version commit)))
     (unless (string-equal (downcase (concat name ".el"))
                           (downcase file))
       (error "Single file %s does not match package name %s" file name))
-    (copy-file pkg-source pkg-target t)
+    (copy-file source target t)
     (let ((enable-local-variables nil)
           (make-backup-files nil))
-      (with-current-buffer (find-file pkg-target)
+      (with-current-buffer (find-file target)
         (package-build--update-or-insert-header "Package-Commit" commit)
         (package-build--update-or-insert-header "Package-Version" version)
-        (package-build--ensure-ends-here-line pkg-source)
-        (write-file pkg-target nil)
+        (package-build--ensure-ends-here-line source)
+        (write-file target nil)
         (kill-buffer)))
-    (package-build--write-pkg-readme name pkg-source)
+    (package-build--write-pkg-readme name source)
     (package-build--write-archive-entry rcp desc 'single)))
 
 (defun package-build--build-multi-file-package (rcp version commit files source-dir)
   (let* ((name (oref rcp name))
          (tmp-dir (file-name-as-directory (make-temp-file name t))))
     (unwind-protect
-        (let* ((pkg-tmp-dir (expand-file-name (concat name "-" version) tmp-dir))
-               (file-source (concat name ".el"))
-               (pkg-source (or (car (rassoc file-source files))
-                               file-source))
+        (let* ((target (expand-file-name (concat name "-" version) tmp-dir))
+               (source (concat name ".el"))
+               (source (or (car (rassoc source files)) source))
                (desc (package-build--merge-package-info
                       (let ((default-directory source-dir))
                         (or (package-build--get-pkg-file-info name files)
-                            (package-build--get-package-info pkg-source)))
+                            (package-build--get-package-info source)))
                       name version commit)))
-          (package-build--copy-package-files files source-dir pkg-tmp-dir)
-          (package-build--write-pkg-file desc pkg-tmp-dir)
-          (package-build--generate-info-files files source-dir pkg-tmp-dir)
+          (package-build--copy-package-files files source-dir target)
+          (package-build--write-pkg-file desc target)
+          (package-build--generate-info-files files source-dir target)
           (package-build--create-tar name version tmp-dir)
-          (package-build--write-pkg-readme name pkg-tmp-dir)
+          (package-build--write-pkg-readme name target)
           (package-build--write-archive-entry rcp desc 'tar))
       (delete-directory tmp-dir t nil))))
 
