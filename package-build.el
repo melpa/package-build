@@ -768,16 +768,14 @@ in `package-build-archive-dir'."
 (defun package-build--build-single-file-package (rcp version commit file source-dir)
   (let* ((name (oref rcp name))
          (pkg-source (expand-file-name file source-dir))
-         (pkg-target (expand-file-name
-                      (concat name "-" version ".el")
-                      package-build-archive-dir))
+         (pkg-target (expand-file-name (concat name "-" version ".el")
+                                       package-build-archive-dir))
          (pkg-info (package-build--merge-package-info
                     (package-build--get-package-info pkg-source)
                     name version commit)))
     (unless (string-equal (downcase (concat name ".el"))
-                          (downcase (file-name-nondirectory pkg-source)))
-      (error "Single file %s does not match package name %s"
-             (file-name-nondirectory pkg-source) name))
+                          (downcase file))
+      (error "Single file %s does not match package name %s" file name))
     (copy-file pkg-source pkg-target t)
     (let ((enable-local-variables nil)
           (make-backup-files nil))
