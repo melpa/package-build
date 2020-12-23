@@ -496,7 +496,7 @@ still be renamed."
                   extras))
              (error "No define-package found in %s" file))))))
 
-(defun package-build--merge-package-info (desc name version commit)
+(defun package-build--merge-package-info (desc name version commit type)
   "Return a version of DESC updated with NAME and VERSION.
 If DESC is nil, an empty one is created.  If a COMMIT string
 is included, a corresponding :commit metadata value is included."
@@ -506,15 +506,17 @@ is included, a corresponding :commit metadata value is included."
     (aset merged 3 version)
     (when commit
       (aset merged 4 (cons (cons :commit commit) (elt desc 4))))
+    (aset merged 5 type)
     merged))
 
-(defun package-build--write-archive-entry (rcp desc type)
+(defun package-build--write-archive-entry (desc)
   (let ((entry (let ((name (intern (aref desc 0)))
                      (requires (aref desc 1))
                      (summary (or (aref desc 2) "No description available."))
                      (version (aref desc 3))
                      (extras (and (> (length desc) 4)
-                                  (aref desc 4))))
+                                  (aref desc 4)))
+                     (type (aref desc 5)))
                  (cons name
                        (vector (version-to-list version)
                                requires
@@ -720,7 +722,7 @@ in `package-build-archive-dir'."
                                    package-build-archive-dir))
          (desc (package-build--merge-package-info
                 (package-build--desc-from-library source)
-                name version commit)))
+                name version commit 'single)))
     (unless (string-equal (downcase (concat name ".el"))
                           (downcase file))
       (error "Single file %s does not match package name %s" file name))
@@ -734,7 +736,7 @@ in `package-build-archive-dir'."
         (write-file target nil)
         (kill-buffer)))
     (package-build--write-pkg-readme name source)
-    (package-build--write-archive-entry rcp desc 'single)))
+    (package-build--write-archive-entry desc)))
 
 (defun package-build--build-multi-file-package (rcp version commit files source-dir)
   (let* ((name (oref rcp name))
@@ -747,13 +749,13 @@ in `package-build-archive-dir'."
                       (let ((default-directory source-dir))
                         (or (package-build--desc-from-package name files)
                             (package-build--desc-from-library source)))
-                      name version commit)))
+                      name version commit 'tar)))
           (package-build--copy-package-files files source-dir target)
           (package-build--write-pkg-file desc target)
           (package-build--generate-info-files files source-dir target)
           (package-build--create-tar name version tmp-dir)
           (package-build--write-pkg-readme name target)
-          (package-build--write-archive-entry rcp desc 'tar))
+          (package-build--write-archive-entry desc))
       (delete-directory tmp-dir t nil))))
 
 ;;;###autoload
