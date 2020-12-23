@@ -353,7 +353,7 @@ is used instead."
     (princ ";; Local Variables:\n;; no-byte-compile: t\n;; End:\n"
            (current-buffer))))
 
-(defun package-build--create-tar (name version directory &optional files)
+(defun package-build--create-tar (name version directory)
   "Create a tar file containing the contents of VERSION of package NAME."
   (let ((tar (expand-file-name (concat name "-" version ".tar")
                                 package-build-archive-dir))
@@ -361,14 +361,12 @@ is used instead."
     (when (eq system-type 'windows-nt)
       (setq tar (replace-regexp-in-string "^\\([a-z]\\):" "/\\1" tar)))
     (let ((default-directory directory))
-      (apply #'process-file
-             package-build-tar-executable nil
-             (get-buffer-create "*package-build-checkout*")
-             nil "-cvf"
-             tar
-             "--exclude=.git"
-             "--exclude=.hg"
-             (or (mapcar (lambda (file) (concat dir "/" file)) files) (list dir))))
+      (process-file package-build-tar-executable nil
+                    (get-buffer-create "*package-build-checkout*") nil
+                    "-cvf" tar
+                    "--exclude=.git"
+                    "--exclude=.hg"
+                    dir))
     (when (and package-build-verbose noninteractive)
       (message "Created %s containing:" (file-name-nondirectory tar))
       (dolist (line (sort (process-lines package-build-tar-executable
