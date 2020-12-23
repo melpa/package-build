@@ -402,6 +402,8 @@ is used instead."
                    "^;;[[:blank:]]*"     ; double semicolon prefix
                    "[[:blank:]\n]*\\'")  ; trailing new-lines
            "" commentary))))
+      (unless (= (char-before) ?\n)
+        (insert ?\n))
       (let ((coding-system-for-write buffer-file-coding-system))
         (write-region nil nil
                       (expand-file-name (concat name "-readme.txt")
