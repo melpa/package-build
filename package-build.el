@@ -330,25 +330,25 @@ is used instead."
 
 ;;; Various Files
 
-(defun package-build--write-pkg-file (pkg-info dir)
-  "Write PKG-FILE containing PKG-INFO."
-  (with-temp-file (expand-file-name (aref pkg-info 0) dir)
+(defun package-build--write-pkg-file (desc dir)
+  "Write PKG-FILE containing DESC."
+  (with-temp-file (expand-file-name (aref desc 0) dir)
     (pp
      `(define-package
-        ,(aref pkg-info 0)
-        ,(aref pkg-info 3)
-        ,(aref pkg-info 2)
+        ,(aref desc 0)
+        ,(aref desc 3)
+        ,(aref desc 2)
         ',(mapcar
            (lambda (elt)
              (list (car elt)
                    (package-version-join (cadr elt))))
-           (aref pkg-info 1))
+           (aref desc 1))
         ;; Append our extra information
         ,@(cl-mapcan (lambda (entry)
                        (list (car entry)
                              (cdr entry)))
-                     (when (> (length pkg-info) 4)
-                       (aref pkg-info 4))))
+                     (when (> (length desc) 4)
+                       (aref desc 4))))
      (current-buffer))
     (princ ";; Local Variables:\n;; no-byte-compile: t\n;; End:\n"
            (current-buffer))))
@@ -497,20 +497,20 @@ still be renamed."
                   extras))
              (error "No define-package found in %s" file))))))
 
-(defun package-build--merge-package-info (pkg-info name version commit)
-  "Return a version of PKG-INFO updated with NAME and VERSION.
-If PKG-INFO is nil, an empty one is created.  If a COMMIT string
+(defun package-build--merge-package-info (desc name version commit)
+  "Return a version of DESC updated with NAME and VERSION.
+If DESC is nil, an empty one is created.  If a COMMIT string
 is included, a corresponding :commit metadata value is included."
-  (let ((merged (or (copy-sequence pkg-info)
+  (let ((merged (or (copy-sequence desc)
                     (vector name nil "No description available." version nil))))
     (aset merged 0 name)
     (aset merged 3 version)
     (when commit
-      (aset merged 4 (cons (cons :commit commit) (elt pkg-info 4))))
+      (aset merged 4 (cons (cons :commit commit) (elt desc 4))))
     merged))
 
-(defun package-build--write-archive-entry (rcp pkg-info type)
-  (let ((entry (package-build--archive-entry rcp pkg-info type)))
+(defun package-build--write-archive-entry (rcp desc type)
+  (let ((entry (package-build--archive-entry rcp desc type)))
     (with-temp-file (package-build--archive-entry-file entry)
       (print entry (current-buffer)))))
 
@@ -528,33 +528,33 @@ is included, a corresponding :commit metadata value is included."
      (package-recipe--working-tree rcp)
      "hg" "log" "--debug" "--limit=1")))
 
-(defun package-build--archive-entry (rcp pkg-info type)
-  (let ((name (intern (aref pkg-info 0)))
-        (requires (aref pkg-info 1))
-        (desc (or (aref pkg-info 2) "No description available."))
-        (version (aref pkg-info 3))
-        (extras (and (> (length pkg-info) 4)
-                     (aref pkg-info 4))))
+(defun package-build--archive-entry (rcp desc type)
+  (let ((name (intern (aref desc 0)))
+        (requires (aref desc 1))
+        (summary (or (aref desc 2) "No description available."))
+        (version (aref desc 3))
+        (extras (and (> (length desc) 4)
+                     (aref desc 4))))
     (cons name
           (vector (version-to-list version)
                   requires
-                  desc
+                  summary
                   type
                   extras))))
 
 (defun package-build--artifact-file (archive-entry)
   "Return the path of the file in which the package for ARCHIVE-ENTRY is stored."
-  (pcase-let* ((`(,name . ,pkg-info) archive-entry)
-               (version (package-version-join (aref pkg-info 0)))
-               (flavour (aref pkg-info 3)))
+  (pcase-let* ((`(,name . ,desc) archive-entry)
+               (version (package-version-join (aref desc 0)))
+               (flavour (aref desc 3)))
     (expand-file-name
      (format "%s-%s.%s" name version (if (eq flavour 'single) "el" "tar"))
      package-build-archive-dir)))
 
 (defun package-build--archive-entry-file (archive-entry)
   "Return the path of the file in which the package for ARCHIVE-ENTRY is stored."
-  (pcase-let* ((`(,name . ,pkg-info) archive-entry)
-               (version (package-version-join (aref pkg-info 0))))
+  (pcase-let* ((`(,name . ,desc) archive-entry)
+               (version (package-version-join (aref desc 0))))
     (expand-file-name
      (format "%s-%s.entry" name version)
      package-build-archive-dir)))
@@ -722,9 +722,9 @@ in `package-build-archive-dir'."
          (pkg-source (expand-file-name file source-dir))
          (pkg-target (expand-file-name (concat name "-" version ".el")
                                        package-build-archive-dir))
-         (pkg-info (package-build--merge-package-info
-                    (package-build--get-package-info pkg-source)
-                    name version commit)))
+         (desc (package-build--merge-package-info
+                (package-build--get-package-info pkg-source)
+                name version commit)))
     (unless (string-equal (downcase (concat name ".el"))
                           (downcase file))
       (error "Single file %s does not match package name %s" file name))
@@ -738,7 +738,7 @@ in `package-build-archive-dir'."
         (write-file pkg-target nil)
         (kill-buffer)))
     (package-build--write-pkg-readme name pkg-source)
-    (package-build--write-archive-entry rcp pkg-info 'single)))
+    (package-build--write-archive-entry rcp desc 'single)))
 
 (defun package-build--build-multi-file-package (rcp version commit files source-dir)
   (let* ((name (oref rcp name))
@@ -748,17 +748,17 @@ in `package-build-archive-dir'."
                (file-source (concat name ".el"))
                (pkg-source (or (car (rassoc file-source files))
                                file-source))
-               (pkg-info (package-build--merge-package-info
-                          (let ((default-directory source-dir))
-                            (or (package-build--get-pkg-file-info name files)
-                                (package-build--get-package-info pkg-source)))
-                          name version commit)))
+               (desc (package-build--merge-package-info
+                      (let ((default-directory source-dir))
+                        (or (package-build--get-pkg-file-info name files)
+                            (package-build--get-package-info pkg-source)))
+                      name version commit)))
           (package-build--copy-package-files files source-dir pkg-tmp-dir)
-          (package-build--write-pkg-file pkg-info pkg-tmp-dir)
+          (package-build--write-pkg-file desc pkg-tmp-dir)
           (package-build--generate-info-files files source-dir pkg-tmp-dir)
           (package-build--create-tar name version tmp-dir)
           (package-build--write-pkg-readme name pkg-tmp-dir)
-          (package-build--write-archive-entry rcp pkg-info 'tar))
+          (package-build--write-archive-entry rcp desc 'tar))
       (delete-directory tmp-dir t nil))))
 
 ;;;###autoload
