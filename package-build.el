@@ -406,6 +406,26 @@ is used instead."
                       (expand-file-name (concat name "-readme.txt")
                                         package-build-archive-dir))))))
 
+(defun package-build--generate-info-files (files source-dir target-dir)
+  "Create an info file for each texinfo file listed in FILES.
+Also create the info dir file.  Remove each original texinfo
+file.  The source and destination file paths are expanded in
+SOURCE-DIR and TARGET-DIR respectively."
+  (pcase-dolist (`(,src . ,tmp) files)
+    (when (member (file-name-extension tmp) '("texi" "texinfo"))
+      (setq src (expand-file-name src source-dir))
+      (setq tmp (expand-file-name tmp target-dir))
+      (unwind-protect
+          (let ((info (concat (file-name-sans-extension tmp) ".info")))
+            (unless (file-exists-p info)
+              (ignore-errors
+                (package-build--run-process
+                 source-dir nil "makeinfo" src "-o" info)
+                (package-build--run-process
+                 target-dir nil "install-info" "--dir=dir" info)
+                (package-build--message "Created %s" info))))
+        (delete-file tmp)))))
+
 ;;; Entries
 
 (defun package-build--update-or-insert-header (name value)
@@ -600,30 +620,6 @@ for ALLOW-EMPTY to prevent this error."
           (package-build-expand-file-specs
            (package-recipe--working-tree rcp)
            (package-build--config-file-list rcp))))
-
-;;; Info Manuals
-
-(defun package-build--generate-info-files (files source-dir target-dir)
-  "Create an info file for each texinfo file listed in FILES.
-Also create the info dir file.  Remove each original texinfo
-file.  The source and destination file paths are expanded in
-SOURCE-DIR and TARGET-DIR respectively."
-  (pcase-dolist (`(,src . ,tmp) files)
-    (when (member (file-name-extension tmp) '("texi" "texinfo"))
-      (setq src (expand-file-name src source-dir))
-      (setq tmp (expand-file-name tmp target-dir))
-      (unwind-protect
-          (let ((info (concat (file-name-sans-extension tmp) ".info")))
-            (unless (file-exists-p info)
-              (ignore-errors
-                (package-build--run-process
-                 source-dir nil "makeinfo" src "-o" info)
-                (package-build--run-process
-                 target-dir nil "install-info" "--dir=dir" info)
-                (package-build--message "Created %s" info))))
-        (delete-file tmp)))))
-
-;;; Building Utilities
 
 (defun package-build--copy-package-files (files source-dir target-dir)
   "Copy FILES from SOURCE-DIR to TARGET-DIR.
