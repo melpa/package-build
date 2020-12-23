@@ -200,7 +200,8 @@ is used instead."
             (file-name-as-directory (or directory default-directory)))
           (argv (nconc (unless (eq system-type 'windows-nt)
                          (list "env" "LC_ALL=C"))
-                       (if (and package-build-timeout-secs package-build-timeout-executable)
+                       (if (and package-build-timeout-secs
+                                package-build-timeout-executable)
                            (nconc (list package-build-timeout-executable
                                         "-k" "60" (number-to-string
                                                    package-build-timeout-secs)
@@ -599,7 +600,7 @@ for ALLOW-EMPTY to prevent this error."
   (let ((default-directory dir)
         (prefix (if subdir (format "%s/" subdir) ""))
         (lst))
-    (dolist (entry specs lst)
+    (dolist (entry specs)
       (setq lst
             (if (consp entry)
                 (if (eq :exclude (car entry))
@@ -720,7 +721,7 @@ FILES is a list of (SOURCE . DEST) relative filepath pairs."
 ;;;###autoload
 (defun package-build-archive (name &optional dump-archive-contents)
   "Build a package archive for the package named NAME.
-if DUMP-ARCHIVE-CONTENTS is non-nil, the updated archive contents
+If DUMP-ARCHIVE-CONTENTS is non-nil, the updated archive contents
 are subsequently dumped."
   (interactive (list (package-recipe-read-name) t))
   (let ((start-time (current-time))
