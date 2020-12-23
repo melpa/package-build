@@ -36,15 +36,14 @@
 (require 'package-build)
 
 (defun package-build--write-melpa-badge-image (name version target-dir)
-  (shell-command
-   (mapconcat #'shell-quote-argument
-              (list "curl" "-f" "-o"
-                    (expand-file-name (concat name "-badge.svg") target-dir)
-                    (format "https://img.shields.io/badge/%s-%s-%s.svg"
-                            (if package-build-stable "melpa stable" "melpa")
-                            (url-hexify-string version)
-                            (if package-build-stable "3e999f" "922793")))
-              " ")))
+  (unless (zerop (call-process
+                  "curl" nil nil nil "-f" "-o"
+                  (expand-file-name (concat name "-badge.svg") target-dir)
+                  (format "https://img.shields.io/badge/%s-%s-%s.svg"
+                          (if package-build-stable "melpa stable" "melpa")
+                          (url-hexify-string version)
+                          (if package-build-stable "3e999f" "922793"))))
+    (message "Failed to fetch badge")))
 
 (provide 'package-build-badges)
 
