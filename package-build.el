@@ -234,11 +234,7 @@ is used instead."
 
 (cl-defmethod package-build--checkout :before ((rcp package-recipe))
   (package-build--message "Package: %s" (oref rcp name))
-  (package-build--message "Fetcher: %s"
-                          (substring (symbol-name
-                                      (with-no-warnings
-                                        (eieio-object-class rcp)))
-                                     8 -7))
+  (package-build--message "Fetcher: %s" (package-recipe--fetcher rcp))
   (package-build--message "Source:  %s\n" (package-recipe--upstream-url rcp)))
 
 ;;;; Git
