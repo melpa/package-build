@@ -786,10 +786,6 @@ in `package-build-archive-dir'."
         (package-build--update-or-insert-header "Package-Version" version)
         (package-build--ensure-ends-here-line pkg-source)
         (write-file pkg-target nil)
-        (condition-case err
-            (package-build--package-buffer-info-vec)
-          (error
-           (package-build--message "Warning: %S" err)))
         (kill-buffer)))
     (package-build--write-pkg-readme
      package-build-archive-dir
