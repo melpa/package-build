@@ -387,18 +387,21 @@ is used instead."
                 (and (file-exists-p file)
                      (lm-commentary file)))))
     (with-temp-buffer
-      (insert commentary)
-      ;; Adapted from `describe-package-1'.
-      (goto-char (point-min))
-      (save-excursion
-        (when (re-search-forward "^;;; Commentary:\n" nil t)
-          (replace-match ""))
-        (while (re-search-forward "^\\(;+ ?\\)" nil t)
-          (replace-match ""))
-        (goto-char (point-min))
-        (when (re-search-forward "\\`\\( *\n\\)+" nil t)
-          (replace-match "")))
-      (delete-trailing-whitespace)
+      (if (>= emacs-major-version 26)
+          (insert commentary)
+        ;; Taken from 26.1's `lm-commentary'.
+        (insert
+         (replace-regexp-in-string       ; Get rid of...
+          "[[:blank:]]*$" ""             ; trailing white-space
+          (replace-regexp-in-string
+           (format "%s\\|%s\\|%s"
+                   ;; commentary header
+                   (concat "^;;;[[:blank:]]*\\("
+                           lm-commentary-header
+                           "\\):[[:blank:]\n]*")
+                   "^;;[[:blank:]]*"     ; double semicolon prefix
+                   "[[:blank:]\n]*\\'")  ; trailing new-lines
+           "" commentary))))
       (let ((coding-system-for-write buffer-file-coding-system))
         (write-region nil nil
                       (expand-file-name (concat name "-readme.txt")
