@@ -428,9 +428,10 @@ still be renamed."
         (insert trailer)
         (newline)))))
 
-(defun package-build--desc-from-library (name version commit file &optional type)
-  (and (file-exists-p file)
-       (ignore-errors
+(defun package-build--desc-from-library (name version commit files &optional type)
+  (let* ((file (concat name ".el"))
+         (file (or (car (rassoc file files)) file)))
+    (and (file-exists-p file)
          (with-temp-buffer
            (insert-file-contents file)
            (package-desc-from-define
@@ -680,18 +681,19 @@ in `package-build-archive-dir'."
       (error "Unable to check out repository for %s" name))
      ((= 1 (length files))
       (package-build--build-single-file-package
-       rcp version commit (caar files) source-dir))
+       rcp version commit files source-dir))
      ((< 1 (length  files))
       (package-build--build-multi-file-package
        rcp version commit files source-dir))
      (t (error "Unable to find files matching recipe patterns")))))
 
-(defun package-build--build-single-file-package (rcp version commit file source-dir)
+(defun package-build--build-single-file-package (rcp version commit files source-dir)
   (let* ((name (oref rcp name))
+         (file (caar files))
          (source (expand-file-name file source-dir))
          (target (expand-file-name (concat name "-" version ".el")
                                    package-build-archive-dir))
-         (desc (package-build--desc-from-library name version commit source)))
+         (desc (package-build--desc-from-library name version commit files)))
     (unless (string-equal (downcase (concat name ".el"))
                           (downcase file))
       (error "Single file %s does not match package name %s" file name))
@@ -712,13 +714,11 @@ in `package-build-archive-dir'."
          (tmp-dir (file-name-as-directory (make-temp-file name t))))
     (unwind-protect
         (let* ((target (expand-file-name (concat name "-" version) tmp-dir))
-               (source (concat name ".el"))
-               (source (or (car (rassoc source files)) source))
                (desc (let ((default-directory source-dir))
                        (or (package-build--desc-from-package
                             name version commit files)
                            (package-build--desc-from-library
-                            name version commit source 'tar)))))
+                            name version commit files 'tar)))))
           (package-build--copy-package-files files source-dir target)
           (package-build--write-pkg-file desc target)
           (package-build--generate-info-files files source-dir target)
