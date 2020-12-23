@@ -1,4 +1,4 @@
-;;; package-build-badges.el --- Create batches for packages
+;;; package-build-badges.el --- Create batches for packages  -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2011-2013 Donald Ephraim Curtis <dcurtis@milkbox.net>
 ;; Copyright (C) 2012-2014 Steve Purcell <steve@sanityinc.com>

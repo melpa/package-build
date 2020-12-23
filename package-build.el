@@ -1,4 +1,4 @@
-;;; package-build.el --- Tools for assembling a package archive
+;;; package-build.el --- Tools for assembling a package archive  -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2011-2020 Donald Ephraim Curtis <dcurtis@milkbox.net>
 ;; Copyright (C) 2012-2020 Steve Purcell <steve@sanityinc.com>
