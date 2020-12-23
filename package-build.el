@@ -331,27 +331,20 @@ is used instead."
 ;;; Various Files
 
 (defun package-build--write-pkg-file (desc dir)
-  "Write PKG-FILE containing DESC."
-  (with-temp-file (expand-file-name (aref desc 0) dir)
-    (pp
-     `(define-package
-        ,(aref desc 0)
-        ,(aref desc 3)
-        ,(aref desc 2)
-        ',(mapcar
-           (lambda (elt)
-             (list (car elt)
-                   (package-version-join (cadr elt))))
-           (aref desc 1))
-        ;; Append our extra information
-        ,@(cl-mapcan (lambda (entry)
-                       (list (car entry)
-                             (cdr entry)))
-                     (when (> (length desc) 4)
-                       (aref desc 4))))
-     (current-buffer))
-    (princ ";; Local Variables:\n;; no-byte-compile: t\n;; End:\n"
-           (current-buffer))))
+  (let ((name (package-desc-name desc)))
+    (with-temp-file (expand-file-name (format "%s-pkg.el" name) dir)
+      (pp `(define-package ,name
+             ,(package-version-join (package-desc-version desc))
+             ,(package-desc-summary desc)
+             ',(mapcar (pcase-lambda (`(,pkg ,ver))
+                         (list pkg (package-version-join ver)))
+                       (package-desc-reqs desc))
+             ,@(cl-mapcan (pcase-lambda (`(,key . ,val))
+                            (list key val))
+                          (package-desc-extras desc)))
+          (current-buffer))
+      (princ ";; Local Variables:\n;; no-byte-compile: t\n;; End:\n"
+             (current-buffer)))))
 
 (defun package-build--create-tar (name version directory)
   "Create a tar file containing the contents of VERSION of package NAME."
@@ -440,25 +433,24 @@ still be renamed."
        (ignore-errors
          (with-temp-buffer
            (insert-file-contents file)
-           ;; next few lines are a hack for some packages that aren't
-           ;; commented properly.
-           (package-build--update-or-insert-header "Package-Version" "0")
-           (package-build--ensure-ends-here-line file)
-           (cl-flet ((package-strip-rcs-id (str) "0"))
-             (let* ((desc (package-buffer-info))
-                    (keywords (lm-keywords-list))
-                    (extras (package-desc-extras desc)))
-               (when (and keywords (not (assq :keywords extras)))
-                 (push (cons :keywords keywords) extras))
-               (when commit
-                 (push (cons :commit commit) extras))
-               (vector name
-                       (package-desc-reqs desc)
-                       (or (package-desc-summary desc)
-                           "No description available.")
-                       version
-                       extras
-                       (or type 'single))))))))
+           (package-desc-from-define
+            name version
+            (or (save-excursion
+                  (goto-char (point-min))
+                  (and (re-search-forward
+                        "^;;; [^ ]*\\.el ---[ \t]*\\(.*?\\)[ \t]*\\(-\\*-.*-\\*-[ \t]*\\)?$"
+                        nil t)
+                       (match-string-no-properties 1)))
+                "No description available.")
+            (when-let* ((require-lines (lm-header-multiline "package-requires")))
+              (package--prepare-dependencies
+               (package-read-from-string (mapconcat #'identity require-lines " "))))
+            :kind       (or type 'single)
+            :url        (lm-homepage)
+            :keywords   (lm-keywords-list)
+            :maintainer (lm-maintainer)
+            :authors    (lm-authors)
+            :commit     commit)))))
 
 (defun package-build--desc-from-package (name version commit files)
   (let* ((file (concat name "-pkg.el"))
@@ -466,59 +458,43 @@ still be renamed."
                    file)))
     (and (or (file-exists-p file)
              (file-exists-p (setq file (concat file ".in"))))
-         (let ((package-def (with-temp-buffer
-                              (insert-file-contents file)
-                              (read (current-buffer)))))
-           (if (eq 'define-package (car package-def))
-               (let* ((pkgfile-info (cdr package-def))
-                      (descr (nth 2 pkgfile-info))
-                      (rest-plist (cl-subseq pkgfile-info (min 4 (length pkgfile-info))))
-                      (extras (let (alist)
-                                (while rest-plist
-                                  (unless (memq (car rest-plist) '(:kind :archive))
-                                    (let ((value (cadr rest-plist)))
-                                      (when value
-                                        (push (cons (car rest-plist)
-                                                    (if (eq (car-safe value) 'quote)
-                                                        (cadr value)
-                                                      value))
-                                              alist))))
-                                  (setq rest-plist (cddr rest-plist)))
-                                alist)))
-                 (when commit
-                   (push (cons :commit commit) extras))
-                 (when (string-match "[\r\n]" descr)
-                   (error "Illegal multi-line package description in %s" file))
-                 (vector
-                  name
-                  (mapcar
-                   (lambda (elt)
-                     (unless (symbolp (car elt))
-                       (error "Invalid package name in dependency: %S" (car elt)))
-                     (list (car elt) (version-to-list (cadr elt))))
-                   (eval (nth 3 pkgfile-info)))
-                  (or descr "No description available.")
-                  version
-                  extras
-                  'tar))
-             (error "No define-package found in %s" file))))))
+         (let ((form (with-temp-buffer
+                       (insert-file-contents file)
+                       (read (current-buffer)))))
+           (unless (eq (car form) 'define-package)
+             (error "No define-package found in %s" file))
+           (pcase-let* ((`(,_ ,_ ,_ ,summary ,deps ,extra) form)
+                        (deps (eval deps)))
+             (when (string-match "[\r\n]" summary)
+               (error "Illegal multi-line package description in %s" file))
+             (package-desc-from-define
+              name version
+              (if (string-empty-p summary)
+                  "No description available."
+                summary)
+              (mapcar (pcase-lambda (`(,pkg ,ver))
+                        (unless (symbolp pkg)
+                          (error "Invalid package name in dependency: %S" pkg))
+                        (list pkg ver))
+                      deps)
+              :kind       'tar
+              :url        (alist-get :url extra)
+              :keywords   (alist-get :keywords extra)
+              :maintainer (alist-get :maintainer extra)
+              :authors    (alist-get :authors extra)
+              :commit     commit))))))
 
 (defun package-build--write-archive-entry (desc)
-  (let ((entry (let ((name (intern (aref desc 0)))
-                     (requires (aref desc 1))
-                     (summary (or (aref desc 2) "No description available."))
-                     (version (aref desc 3))
-                     (extras (and (> (length desc) 4)
-                                  (aref desc 4)))
-                     (type (aref desc 5)))
-                 (cons name
-                       (vector (version-to-list version)
-                               requires
-                               summary
-                               type
-                               extras)))))
-    (with-temp-file (package-build--archive-entry-file entry)
-      (print entry (current-buffer)))))
+  (with-temp-file
+      (expand-file-name (concat (package-desc-full-name desc) ".entry")
+                        package-build-archive-dir)
+    (print (cons (package-desc-name    desc)
+                 (vector (package-desc-version desc)
+                         (package-desc-reqs    desc)
+                         (package-desc-summary desc)
+                         (package-desc-kind    desc)
+                         (package-desc-extras  desc)))
+           (current-buffer))))
 
 (cl-defmethod package-build--get-commit ((rcp package-git-recipe))
   (ignore-errors
