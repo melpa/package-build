@@ -499,13 +499,13 @@ still be renamed."
   (with-temp-file
       (expand-file-name (concat (package-desc-full-name desc) ".entry")
                         package-build-archive-dir)
-    (print (cons (package-desc-name    desc)
-                 (vector (package-desc-version desc)
-                         (package-desc-reqs    desc)
-                         (package-desc-summary desc)
-                         (package-desc-kind    desc)
-                         (package-desc-extras  desc)))
-           (current-buffer))))
+    (pp (cons (package-desc-name    desc)
+              (vector (package-desc-version desc)
+                      (package-desc-reqs    desc)
+                      (package-desc-summary desc)
+                      (package-desc-kind    desc)
+                      (package-desc-extras  desc)))
+        (current-buffer))))
 
 (cl-defmethod package-build--get-commit ((rcp package-git-recipe))
   (ignore-errors
