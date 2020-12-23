@@ -478,7 +478,8 @@ still be renamed."
                         (list pkg ver))
                       deps)
               :kind       'tar
-              :url        (alist-get :url extra)
+              :url        (or (alist-get :url extra)
+                              (alist-get :homepage extra))
               :keywords   (alist-get :keywords extra)
               :maintainer (alist-get :maintainer extra)
               :authors    (alist-get :authors extra)
