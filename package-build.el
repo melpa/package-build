@@ -435,7 +435,7 @@ still be renamed."
         (insert trailer)
         (newline)))))
 
-(defun package-build--desc-from-library (file)
+(defun package-build--desc-from-library (name version commit file &optional type)
   (and (file-exists-p file)
        (ignore-errors
          (with-temp-buffer
@@ -450,13 +450,17 @@ still be renamed."
                     (extras (package-desc-extras desc)))
                (when (and keywords (not (assq :keywords extras)))
                  (push (cons :keywords keywords) extras))
-               (vector (package-desc-name desc)
+               (when commit
+                 (push (cons :commit commit) extras))
+               (vector name
                        (package-desc-reqs desc)
-                       (package-desc-summary desc)
-                       (package-desc-version desc)
-                       extras)))))))
+                       (or (package-desc-summary desc)
+                           "No description available.")
+                       version
+                       extras
+                       (or type 'single))))))))
 
-(defun package-build--desc-from-package (name files)
+(defun package-build--desc-from-package (name version commit files)
   (let* ((file (concat name "-pkg.el"))
          (file (or (car (rassoc file files))
                    file)))
@@ -481,33 +485,23 @@ still be renamed."
                                               alist))))
                                   (setq rest-plist (cddr rest-plist)))
                                 alist)))
+                 (when commit
+                   (push (cons :commit commit) extras))
                  (when (string-match "[\r\n]" descr)
                    (error "Illegal multi-line package description in %s" file))
                  (vector
-                  (nth 0 pkgfile-info)
+                  name
                   (mapcar
                    (lambda (elt)
                      (unless (symbolp (car elt))
                        (error "Invalid package name in dependency: %S" (car elt)))
                      (list (car elt) (version-to-list (cadr elt))))
                    (eval (nth 3 pkgfile-info)))
-                  descr
-                  (nth 1 pkgfile-info)
-                  extras))
+                  (or descr "No description available.")
+                  version
+                  extras
+                  'tar))
              (error "No define-package found in %s" file))))))
-
-(defun package-build--merge-package-info (desc name version commit type)
-  "Return a version of DESC updated with NAME and VERSION.
-If DESC is nil, an empty one is created.  If a COMMIT string
-is included, a corresponding :commit metadata value is included."
-  (let ((merged (or (copy-sequence desc)
-                    (vector name nil "No description available." version nil))))
-    (aset merged 0 name)
-    (aset merged 3 version)
-    (when commit
-      (aset merged 4 (cons (cons :commit commit) (elt desc 4))))
-    (aset merged 5 type)
-    merged))
 
 (defun package-build--write-archive-entry (desc)
   (let ((entry (let ((name (intern (aref desc 0)))
@@ -720,9 +714,7 @@ in `package-build-archive-dir'."
          (source (expand-file-name file source-dir))
          (target (expand-file-name (concat name "-" version ".el")
                                    package-build-archive-dir))
-         (desc (package-build--merge-package-info
-                (package-build--desc-from-library source)
-                name version commit 'single)))
+         (desc (package-build--desc-from-library name version commit source)))
     (unless (string-equal (downcase (concat name ".el"))
                           (downcase file))
       (error "Single file %s does not match package name %s" file name))
@@ -745,11 +737,11 @@ in `package-build-archive-dir'."
         (let* ((target (expand-file-name (concat name "-" version) tmp-dir))
                (source (concat name ".el"))
                (source (or (car (rassoc source files)) source))
-               (desc (package-build--merge-package-info
-                      (let ((default-directory source-dir))
-                        (or (package-build--desc-from-package name files)
-                            (package-build--desc-from-library source)))
-                      name version commit 'tar)))
+               (desc (let ((default-directory source-dir))
+                       (or (package-build--desc-from-package
+                            name version commit files)
+                           (package-build--desc-from-library
+                            name version commit source 'tar)))))
           (package-build--copy-package-files files source-dir target)
           (package-build--write-pkg-file desc target)
           (package-build--generate-info-files files source-dir target)
