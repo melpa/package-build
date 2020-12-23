@@ -518,7 +518,7 @@ and a cl struct in Emacs HEAD.  This wrapper normalises the results."
         (error "No define-package found in %s" file-path)))))
 
 (defun package-build--merge-package-info (pkg-info name version commit)
-  "Return a version of PKG-INFO updated with NAME, VERSION and info from CONFIG.
+  "Return a version of PKG-INFO updated with NAME and VERSION.
 If PKG-INFO is nil, an empty one is created.  If a COMMIT string
 is included, a corresponding :commit metadata value is included."
   (let ((merged (or (copy-sequence pkg-info)
