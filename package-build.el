@@ -374,16 +374,13 @@ is used instead."
                           #'string<))
         (message "  %s" line)))))
 
-(defun package-build--find-package-commentary (file-path)
-  "Get commentary section from FILE-PATH."
-  (when (file-exists-p file-path)
-    (with-temp-buffer
-      (insert-file-contents file-path)
-      (lm-commentary))))
-
-(defun package-build--write-pkg-readme (target-dir commentary file-name)
-  "In TARGET-DIR, write COMMENTARY to a -readme.txt file prefixed with FILE-NAME."
-  (when commentary
+(defun package-build--write-pkg-readme (name &optional directory)
+  (when-let ((commentary
+              (let ((file (expand-file-name (concat name ".el") directory)))
+                (and (file-exists-p file)
+                     (with-temp-buffer
+                       (insert-file-contents file)
+                       (lm-commentary))))))
     (with-temp-buffer
       (insert commentary)
       ;; Adapted from `describe-package-1'.
@@ -399,8 +396,8 @@ is used instead."
       (delete-trailing-whitespace)
       (let ((coding-system-for-write buffer-file-coding-system))
         (write-region nil nil
-                      (expand-file-name (concat file-name "-readme.txt")
-                                        target-dir))))))
+                      (expand-file-name (concat name "-readme.txt")
+                                        package-build-archive-dir))))))
 
 ;;; Entries
 
@@ -759,18 +756,14 @@ in `package-build-archive-dir'."
         (package-build--ensure-ends-here-line pkg-source)
         (write-file pkg-target nil)
         (kill-buffer)))
-    (package-build--write-pkg-readme
-     package-build-archive-dir
-     (package-build--find-package-commentary pkg-source)
-     name)
+    (package-build--write-pkg-readme name pkg-source)
     (package-build--write-archive-entry rcp pkg-info 'single)))
 
 (defun package-build--build-multi-file-package (rcp version commit files source-dir)
   (let* ((name (oref rcp name))
          (tmp-dir (file-name-as-directory (make-temp-file name t))))
     (unwind-protect
-        (let* ((pkg-dir-name (concat name "-" version))
-               (pkg-tmp-dir (expand-file-name pkg-dir-name tmp-dir))
+        (let* ((pkg-tmp-dir (expand-file-name (concat name "-" version) tmp-dir))
                (pkg-file (concat name "-pkg.el"))
                (file-source (concat name ".el"))
                (pkg-source (or (car (rassoc file-source files))
@@ -788,11 +781,7 @@ in `package-build-archive-dir'."
 
           (package-build--generate-info-files files source-dir pkg-tmp-dir)
           (package-build--create-tar name version tmp-dir)
-          (let ((default-directory source-dir))
-            (package-build--write-pkg-readme
-             package-build-archive-dir
-             (package-build--find-package-commentary pkg-source)
-             name))
+          (package-build--write-pkg-readme name pkg-tmp-dir)
           (package-build--write-archive-entry rcp pkg-info 'tar))
       (delete-directory tmp-dir t nil))))
 
