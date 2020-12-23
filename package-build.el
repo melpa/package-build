@@ -342,7 +342,7 @@ is used instead."
      (package-recipe--working-tree rcp)
      "hg" "log" "--debug" "--limit=1")))
 
-;;; Various Files
+;;; Generate Files
 
 (defun package-build--write-pkg-file (desc dir)
   (let ((name (package-desc-name desc)))
@@ -426,7 +426,7 @@ SOURCE-DIR and TARGET-DIR respectively."
                 (package-build--message "Created %s" info))))
         (delete-file tmp)))))
 
-;;; Entries
+;;; Patch Libraries
 
 (defun package-build--update-or-insert-header (name value)
   "Ensure current buffer has NAME header with the given VALUE.
@@ -461,6 +461,8 @@ still be renamed."
         (newline)
         (insert trailer)
         (newline)))))
+
+;;; Package Structs
 
 (defun package-build--desc-from-library (name version commit files &optional type)
   (let* ((file (concat name ".el"))
@@ -623,7 +625,7 @@ FILES is a list of (SOURCE . DEST) relative filepath pairs."
               "  %s %s => %s" (if (equal src dst) " " "!") src dst)
              (copy-directory src* dst*))))))
 
-;;; Building
+;;; Commands
 
 ;;;###autoload
 (defun package-build-archive (name &optional dump-archive-contents)
@@ -832,7 +834,7 @@ line per entry."
      (format "%s-%s.entry" name version)
      package-build-archive-dir)))
 
-;;; Exporting Data as Json
+;;; Json Exports
 
 (defun package-build-recipe-alist-as-json (file)
   "Dump the recipe list to FILE as json."
