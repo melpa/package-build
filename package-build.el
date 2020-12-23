@@ -435,7 +435,7 @@ still be renamed."
         (insert trailer)
         (newline)))))
 
-(defun package-build--get-package-info (file)
+(defun package-build--desc-from-library (file)
   "Get a vector of package info from the docstrings in FILE."
   (when (file-exists-p file)
     (ignore-errors
@@ -457,7 +457,7 @@ still be renamed."
                     (package-desc-version desc)
                     extras)))))))
 
-(defun package-build--get-pkg-file-info (name files)
+(defun package-build--desc-from-package (name files)
   (let* ((file (concat name "-pkg.el"))
          (file (or (car (rassoc file files))
                    file)))
@@ -723,7 +723,7 @@ in `package-build-archive-dir'."
          (target (expand-file-name (concat name "-" version ".el")
                                    package-build-archive-dir))
          (desc (package-build--merge-package-info
-                (package-build--get-package-info source)
+                (package-build--desc-from-library source)
                 name version commit)))
     (unless (string-equal (downcase (concat name ".el"))
                           (downcase file))
@@ -749,8 +749,8 @@ in `package-build-archive-dir'."
                (source (or (car (rassoc source files)) source))
                (desc (package-build--merge-package-info
                       (let ((default-directory source-dir))
-                        (or (package-build--get-pkg-file-info name files)
-                            (package-build--get-package-info source)))
+                        (or (package-build--desc-from-package name files)
+                            (package-build--desc-from-library source)))
                       name version commit)))
           (package-build--copy-package-files files source-dir target)
           (package-build--write-pkg-file desc target)
