@@ -289,6 +289,13 @@ is used instead."
   (let ((default-directory (package-recipe--working-tree rcp)))
     (car (process-lines "git" "config" "remote.origin.url"))))
 
+(cl-defmethod package-build--get-commit ((rcp package-git-recipe))
+  (ignore-errors
+    (package-build--run-process-match
+     "\\(.*\\)"
+     (package-recipe--working-tree rcp)
+     "git" "rev-parse" "HEAD")))
+
 ;;;; Hg
 
 (cl-defmethod package-build--checkout ((rcp package-hg-recipe))
@@ -327,6 +334,13 @@ is used instead."
   (package-build--run-process-match "default = \\(.*\\)"
                                     (package-recipe--working-tree rcp)
                                     "hg" "paths"))
+
+(cl-defmethod package-build--get-commit ((rcp package-hg-recipe))
+  (ignore-errors
+    (package-build--run-process-match
+     "changeset:[[:space:]]+[[:digit:]]+:\\([[:xdigit:]]+\\)"
+     (package-recipe--working-tree rcp)
+     "hg" "log" "--debug" "--limit=1")))
 
 ;;; Various Files
 
@@ -506,20 +520,6 @@ still be renamed."
                       (package-desc-kind    desc)
                       (package-desc-extras  desc)))
         (current-buffer))))
-
-(cl-defmethod package-build--get-commit ((rcp package-git-recipe))
-  (ignore-errors
-    (package-build--run-process-match
-     "\\(.*\\)"
-     (package-recipe--working-tree rcp)
-     "git" "rev-parse" "HEAD")))
-
-(cl-defmethod package-build--get-commit ((rcp package-hg-recipe))
-  (ignore-errors
-    (package-build--run-process-match
-     "changeset:[[:space:]]+[[:digit:]]+:\\([[:xdigit:]]+\\)"
-     (package-recipe--working-tree rcp)
-     "hg" "log" "--debug" "--limit=1")))
 
 (defun package-build--artifact-file (archive-entry)
   "Return the path of the file in which the package for ARCHIVE-ENTRY is stored."
