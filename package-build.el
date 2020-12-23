@@ -464,14 +464,19 @@ still be renamed."
                        (read (current-buffer)))))
            (unless (eq (car form) 'define-package)
              (error "No define-package found in %s" file))
-           (pcase-let* ((`(,_ ,_ ,_ ,summary ,deps ,extra) form)
-                        (deps (eval deps)))
+           (pcase-let*
+               ((`(,_ ,_ ,_ ,summary ,deps . ,extra) form)
+                (deps (eval deps))
+                (alt-desc (package-build--desc-from-library
+                           name version nil files))
+                (alt (and alt-desc (package-desc-extras alt-desc))))
              (when (string-match "[\r\n]" summary)
                (error "Illegal multi-line package description in %s" file))
              (package-desc-from-define
               name version
               (if (string-empty-p summary)
-                  "No description available."
+                  (or (and alt-desc (package-desc-summary alt-desc))
+                      "No description available.")
                 summary)
               (mapcar (pcase-lambda (`(,pkg ,ver))
                         (unless (symbolp pkg)
@@ -480,10 +485,14 @@ still be renamed."
                       deps)
               :kind       'tar
               :url        (or (alist-get :url extra)
-                              (alist-get :homepage extra))
-              :keywords   (alist-get :keywords extra)
-              :maintainer (alist-get :maintainer extra)
-              :authors    (alist-get :authors extra)
+                              (alist-get :homepage extra)
+                              (alist-get :url alt))
+              :keywords   (or (alist-get :keywords extra)
+                              (alist-get :keywords alt))
+              :maintainer (or (alist-get :maintainer extra)
+                              (alist-get :maintainer alt))
+              :authors    (or (alist-get :authors extra)
+                              (alist-get :authors alt))
               :commit     commit))))))
 
 (defun package-build--write-archive-entry (desc)
