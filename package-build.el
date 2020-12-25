@@ -346,7 +346,7 @@ is used instead."
 ;;; Generate Files
 
 (defun package-build--write-pkg-file (desc dir)
-  (let ((name (package-desc-name desc)))
+  (let ((name (symbol-name (package-desc-name desc))))
     (with-temp-file (expand-file-name (format "%s-pkg.el" name) dir)
       (pp `(define-package ,name
              ,(package-version-join (package-desc-version desc))
