@@ -399,9 +399,9 @@ is used instead."
                 (and (file-exists-p file)
                      (lm-commentary file)))))
     (with-temp-buffer
-      (if (>= emacs-major-version 27)
+      (if (>= emacs-major-version 28)
           (insert commentary)
-        ;; Taken from 27.1's `lm-commentary'.
+        ;; Taken from 28.0's `lm-commentary'.
         (insert
          (replace-regexp-in-string       ; Get rid of...
           "[[:blank:]]*$" ""             ; trailing white-space
