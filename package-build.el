@@ -411,7 +411,7 @@ is used instead."
                    (concat "^;;;[[:blank:]]*\\("
                            lm-commentary-header
                            "\\):[[:blank:]\n]*")
-                   "^;;[[:blank:]]*"     ; double semicolon prefix
+                   "^;;[[:blank:]]?"     ; double semicolon prefix
                    "[[:blank:]\n]*\\'")  ; trailing new-lines
            "" commentary))))
       (unless (or (bobp) (= (char-before) ?\n))
