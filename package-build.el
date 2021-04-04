@@ -313,11 +313,17 @@ is used instead."
                  (package-build--list-tags rcp)
                  (oref rcp version-regexp))
                 (error "No valid stable versions found for %s" (oref rcp name)))
-          (package-build--run-process dir nil "hg" "update" tag)
+          (package-build--checkout-1 rcp tag)
           version)
+      (package-build--checkout-1 rcp)
       (package-build--parse-time
        (package-build--get-timestamp rcp)
        (oref rcp tag-regexp)))))
+
+(cl-defmethod package-build--checkout-1 ((rcp package-hg-recipe) &optional rev)
+  (when rev
+    (package-build--run-process (package-recipe--working-tree rcp)
+                                nil "hg" "update" rev)))
 
 (cl-defmethod package-build--list-tags ((rcp package-hg-recipe))
   (let ((default-directory (package-recipe--working-tree rcp)))
