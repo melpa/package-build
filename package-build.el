@@ -219,13 +219,6 @@ is used instead."
             (error "Command '%s' exited with non-zero status %d: %s"
                    argv exit-code (buffer-string)))))))
 
-(defun package-build--run-process-match (regexp directory command &rest args)
-  (with-temp-buffer
-    (apply 'package-build--run-process directory t command args)
-    (goto-char (point-min))
-    (re-search-forward regexp)
-    (match-string-no-properties 1)))
-
 (defun package-build--process-lines (directory command &rest args)
   (with-temp-buffer
     (apply 'package-build--run-process directory t command args)
@@ -300,11 +293,8 @@ is used instead."
     (car (process-lines "git" "config" "remote.origin.url"))))
 
 (cl-defmethod package-build--get-commit ((rcp package-git-recipe))
-  (ignore-errors
-    (package-build--run-process-match
-     "\\(.*\\)"
-     (package-recipe--working-tree rcp)
-     "git" "rev-parse" "HEAD")))
+  (let ((default-directory (package-recipe--working-tree rcp)))
+    (car (process-lines "git" "rev-parse" "HEAD"))))
 
 ;;;; Hg
 
@@ -349,17 +339,13 @@ is used instead."
               (package-build--expand-source-file-list rcp))))
 
 (cl-defmethod package-build--used-url ((rcp package-hg-recipe))
-  (package-build--run-process-match "\\(.*\\)"
-                                    (package-recipe--working-tree rcp)
-                                    "hg" "paths" "default"))
+  (let ((default-directory (package-recipe--working-tree rcp)))
+    (car (process-lines "hg" "paths" "default"))))
 
 (cl-defmethod package-build--get-commit ((rcp package-hg-recipe))
-  (ignore-errors
-    (package-build--run-process-match
-     "\\(.*\\)"
-     (package-recipe--working-tree rcp)
-     ;; "--debug" is needed to get the full hash.
-     "hg" "--debug" "id" "-i")))
+  (let ((default-directory (package-recipe--working-tree rcp)))
+    ;; "--debug" is needed to get the full hash.
+    (car (process-lines "hg" "--debug" "id" "-i"))))
 
 ;;; Generate Files
 
