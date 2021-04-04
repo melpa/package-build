@@ -248,7 +248,11 @@ is used instead."
      ((and (file-exists-p (expand-file-name ".git" dir))
            (string-equal (package-build--used-url rcp) url))
       (package-build--message "Updating %s" dir)
-      (package-build--run-process dir nil "git" "fetch" "-f" "--all" "--tags"))
+      (package-build--run-process dir nil "git" "fetch" "-f" "--all" "--tags")
+      ;; We later checkout "origin/HEAD".  Sadly "git fetch" cannot
+      ;; be told to keep it up-to-date, so we have to make a second
+      ;; request.
+      (package-build--run-process dir nil "git" "remote" "set-head" "--auto"))
      (t
       (when (file-exists-p dir)
         (delete-directory dir t))
@@ -273,13 +277,9 @@ is used instead."
   (let ((dir (package-recipe--working-tree rcp)))
     (unless rev
       (setq rev (or (oref rcp commit)
-                    (concat "origin/"
-                            (or (oref rcp branch)
-                                (ignore-errors
-                                  (package-build--run-process-match
-                                   "HEAD branch: \\(.*\\)" dir
-                                   "git" "remote" "show" "origin"))
-                                "master")))))
+                    (when-let ((branch (oref rcp branch)))
+                      (concat "origin/" branch))
+                    "origin/HEAD")))
     (package-build--run-process dir nil "git" "reset" "--hard" rev)
     (package-build--run-process dir nil "git" "submodule" "sync" "--recursive")
     (package-build--run-process dir nil "git" "submodule" "update"
