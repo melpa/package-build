@@ -89,6 +89,17 @@
   :group 'package-build
   :type 'boolean)
 
+(defcustom package-build-get-version-function
+  (if package-build-stable
+      'package-build-get-tag-version
+    'package-build-get-timestamp-version)
+  "The function used to determine the version of a package.
+Called with one argument, the recipe object.  The default
+depends on the value of option `package-build-stable'."
+  :group 'package-build
+  :set-after '(package-build-stable)
+  :type 'function)
+
 (defcustom package-build-timeout-executable "timeout"
   "Path to a GNU coreutils \"timeout\" command if available.
 This must be a version which supports the \"-k\" option.
@@ -274,13 +285,10 @@ is used instead."
              (and (eq package-build-get-version-function
                       'package-build-get-tag-version)
                   (list "--filter=blob:none" "--no-checkout")))))
-    (if package-build-stable
-        (pcase-let ((`(,tag . ,version)
-                     (package-build-get-tag-version rcp)))
-          (package-build--checkout-1 rcp tag)
-          version)
-      (package-build--checkout-1 rcp)
-      (cdr (package-build-get-timestamp-version rcp)))))
+    (pcase-let ((`(,rev . ,version)
+                 (funcall package-build-get-version-function rcp)))
+      (package-build--checkout-1 rcp rev)
+      version)))
 
 (cl-defmethod package-build--checkout-1 ((rcp package-git-recipe) &optional rev)
   (let ((dir (package-recipe--working-tree rcp)))
@@ -328,13 +336,10 @@ is used instead."
         (delete-directory dir t))
       (package-build--message "Cloning %s to %s" url dir)
       (package-build--run-process nil nil "hg" "clone" url dir)))
-    (if package-build-stable
-        (pcase-let ((`(,tag . ,version)
-                     (package-build-get-tag-version rcp)))
-          (package-build--checkout-1 rcp tag)
-          version)
-      (package-build--checkout-1 rcp)
-      (cdr (package-build-get-timestamp-version rcp)))))
+    (pcase-let ((`(,rev . ,version)
+                 (funcall package-build-get-version-function rcp)))
+      (package-build--checkout-1 rcp rev)
+      version)))
 
 (cl-defmethod package-build--checkout-1 ((rcp package-hg-recipe) &optional rev)
   (when rev
