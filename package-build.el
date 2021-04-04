@@ -266,9 +266,7 @@ is used instead."
           version)
       (package-build--checkout-1 rcp)
       (package-build--parse-time
-       (car (apply #'package-build--process-lines dir
-                   "git" "log" "--first-parent" "-n1" "--pretty=format:'\%ci'"
-                   (package-build--expand-source-file-list rcp)))
+       (package-build--get-timestamp rcp)
        (oref rcp tag-regexp)))))
 
 (cl-defmethod package-build--checkout-1 ((rcp package-git-recipe) &optional rev)
@@ -290,6 +288,12 @@ is used instead."
 (cl-defmethod package-build--list-tags ((rcp package-git-recipe))
   (let ((default-directory (package-recipe--working-tree rcp)))
     (process-lines "git" "tag")))
+
+(cl-defmethod package-build--get-timestamp ((rcp package-git-recipe))
+  (car (apply #'package-build--process-lines
+              (package-recipe--working-tree rcp)
+              "git" "log" "--first-parent" "-n1" "--pretty=format:'\%ci'"
+              (package-build--expand-source-file-list rcp))))
 
 (cl-defmethod package-build--used-url ((rcp package-git-recipe))
   (let ((default-directory (package-recipe--working-tree rcp)))
@@ -327,9 +331,7 @@ is used instead."
           (package-build--run-process dir nil "hg" "update" tag)
           version)
       (package-build--parse-time
-       (car (apply #'package-build--process-lines dir
-                   "hg" "log" "--style" "compact" "-l1"
-                   (package-build--expand-source-file-list rcp)))
+       (package-build--get-timestamp rcp)
        (oref rcp tag-regexp)))))
 
 (cl-defmethod package-build--list-tags ((rcp package-hg-recipe))
@@ -339,6 +341,12 @@ is used instead."
               (string-match "\\`[^ ]+" line)
               (match-string 0))
             (process-lines "hg" "tags"))))
+
+(cl-defmethod package-build--get-timestamp ((rcp package-hg-recipe))
+  (car (apply #'package-build--process-lines
+              (package-recipe--working-tree rcp)
+              "hg" "log" "--style" "compact" "-l1"
+              (package-build--expand-source-file-list rcp))))
 
 (cl-defmethod package-build--used-url ((rcp package-hg-recipe))
   (package-build--run-process-match "default = \\(.*\\)"
