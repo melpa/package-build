@@ -140,6 +140,26 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
     (apply 'message format-string args)))
 
 ;;; Version Handling
+;;;; Public
+
+(defun package-build-get-tag-version (rcp)
+  (pcase-let ((`(,tag . ,version)
+               (package-build--find-version-newest
+                (package-build--list-tags rcp)
+                (oref rcp version-regexp))))
+    (unless tag
+      (error "No valid stable versions found for %s" (oref rcp name)))
+    (when (cl-typep rcp 'package-git-recipe)
+      (setq tag (concat "tags/" tag)))
+    (cons tag
+          version)))
+
+(defun package-build-get-timestamp-version (rcp)
+  (package-build--parse-time
+   (package-build--get-timestamp rcp)
+   (oref rcp tag-regexp)))
+
+;;;; Internal
 
 (defun package-build--parse-time (str &optional regexp)
   "Parse STR as a time, and format as a YYYYMMDD.HHMM string.
@@ -250,17 +270,11 @@ is used instead."
                                   url dir)))
     (if package-build-stable
         (pcase-let ((`(,tag . ,version)
-                     (or (package-build--find-version-newest
-                          (package-build--list-tags rcp)
-                          (oref rcp version-regexp))
-                         (error "No valid stable versions found for %s"
-                                (oref rcp name)))))
-          (package-build--checkout-1 rcp (concat "tags/" tag))
+                     (package-build-get-tag-version rcp)))
+          (package-build--checkout-1 rcp tag)
           version)
       (package-build--checkout-1 rcp)
-      (package-build--parse-time
-       (package-build--get-timestamp rcp)
-       (oref rcp tag-regexp)))))
+      (package-build-get-timestamp-version rcp))))
 
 (cl-defmethod package-build--checkout-1 ((rcp package-git-recipe) &optional rev)
   (let ((dir (package-recipe--working-tree rcp)))
@@ -310,17 +324,11 @@ is used instead."
       (package-build--run-process nil nil "hg" "clone" url dir)))
     (if package-build-stable
         (pcase-let ((`(,tag . ,version)
-                     (or (package-build--find-version-newest
-                          (package-build--list-tags rcp)
-                          (oref rcp version-regexp))
-                         (error "No valid stable versions found for %s"
-                                (oref rcp name)))))
+                     (package-build-get-tag-version rcp)))
           (package-build--checkout-1 rcp tag)
           version)
       (package-build--checkout-1 rcp)
-      (package-build--parse-time
-       (package-build--get-timestamp rcp)
-       (oref rcp tag-regexp)))))
+      (package-build-get-timestamp-version rcp))))
 
 (cl-defmethod package-build--checkout-1 ((rcp package-hg-recipe) &optional rev)
   (when rev
