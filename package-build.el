@@ -219,11 +219,6 @@ is used instead."
             (error "Command '%s' exited with non-zero status %d: %s"
                    argv exit-code (buffer-string)))))))
 
-(defun package-build--process-lines (directory command &rest args)
-  (with-temp-buffer
-    (apply 'package-build--run-process directory t command args)
-    (split-string (buffer-string) "\n" t)))
-
 ;;; Checkout
 ;;;; Common
 
@@ -283,10 +278,10 @@ is used instead."
     (process-lines "git" "tag")))
 
 (cl-defmethod package-build--get-timestamp ((rcp package-git-recipe))
-  (car (apply #'package-build--process-lines
-              (package-recipe--working-tree rcp)
-              "git" "log" "--first-parent" "-n1" "--pretty=format:'\%ci'"
-              (package-build--expand-source-file-list rcp))))
+  (let ((default-directory (package-recipe--working-tree rcp)))
+    (car (apply #'process-lines
+                "git" "log" "--first-parent" "-n1" "--pretty=format:'\%ci'"
+                (package-build--expand-source-file-list rcp)))))
 
 (cl-defmethod package-build--used-url ((rcp package-git-recipe))
   (let ((default-directory (package-recipe--working-tree rcp)))
@@ -333,10 +328,10 @@ is used instead."
             (process-lines "hg" "tags"))))
 
 (cl-defmethod package-build--get-timestamp ((rcp package-hg-recipe))
-  (car (apply #'package-build--process-lines
-              (package-recipe--working-tree rcp)
-              "hg" "log" "--style" "compact" "-l1"
-              (package-build--expand-source-file-list rcp))))
+  (let ((default-directory (package-recipe--working-tree rcp)))
+    (car (apply #'process-lines
+                "hg" "log" "--style" "compact" "-l1"
+                (package-build--expand-source-file-list rcp)))))
 
 (cl-defmethod package-build--used-url ((rcp package-hg-recipe))
   (let ((default-directory (package-recipe--working-tree rcp)))
