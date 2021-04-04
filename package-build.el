@@ -259,8 +259,7 @@ is used instead."
     (if package-build-stable
         (cl-destructuring-bind (tag . version)
             (or (package-build--find-version-newest
-                 (let ((default-directory (package-recipe--working-tree rcp)))
-                   (process-lines "git" "tag"))
+                 (package-build--list-tags rcp)
                  (oref rcp version-regexp))
                 (error "No valid stable versions found for %s" (oref rcp name)))
           (package-build--checkout-1 rcp (concat "tags/" tag))
@@ -287,6 +286,10 @@ is used instead."
     (package-build--run-process dir nil "git" "submodule" "sync" "--recursive")
     (package-build--run-process dir nil "git" "submodule" "update"
                                 "--init" "--recursive")))
+
+(cl-defmethod package-build--list-tags ((rcp package-git-recipe))
+  (let ((default-directory (package-recipe--working-tree rcp)))
+    (process-lines "git" "tag")))
 
 (cl-defmethod package-build--used-url ((rcp package-git-recipe))
   (let ((default-directory (package-recipe--working-tree rcp)))
@@ -318,11 +321,7 @@ is used instead."
     (if package-build-stable
         (cl-destructuring-bind (tag . version)
             (or (package-build--find-version-newest
-                 (mapcar (lambda (line)
-                           ;; Remove space and rev that follow ref.
-                           (string-match "\\`[^ ]+" line)
-                           (match-string 0))
-                         (process-lines "hg" "tags"))
+                 (package-build--list-tags rcp)
                  (oref rcp version-regexp))
                 (error "No valid stable versions found for %s" (oref rcp name)))
           (package-build--run-process dir nil "hg" "update" tag)
@@ -332,6 +331,14 @@ is used instead."
                    "hg" "log" "--style" "compact" "-l1"
                    (package-build--expand-source-file-list rcp)))
        (oref rcp tag-regexp)))))
+
+(cl-defmethod package-build--list-tags ((rcp package-hg-recipe))
+  (let ((default-directory (package-recipe--working-tree rcp)))
+    (mapcar (lambda (line)
+              ;; Remove space and rev that follow ref.
+              (string-match "\\`[^ ]+" line)
+              (match-string 0))
+            (process-lines "hg" "tags"))))
 
 (cl-defmethod package-build--used-url ((rcp package-hg-recipe))
   (package-build--run-process-match "default = \\(.*\\)"
