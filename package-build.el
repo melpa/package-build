@@ -356,9 +356,10 @@ is used instead."
 (cl-defmethod package-build--get-commit ((rcp package-hg-recipe))
   (ignore-errors
     (package-build--run-process-match
-     "changeset:[[:space:]]+[[:digit:]]+:\\([[:xdigit:]]+\\)"
+     "\\(.*\\)"
      (package-recipe--working-tree rcp)
-     "hg" "log" "--debug" "--limit=1")))
+     ;; "--debug" is needed to get the full hash.
+     "hg" "--debug" "id" "-i")))
 
 ;;; Generate Files
 
