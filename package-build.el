@@ -349,9 +349,9 @@ is used instead."
               (package-build--expand-source-file-list rcp))))
 
 (cl-defmethod package-build--used-url ((rcp package-hg-recipe))
-  (package-build--run-process-match "default = \\(.*\\)"
+  (package-build--run-process-match "\\(.*\\)"
                                     (package-recipe--working-tree rcp)
-                                    "hg" "paths"))
+                                    "hg" "paths" "default"))
 
 (cl-defmethod package-build--get-commit ((rcp package-hg-recipe))
   (ignore-errors
