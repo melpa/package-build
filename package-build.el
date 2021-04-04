@@ -151,13 +151,14 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
       (error "No valid stable versions found for %s" (oref rcp name)))
     (when (cl-typep rcp 'package-git-recipe)
       (setq tag (concat "tags/" tag)))
-    (cons tag
+    (cons (package-build--get-commit rcp tag)
           version)))
 
 (defun package-build-get-timestamp-version (rcp)
-  (package-build--parse-time
-   (package-build--get-timestamp rcp)
-   (oref rcp tag-regexp)))
+  (cons (package-build--get-commit rcp)
+        (package-build--parse-time
+         (package-build--get-timestamp rcp)
+         (oref rcp tag-regexp))))
 
 ;;;; Internal
 
@@ -274,7 +275,7 @@ is used instead."
           (package-build--checkout-1 rcp tag)
           version)
       (package-build--checkout-1 rcp)
-      (package-build-get-timestamp-version rcp))))
+      (cdr (package-build-get-timestamp-version rcp)))))
 
 (cl-defmethod package-build--checkout-1 ((rcp package-git-recipe) &optional rev)
   (let ((dir (package-recipe--working-tree rcp)))
@@ -328,7 +329,7 @@ is used instead."
           (package-build--checkout-1 rcp tag)
           version)
       (package-build--checkout-1 rcp)
-      (package-build-get-timestamp-version rcp))))
+      (cdr (package-build-get-timestamp-version rcp)))))
 
 (cl-defmethod package-build--checkout-1 ((rcp package-hg-recipe) &optional rev)
   (when rev
