@@ -266,9 +266,14 @@ is used instead."
       (when (file-exists-p dir)
         (delete-directory dir t))
       (package-build--message "Cloning %s to %s" url dir)
-      (package-build--run-process nil nil "git" "clone"
-                                  "--filter=blob:none" "--no-checkout"
-                                  url dir)))
+      (apply #'package-build--run-process nil nil "git" "clone" url dir
+             ;; This can dramatically reduce the size of large repos.
+             ;; But we can only do this when using a version function
+             ;; that is known not to require a checkout and history.
+             ;; See #52.
+             (and (eq package-build-get-version-function
+                      'package-build-get-tag-version)
+                  (list "--filter=blob:none" "--no-checkout")))))
     (if package-build-stable
         (pcase-let ((`(,tag . ,version)
                      (package-build-get-tag-version rcp)))
