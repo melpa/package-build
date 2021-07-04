@@ -249,11 +249,12 @@ is used instead."
                                   "--filter=blob:none" "--no-checkout"
                                   url dir)))
     (if package-build-stable
-        (cl-destructuring-bind (tag . version)
-            (or (package-build--find-version-newest
-                 (package-build--list-tags rcp)
-                 (oref rcp version-regexp))
-                (error "No valid stable versions found for %s" (oref rcp name)))
+        (pcase-let ((`(,tag . ,version)
+                     (or (package-build--find-version-newest
+                          (package-build--list-tags rcp)
+                          (oref rcp version-regexp))
+                         (error "No valid stable versions found for %s"
+                                (oref rcp name)))))
           (package-build--checkout-1 rcp (concat "tags/" tag))
           version)
       (package-build--checkout-1 rcp)
@@ -308,11 +309,12 @@ is used instead."
       (package-build--message "Cloning %s to %s" url dir)
       (package-build--run-process nil nil "hg" "clone" url dir)))
     (if package-build-stable
-        (cl-destructuring-bind (tag . version)
-            (or (package-build--find-version-newest
-                 (package-build--list-tags rcp)
-                 (oref rcp version-regexp))
-                (error "No valid stable versions found for %s" (oref rcp name)))
+        (pcase-let ((`(,tag . ,version)
+                     (or (package-build--find-version-newest
+                          (package-build--list-tags rcp)
+                          (oref rcp version-regexp))
+                         (error "No valid stable versions found for %s"
+                                (oref rcp name)))))
           (package-build--checkout-1 rcp tag)
           version)
       (package-build--checkout-1 rcp)
