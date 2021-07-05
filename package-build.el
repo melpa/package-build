@@ -169,7 +169,7 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
   (cons (package-build--get-commit rcp)
         (package-build--parse-time
          (package-build--get-timestamp rcp)
-         (oref rcp tag-regexp))))
+         (oref rcp time-regexp))))
 
 ;;;; Internal
 
