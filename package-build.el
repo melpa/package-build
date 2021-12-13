@@ -246,7 +246,7 @@ is used instead."
                                    (or regexp package-build-version-regexp) tag)
                                   (match-string 1 tag)))
              (version-separator "_")
-             (version (ignore-errors (version-to-list (match-string 1 tag)))))
+             (version (ignore-errors (version-to-list version-string))))
         (when (and version (version-list-<= (cdr ret) version))
           (setq ret (cons tag version)))))
     (and (car ret)
