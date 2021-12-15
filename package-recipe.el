@@ -49,7 +49,8 @@
    (branch          :initarg :branch         :initform nil)
    (commit          :initarg :commit         :initform nil)
    (version-regexp  :initarg :version-regexp :initform nil)
-   (old-names       :initarg :old-names      :initform nil))
+   (old-names       :initarg :old-names      :initform nil)
+   (tag             :initarg :tag            :initform nil))
   :abstract t)
 
 (cl-defmethod package-recipe--working-tree ((rcp package-recipe))
@@ -137,7 +138,7 @@ file is invalid, then raise an error."
                name ident)
     (cl-assert plist)
     (let* ((symbol-keys '(:fetcher))
-           (string-keys '(:url :repo :commit :branch :version-regexp))
+           (string-keys '(:url :repo :commit :branch :version-regexp :tag))
            (list-keys '(:files :old-names))
            (all-keys (append symbol-keys string-keys list-keys)))
       (dolist (thing plist)
