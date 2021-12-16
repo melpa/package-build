@@ -175,16 +175,19 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
 ;;;; Public
 
 (defun package-build-get-tag-version (rcp)
-  (pcase-let ((`(,tag . ,version)
+  (pcase-let ((`(,newest-tag . ,newest-version)
                (package-build--find-version-newest
                 (package-build--list-tags rcp)
                 (oref rcp version-regexp))))
-    (unless tag
-      (error "No valid stable versions found for %s" (oref rcp name)))
-    (when (cl-typep rcp 'package-git-recipe)
-      (setq tag (concat "tags/" tag)))
-    (cons (package-build--get-commit rcp tag)
-          version)))
+    (let* ((rcp-tag (oref rcp tag))
+           (tag (or rcp-tag newest-tag))
+           (version (or rcp-tag newest-version)))
+      (unless tag
+        (error "No valid stable versions found for %s" (oref rcp name)))
+      (when (cl-typep rcp 'package-git-recipe)
+        (setq tag (concat "tags/" tag)))
+      (cons (package-build--get-commit rcp tag)
+            version))))
 
 (defun package-build-get-timestamp-version (rcp)
   (let ((rev (and (cl-typep rcp 'package-git-recipe)
