@@ -504,19 +504,17 @@ SOURCE-DIR and TARGET-DIR respectively."
         (setq tmp (expand-file-name tmp target-dir))
         (let ((info tmp))
           (when (member extension '("texi" "texinfo"))
-            (unwind-protect
-                (progn
-                  (setq info (concat (file-name-sans-extension tmp) ".info"))
-                  (unless (file-exists-p info)
-                    (package-build--message "Generating %s" info)
-                    ;; If the info file is located in a subdirectory
-                    ;; and contains relative includes, then it is
-                    ;; necessary to run makeinfo in the subdirectory.
-                    (with-demoted-errors "Error: %S"
-                      (package-build--run-process
-                       (file-name-directory src) nil
-                       "makeinfo" src "-o" info))))
-              (delete-file tmp)))
+            (delete-file tmp)
+            (setq info (concat (file-name-sans-extension tmp) ".info"))
+            (unless (file-exists-p info)
+              (package-build--message "Generating %s" info)
+              ;; If the info file is located in a subdirectory
+              ;; and contains relative includes, then it is
+              ;; necessary to run makeinfo in the subdirectory.
+              (with-demoted-errors "Error: %S"
+                (package-build--run-process
+                 (file-name-directory src) nil
+                 "makeinfo" src "-o" info))))
           (with-demoted-errors "Error: %S"
             (package-build--run-process
              target-dir nil "install-info" "--dir=dir" info)))))))
