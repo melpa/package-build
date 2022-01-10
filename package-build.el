@@ -761,10 +761,10 @@ in `package-build-archive-dir'."
     (cond
      ((not version)
       (error "Unable to check out repository for %s" name))
-     ((= 1 (length files))
+     ((= (length files) 1)
       (package-build--build-single-file-package
        rcp version commit files source-dir))
-     ((< 1 (length  files))
+     ((> (length files) 1)
       (package-build--build-multi-file-package
        rcp version commit files source-dir))
      (t (error "Unable to find files matching recipe patterns")))))
