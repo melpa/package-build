@@ -163,6 +163,12 @@ disallowed."
   :group 'package-build
   :type '(repeat string))
 
+(defvar package-build-use-hg-purge
+  "Whether `package-build--package' runs \"hg purge\" in mercurial repos."
+  (let ((value (ignore-errors
+                 (car (process-lines "hg" "config" "extensions.purge")))))
+    (and value (not (string-prefix-p "!" value)))))
+
 ;;; Generic Utilities
 
 (defun package-build--message (format-string &rest args)
@@ -748,26 +754,35 @@ are subsequently dumped."
   "Create version VERSION of the package specified by RCP.
 Return the archive entry for the package and store the package
 in `package-build-archive-dir'."
-  (let* ((source-dir (package-recipe--working-tree rcp))
-         (file-specs (package-build--config-file-list rcp))
-         (files (package-build-expand-file-specs source-dir file-specs))
-         (commit (package-build--get-commit rcp))
-         (name (oref rcp name)))
-    (unless (equal file-specs package-build-default-files-spec)
-      (when (equal files (package-build-expand-file-specs
-                          source-dir package-build-default-files-spec nil t))
-        (package-build--message
-         "Note: %s :files spec is equivalent to the default." name)))
-    (cond
-     ((not version)
-      (error "Unable to check out repository for %s" name))
-     ((= (length files) 1)
-      (package-build--build-single-file-package
-       rcp version commit files source-dir))
-     ((> (length files) 1)
-      (package-build--build-multi-file-package
-       rcp version commit files source-dir))
-     (t (error "Unable to find files matching recipe patterns")))))
+  (let ((source-dir (package-recipe--working-tree rcp)))
+    (unwind-protect
+        (let* ((file-specs (package-build--config-file-list rcp))
+               (files (package-build-expand-file-specs source-dir file-specs))
+               (commit (package-build--get-commit rcp))
+               (name (oref rcp name)))
+          (unless (equal file-specs package-build-default-files-spec)
+            (when (equal files (package-build-expand-file-specs
+                                source-dir
+                                package-build-default-files-spec
+                                nil t))
+              (package-build--message
+               "Note: %s :files spec is equivalent to the default." name)))
+          (cond
+           ((not version)
+            (error "Unable to check out repository for %s" name))
+           ((= (length files) 1)
+            (package-build--build-single-file-package
+             rcp version commit files source-dir))
+           ((> (length files) 1)
+            (package-build--build-multi-file-package
+             rcp version commit files source-dir))
+           (t (error "Unable to find files matching recipe patterns"))))
+      (cond ((cl-typep rcp 'package-git-recipe)
+             (package-build--run-process
+              source-dir nil "git" "clean" "-f" "-d" "-x"))
+            ((and (cl-typep rcp 'package-hg-recipe)
+                  package-build-use-hg-purge)
+             (package-build--run-process source-dir nil "hg" "purge"))))))
 
 (defun package-build--build-single-file-package (rcp version commit files source-dir)
   (let* ((name (oref rcp name))
