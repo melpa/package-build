@@ -515,7 +515,7 @@ SOURCE-DIR and TARGET-DIR respectively."
               (with-demoted-errors "Error: %S"
                 (package-build--run-process
                  (file-name-directory texi) nil
-                 "makeinfo" texi "-o" info))))
+                 "makeinfo" "--no-split" texi "-o" info))))
           (with-demoted-errors "Error: %S"
             (package-build--run-process
              target-dir nil "install-info" "--dir=dir" info)))))))
