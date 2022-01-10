@@ -273,7 +273,7 @@ is used instead."
                          (cons command args)))))
       (unless (file-directory-p default-directory)
         (error "Can't run process in non-existent directory: %s" default-directory))
-      (let ((exit-code (apply 'process-file
+      (let ((exit-code (apply #'call-process
                               (car argv) nil (current-buffer) t
                               (cdr argv))))
         (or (zerop exit-code)
