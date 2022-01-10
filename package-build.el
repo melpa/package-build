@@ -500,9 +500,10 @@ SOURCE-DIR and TARGET-DIR respectively."
   (pcase-dolist (`(,src . ,tmp) files)
     (let ((extension (file-name-extension tmp)))
       (when (member extension '("info" "texi" "texinfo"))
-        (setq src (expand-file-name src source-dir))
-        (setq tmp (expand-file-name tmp target-dir))
-        (let ((info tmp))
+        (let* ((src (expand-file-name src source-dir))
+               (tmp (expand-file-name tmp target-dir))
+               (texi src)
+               (info tmp))
           (when (member extension '("texi" "texinfo"))
             (delete-file tmp)
             (setq info (concat (file-name-sans-extension tmp) ".info"))
@@ -513,8 +514,8 @@ SOURCE-DIR and TARGET-DIR respectively."
               ;; necessary to run makeinfo in the subdirectory.
               (with-demoted-errors "Error: %S"
                 (package-build--run-process
-                 (file-name-directory src) nil
-                 "makeinfo" src "-o" info))))
+                 (file-name-directory texi) nil
+                 "makeinfo" texi "-o" info))))
           (with-demoted-errors "Error: %S"
             (package-build--run-process
              target-dir nil "install-info" "--dir=dir" info)))))))
