@@ -253,12 +253,14 @@ is used instead."
 ;;; Run Process
 
 (defun package-build--run-process (directory destination command &rest args)
+  (setq directory (file-name-as-directory (or directory default-directory)))
   (with-current-buffer
       (if (eq destination t)
           (current-buffer)
         (or destination (get-buffer-create "*package-build-checkout*")))
-    (let ((default-directory
-            (file-name-as-directory (or directory default-directory)))
+    (unless destination
+      (setq default-directory directory))
+    (let ((default-directory directory)
           (argv (nconc (unless (eq system-type 'windows-nt)
                          (list "env" "LC_ALL=C"))
                        (if (and package-build-timeout-secs
