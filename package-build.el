@@ -274,7 +274,7 @@ is used instead."
       (unless (file-directory-p default-directory)
         (error "Can't run process in non-existent directory: %s" default-directory))
       (let ((exit-code (apply #'call-process
-                              (car argv) nil (current-buffer) t
+                              (car argv) nil (current-buffer) nil
                               (cdr argv))))
         (or (zerop exit-code)
             (error "Command '%s' exited with non-zero status %d: %s"
