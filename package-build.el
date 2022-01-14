@@ -282,9 +282,12 @@ is used instead."
       (let ((exit-code (apply #'call-process
                               (car argv) nil (current-buffer) nil
                               (cdr argv))))
-        (or (zerop exit-code)
-            (error "Command '%s' exited with non-zero status %d: %s"
-                   argv exit-code (buffer-string)))))))
+        (unless (zerop exit-code)
+          (message "\nCommand '%s' exited with non-zero exit-code: %d\n"
+                   (mapconcat #'shell-quote-argument argv " ")
+                   exit-code)
+          (message "%s" (buffer-string))
+          (error "Command exited with non-zero exit-code: %d" exit-code))))))
 
 ;;; Checkout
 ;;;; Common
