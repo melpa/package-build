@@ -412,9 +412,8 @@ is used instead."
 
 (cl-defmethod package-build--get-commit ((rcp package-hg-recipe) &optional rev)
   (let ((default-directory (package-recipe--working-tree rcp)))
-    ;; "--debug" is needed to get the full hash.
-    (car (apply #'process-lines "hg" "--debug" "id" "-i"
-                (and rev (list rev))))))
+    (car (process-lines "hg" "id" "--id" "--rev" (or rev ".")
+                        "--template" "{node}"))))
 
 
 ;;; Generate Files
