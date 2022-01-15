@@ -653,25 +653,28 @@ still be renamed."
     (:exclude ".dir-locals.el" "test.el" "tests.el" "*-test.el" "*-tests.el"))
   "Default value for :files attribute in recipes.")
 
-(defun package-build-expand-files-spec (repo spec &optional subdir allow-empty)
-  (let ((default-directory repo)
-        (subdir (if subdir (file-name-as-directory subdir) ""))
-        (files nil))
+(defun package-build-expand-files-spec (repo spec &optional allow-empty)
+  (let* ((default-directory repo)
+         (files (package-build--expand-files-spec-1 spec)))
+    (when (and (null files) (not allow-empty))
+      (error "No matching file(s) found in %s: %s" repo spec))
+    files))
+
+(defun package-build--expand-files-spec-1 (spec &optional subdir)
+  (let ((files nil))
     (dolist (entry spec)
       (setq files
             (if (consp entry)
                 (if (eq :exclude (car entry))
                     (cl-nset-difference files
-                                        (package-build-expand-files-spec
-                                         repo (cdr entry) nil t)
+                                        (package-build--expand-files-spec-1
+                                         (cdr entry))
                                         :key #'car
                                         :test #'equal)
                   (nconc files
-                         (package-build-expand-files-spec
-                          repo
+                         (package-build--expand-files-spec-1
                           (cdr entry)
-                          (concat subdir (car entry))
-                          t)))
+                          (concat subdir (car entry) "/"))))
               (nconc
                files (mapcar (lambda (f)
                                (cons f
@@ -680,9 +683,7 @@ still be renamed."
                                               "\\.el\\.in\\'"
                                               ".el"
                                               (file-name-nondirectory f)))))
-                           (file-expand-wildcards entry))))))
-    (when (and (null files) (not allow-empty))
-      (error "No matching file(s) found in %s: %s" repo spec))
+                             (file-expand-wildcards entry))))))
     files))
 
 (defun package-build--config-file-list (rcp)
