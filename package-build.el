@@ -853,6 +853,10 @@ in `package-build-archive-dir'."
   (let ((source-dir (package-recipe--working-tree rcp)))
     (unwind-protect
         (progn
+          (when-let ((command (oref rcp shell-command)))
+            (package-build--message "Running %s" command)
+            (package-build--run-process
+             source-dir nil shell-file-name shell-command-switch command))
           (when-let ((targets (oref rcp make-targets)))
             (package-build--message "Running make %s"
                                     (mapconcat #'identity targets " "))
