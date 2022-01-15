@@ -337,7 +337,9 @@ Signal an error if the command did not finish with exit code 0."
                                 (list "--ro-bind" dir dir)))
                          (append
                           package-build--sandbox-ro-binds
-                          package-build--sandbox-extra-ro-dirs))
+                          package-build--sandbox-extra-ro-dirs
+                          (list (expand-file-name ".git" default-directory)
+                                (expand-file-name ".hg" default-directory))))
                ,command ,@args)))))
 
 ;;; Checkout
