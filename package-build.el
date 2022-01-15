@@ -349,11 +349,12 @@ is used instead."
 
 (cl-defmethod package-build--get-timestamp ((rcp package-git-recipe) rev)
   (let ((default-directory (package-recipe--working-tree rcp)))
-    ;; package-build--expand-source-file-list expects REV to be checked out.
+    ;; `package-build-expand-files-spec' expects REV to be checked out.
     (package-build--checkout-1 rcp rev)
     (car (apply #'process-lines
-                "git" "log" "--first-parent" "-n1" "--pretty=format:'\%ci'"
-                rev "--" (package-build--expand-source-file-list rcp)))))
+                "git" "log" "--first-parent" "-n1" "--pretty=format:'\%ci'" rev
+                "--" (mapcar #'car
+                             (package-build-expand-files-spec rcp))))))
 
 (cl-defmethod package-build--used-url ((rcp package-git-recipe))
   (let ((default-directory (package-recipe--working-tree rcp)))
@@ -402,7 +403,8 @@ is used instead."
     (car (apply #'process-lines
                 "hg" "log" "--style" "compact" "-l1"
                 `(,@(and rev (list "--rev" rev))
-                  ,@(package-build--expand-source-file-list rcp))))))
+                  ,@(mapcar #'car
+                            (package-build-expand-files-spec rcp)))))))
 
 (cl-defmethod package-build--used-url ((rcp package-hg-recipe))
   (let ((default-directory (package-recipe--working-tree rcp)))
@@ -653,12 +655,24 @@ still be renamed."
     (:exclude ".dir-locals.el" "test.el" "tests.el" "*-test.el" "*-tests.el"))
   "Default value for :files attribute in recipes.")
 
-(defun package-build-expand-files-spec (repo spec &optional allow-empty)
-  (let* ((default-directory repo)
-         (files (package-build--expand-files-spec-1 spec)))
-    (when (and (null files) (not allow-empty))
-      (error "No matching file(s) found in %s: %s" repo spec))
-    files))
+(defun package-build-expand-files-spec (rcp &optional assert)
+  (let ((default-directory (package-recipe--working-tree rcp))
+        (spec (oref rcp files)))
+    (when (eq :defaults (car spec))
+      (setq spec (append package-build-default-files-spec (cdr spec))))
+    (let ((files (package-build--expand-files-spec-1
+                  (or spec package-build-default-files-spec))))
+      (when assert
+        (when (and spec
+                   (equal files (package-build--expand-files-spec-1
+                                 package-build-default-files-spec)))
+          (package-build--message
+           "Note: %s :files spec is equivalent to the default."
+           (oref rcp name)))
+        (unless files
+          (error "No matching file(s) found in %s using %s"
+                 default-directory (or spec "default spec"))))
+      files)))
 
 (defun package-build--expand-files-spec-1 (spec &optional subdir)
   (let ((files nil))
@@ -685,22 +699,6 @@ still be renamed."
                       (cdr entry)
                       (concat subdir (car entry) "/")))))))
     files))
-
-(defun package-build--config-file-list (rcp)
-  (let ((file-list (oref rcp files)))
-    (cond
-     ((null file-list)
-      package-build-default-files-spec)
-     ((eq :defaults (car file-list))
-      (append package-build-default-files-spec (cdr file-list)))
-     (t
-      file-list))))
-
-(defun package-build--expand-source-file-list (rcp)
-  (mapcar #'car
-          (package-build-expand-files-spec
-           (package-recipe--working-tree rcp)
-           (package-build--config-file-list rcp))))
 
 (defun package-build--copy-package-files (files source-dir target-dir)
   "Copy FILES from SOURCE-DIR to TARGET-DIR.
@@ -754,18 +752,11 @@ Return the archive entry for the package and store the package
 in `package-build-archive-dir'."
   (let ((source-dir (package-recipe--working-tree rcp)))
     (unwind-protect
-        (let* ((file-specs (package-build--config-file-list rcp))
-               (files (package-build-expand-files-spec source-dir file-specs))
-               (commit (package-build--get-commit rcp))
-               (name (oref rcp name)))
-          (unless (equal file-specs package-build-default-files-spec)
-            (when (equal files (package-build-expand-files-spec
-                                source-dir package-build-default-files-spec t))
-              (package-build--message
-               "Note: %s :files spec is equivalent to the default." name)))
+        (let ((files (package-build-expand-files-spec rcp t))
+              (commit (package-build--get-commit rcp)))
           (cond
            ((not version)
-            (error "Unable to check out repository for %s" name))
+            (error "Unable to check out repository for %s" (oref rcp name)))
            ((= (length files) 1)
             (package-build--build-single-file-package
              rcp version commit files source-dir))
