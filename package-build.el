@@ -664,26 +664,26 @@ still be renamed."
   (let ((files nil))
     (dolist (entry spec)
       (setq files
-            (if (consp entry)
-                (if (eq :exclude (car entry))
-                    (cl-nset-difference files
-                                        (package-build--expand-files-spec-1
-                                         (cdr entry))
-                                        :key #'car
-                                        :test #'equal)
-                  (nconc files
-                         (package-build--expand-files-spec-1
-                          (cdr entry)
-                          (concat subdir (car entry) "/"))))
-              (nconc
-               files (mapcar (lambda (f)
+            (cond
+             ((stringp entry)
+              (nconc files
+                     (mapcar (lambda (f)
                                (cons f
                                      (concat subdir
                                              (replace-regexp-in-string
-                                              "\\.el\\.in\\'"
-                                              ".el"
+                                              "\\.el\\.in\\'"  ".el"
                                               (file-name-nondirectory f)))))
-                             (file-expand-wildcards entry))))))
+                             (file-expand-wildcards entry))))
+             ((eq (car entry) :exclude)
+              (cl-nset-difference
+               files
+               (package-build--expand-files-spec-1 (cdr entry))
+               :key #'car :test #'equal))
+             (t
+              (nconc files
+                     (package-build--expand-files-spec-1
+                      (cdr entry)
+                      (concat subdir (car entry) "/")))))))
     files))
 
 (defun package-build--config-file-list (rcp)
@@ -760,9 +760,7 @@ in `package-build-archive-dir'."
                (name (oref rcp name)))
           (unless (equal file-specs package-build-default-files-spec)
             (when (equal files (package-build-expand-files-spec
-                                source-dir
-                                package-build-default-files-spec
-                                nil t))
+                                source-dir package-build-default-files-spec t))
               (package-build--message
                "Note: %s :files spec is equivalent to the default." name)))
           (cond
