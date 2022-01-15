@@ -514,18 +514,36 @@ is used instead."
                       (expand-file-name (concat name "-readme.txt")
                                         package-build-archive-dir))))))
 
-(defun package-build--generate-info-files (files source-dir target-dir)
+(defun package-build--generate-info-files (rcp files source-dir target-dir)
   "Create an info file for each texinfo file listed in FILES.
+
 Also create the info dir file.  Remove each original texinfo
 file.  The source and destination file paths are expanded in
-SOURCE-DIR and TARGET-DIR respectively."
+SOURCE-DIR and TARGET-DIR respectively.
+
+If an org file appears in FILES and in RCP's `info-manuals' slot
+as well, then export it to texinfo and then the result to info."
   (pcase-dolist (`(,src . ,tmp) files)
     (let ((extension (file-name-extension tmp)))
-      (when (member extension '("info" "texi" "texinfo"))
-        (let* ((src (expand-file-name src source-dir))
+      (when (member extension '("info" "texi" "texinfo" "org"))
+        (let* ((explicit (member src (oref rcp info-manuals)))
+               (src (expand-file-name src source-dir))
                (tmp (expand-file-name tmp target-dir))
+               (org  src)
                (texi src)
                (info tmp))
+          (when (equal extension "org")
+            (if (not explicit)
+                (setq info nil)
+              (delete-file tmp)
+              (setq texi (concat (file-name-sans-extension org) ".texi"))
+              (package-build--message "Generating %s" texi)
+              (with-demoted-errors "Error: %S"
+                (package-build--run-process
+                 source-dir nil "emacs" "-Q" "--batch" "-l" "ox-texinfo"
+                 org "--funcall" "org-texinfo-export-to-texinfo"))
+              (when (file-exists-p texi)
+                (setq extension "texi"))))
           (when (member extension '("texi" "texinfo"))
             (delete-file tmp)
             (setq info (concat (file-name-sans-extension tmp) ".info"))
@@ -538,9 +556,10 @@ SOURCE-DIR and TARGET-DIR respectively."
                 (package-build--run-process
                  (file-name-directory texi) nil
                  "makeinfo" "--no-split" texi "-o" info))))
-          (with-demoted-errors "Error: %S"
-            (package-build--run-process
-             target-dir nil "install-info" "--dir=dir" info)))))))
+          (when info
+            (with-demoted-errors "Error: %S"
+              (package-build--run-process
+               target-dir nil "install-info" "--dir=dir" info))))))))
 
 ;;; Patch Libraries
 
@@ -893,7 +912,7 @@ in `package-build-archive-dir'."
                                   name)))))
           (package-build--copy-package-files files source-dir target)
           (package-build--write-pkg-file desc target)
-          (package-build--generate-info-files files source-dir target)
+          (package-build--generate-info-files rcp files source-dir target)
           (package-build--create-tar name version tmp-dir)
           (package-build--write-pkg-readme name files source-dir)
           (package-build--write-archive-entry desc))
