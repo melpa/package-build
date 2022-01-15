@@ -354,7 +354,7 @@ is used instead."
     (car (apply #'process-lines
                 "git" "log" "--first-parent" "-n1" "--pretty=format:'\%ci'" rev
                 "--" (mapcar #'car
-                             (package-build-expand-files-spec rcp))))))
+                             (package-build-expand-files-spec rcp nil t))))))
 
 (cl-defmethod package-build--used-url ((rcp package-git-recipe))
   (let ((default-directory (package-recipe--working-tree rcp)))
@@ -404,7 +404,7 @@ is used instead."
                 "hg" "log" "--style" "compact" "-l1"
                 `(,@(and rev (list "--rev" rev))
                   ,@(mapcar #'car
-                            (package-build-expand-files-spec rcp)))))))
+                            (package-build-expand-files-spec rcp nil t)))))))
 
 (cl-defmethod package-build--used-url ((rcp package-hg-recipe))
   (let ((default-directory (package-recipe--working-tree rcp)))
@@ -655,17 +655,19 @@ still be renamed."
     (:exclude ".dir-locals.el" "test.el" "tests.el" "*-test.el" "*-tests.el"))
   "Default value for :files attribute in recipes.")
 
-(defun package-build-expand-files-spec (rcp &optional assert)
+(defun package-build-expand-files-spec (rcp &optional assert include-inputs)
   (let ((default-directory (package-recipe--working-tree rcp))
         (spec (oref rcp files)))
     (when (eq :defaults (car spec))
       (setq spec (append package-build-default-files-spec (cdr spec))))
     (let ((files (package-build--expand-files-spec-1
-                  (or spec package-build-default-files-spec))))
+                  (or spec package-build-default-files-spec)
+                  nil include-inputs)))
       (when assert
         (when (and spec
                    (equal files (package-build--expand-files-spec-1
-                                 package-build-default-files-spec)))
+                                 package-build-default-files-spec
+                                 nil include-inputs)))
           (package-build--message
            "Note: %s :files spec is equivalent to the default."
            (oref rcp name)))
@@ -674,7 +676,7 @@ still be renamed."
                  default-directory (or spec "default spec"))))
       files)))
 
-(defun package-build--expand-files-spec-1 (spec &optional subdir)
+(defun package-build--expand-files-spec-1 (spec &optional subdir include-inputs)
   (let ((files nil))
     (dolist (entry spec)
       (setq files
@@ -693,11 +695,18 @@ still be renamed."
                files
                (package-build--expand-files-spec-1 (cdr entry))
                :key #'car :test #'equal))
+             ((eq (car entry) :inputs)
+              (if include-inputs
+                  (nconc files
+                         (package-build--expand-files-spec-1
+                          (cdr entry) subdir t))
+                files))
              (t
               (nconc files
                      (package-build--expand-files-spec-1
                       (cdr entry)
-                      (concat subdir (car entry) "/")))))))
+                      (concat subdir (car entry) "/")
+                      include-inputs))))))
     files))
 
 (defun package-build--copy-package-files (files source-dir target-dir)
