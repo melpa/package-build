@@ -901,7 +901,12 @@ Return the archive entry for the package and store the package
 in `package-build-archive-dir'."
   (let ((source-dir (package-recipe--working-tree rcp)))
     (unwind-protect
-        (progn
+        (let ((commit (package-build--get-commit rcp))
+              (revdesc (package-build--get-revdesc rcp))
+              (process-environment (copy-sequence process-environment)))
+          (setenv "PACKAGE_VERSION" version)
+          (setenv "PACKAGE_REVISION" commit)
+          (setenv "PACKAGE_REVDESC" revdesc)
           (when-let ((command (oref rcp shell-command)))
             (package-build--message "Running %s" command)
             (package-build--run-sandboxed
@@ -910,9 +915,7 @@ in `package-build-archive-dir'."
             (package-build--message "Running make %s"
                                     (mapconcat #'identity targets " "))
             (apply #'package-build--run-sandboxed source-dir nil "make" targets))
-          (let ((files (package-build-expand-files-spec rcp t))
-                (commit (package-build--get-commit rcp))
-                (revdesc (package-build--get-revdesc rcp)))
+          (let ((files (package-build-expand-files-spec rcp t)))
             (cond
              ((not version)
               (error "Unable to check out repository for %s" (oref rcp name)))
