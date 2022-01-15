@@ -852,19 +852,24 @@ Return the archive entry for the package and store the package
 in `package-build-archive-dir'."
   (let ((source-dir (package-recipe--working-tree rcp)))
     (unwind-protect
-        (let ((files (package-build-expand-files-spec rcp t))
-              (commit (package-build--get-commit rcp))
-              (revdesc (package-build--get-revdesc rcp)))
-          (cond
-           ((not version)
-            (error "Unable to check out repository for %s" (oref rcp name)))
-           ((= (length files) 1)
-            (package-build--build-single-file-package
-             rcp version commit revdesc files source-dir))
-           ((> (length files) 1)
-            (package-build--build-multi-file-package
-             rcp version commit revdesc files source-dir))
-           (t (error "Unable to find files matching recipe patterns"))))
+        (progn
+          (when-let ((targets (oref rcp make-targets)))
+            (package-build--message "Running make %s"
+                                    (mapconcat #'identity targets " "))
+            (apply #'package-build--run-process source-dir nil "make" targets))
+          (let ((files (package-build-expand-files-spec rcp t))
+                (commit (package-build--get-commit rcp))
+                (revdesc (package-build--get-revdesc rcp)))
+            (cond
+             ((not version)
+              (error "Unable to check out repository for %s" (oref rcp name)))
+             ((= (length files) 1)
+              (package-build--build-single-file-package
+               rcp version commit revdesc files source-dir))
+             ((> (length files) 1)
+              (package-build--build-multi-file-package
+               rcp version commit revdesc files source-dir))
+             (t (error "Unable to find files matching recipe patterns")))))
       (cond ((cl-typep rcp 'package-git-recipe)
              (package-build--run-process
               source-dir nil "git" "clean" "-f" "-d" "-x"))
