@@ -3,6 +3,7 @@
 ;; Copyright (C) 2011-2022 Donald Ephraim Curtis <dcurtis@milkbox.net>
 ;; Copyright (C) 2012-2022 Steve Purcell <steve@sanityinc.com>
 ;; Copyright (C) 2016-2022 Jonas Bernoulli <jonas@bernoul.li>
+;; Copyright (C) 2020-2022 Free Software Foundation, Inc.
 ;; Copyright (C) 2009 Phil Hagelberg <technomancy@gmail.com>
 
 ;; Author: Donald Ephraim Curtis <dcurtis@milkbox.net>
@@ -293,6 +294,50 @@ is used instead."
           (message "%s" (buffer-string))
           (error "Command exited with non-zero exit-code: %d" exit-code))))))
 
+(defvar package-build--sandbox
+  (not (memq system-type '(darwin ms-dos windows-nt cygwin)))
+  "If non-nil, run some of the less trusted commands in a sandbox.
+This is recommended when building packages from untrusted sources,
+but this requires Bubblewrap (https://github.com/containers/bubblewrap)
+to be installed and has only been tested on some Debian systems.")
+
+(defconst package-build--bwrap-args
+  '("--unshare-all"
+    "--dev" "/dev"
+    "--proc" "/proc"
+    "--tmpfs" "/tmp"))
+
+(defvar package-build--sandbox-ro-binds
+  '("/lib"
+    "/lib64"
+    "/bin"
+    "/usr"
+    "/etc/alternatives"
+    "/etc/emacs"))
+
+(defvar package-build--sandbox-extra-ro-dirs nil)
+
+(defun package-build--run-sandboxed (directory destination command &rest args)
+  "Like `package-build--run-process' but sandboxed.
+More specifically, uses Bubblewrap such that the command is
+confined to only have write access to the `default-directory'.
+Signal an error if the command did not finish with exit code 0."
+  (let ((default-directory
+         (file-name-as-directory (or directory default-directory))))
+    (if (not package-build--sandbox)
+        (apply #'package-build--run-process nil destination command args)
+      (setq args (cons command args))
+      (let ((dd (expand-file-name default-directory)))
+        (setq args (nconc `("--bind" ,dd ,dd) args)))
+      (dolist (b (append package-build--sandbox-ro-binds
+                         package-build--sandbox-extra-ro-dirs))
+        (when (file-exists-p b)
+          (setq b (expand-file-name b))
+          (setq args (nconc `("--ro-bind" ,b ,b) args))))
+      (apply #'package-build--run-process
+             nil destination "bwrap"
+             (append package-build--bwrap-args args)))))
+
 ;;; Checkout
 ;;;; Common
 
@@ -539,7 +584,7 @@ as well, then export it to texinfo and then the result to info."
               (setq texi (concat (file-name-sans-extension org) ".texi"))
               (package-build--message "Generating %s" texi)
               (with-demoted-errors "Error: %S"
-                (package-build--run-process
+                (package-build--run-sandboxed
                  source-dir nil "emacs" "-Q" "--batch" "-l" "ox-texinfo"
                  org "--funcall" "org-texinfo-export-to-texinfo"))
               (when (file-exists-p texi)
@@ -855,12 +900,12 @@ in `package-build-archive-dir'."
         (progn
           (when-let ((command (oref rcp shell-command)))
             (package-build--message "Running %s" command)
-            (package-build--run-process
+            (package-build--run-sandboxed
              source-dir nil shell-file-name shell-command-switch command))
           (when-let ((targets (oref rcp make-targets)))
             (package-build--message "Running make %s"
                                     (mapconcat #'identity targets " "))
-            (apply #'package-build--run-process source-dir nil "make" targets))
+            (apply #'package-build--run-sandboxed source-dir nil "make" targets))
           (let ((files (package-build-expand-files-spec rcp t))
                 (commit (package-build--get-commit rcp))
                 (revdesc (package-build--get-revdesc rcp)))
