@@ -301,19 +301,19 @@ This is recommended when building packages from untrusted sources,
 but this requires Bubblewrap (https://github.com/containers/bubblewrap)
 to be installed and has only been tested on some Debian systems.")
 
-(defconst package-build--bwrap-args
+(defconst package-build--sandbox-args
   '("--unshare-all"
     "--dev" "/dev"
     "--proc" "/proc"
     "--tmpfs" "/tmp"))
 
 (defvar package-build--sandbox-ro-binds
-  '("/lib"
-    "/lib64"
-    "/bin"
-    "/usr"
+  '("/bin"
     "/etc/alternatives"
-    "/etc/emacs"))
+    "/etc/emacs"
+    "/lib"
+    "/lib64"
+    "/usr"))
 
 (defvar package-build--sandbox-extra-ro-dirs nil)
 
@@ -323,20 +323,22 @@ More specifically, uses Bubblewrap such that the command is
 confined to only have write access to the `default-directory'.
 Signal an error if the command did not finish with exit code 0."
   (let ((default-directory
-         (file-name-as-directory (or directory default-directory))))
+         (expand-file-name
+          (file-name-as-directory (or directory default-directory)))))
     (if (not package-build--sandbox)
         (apply #'package-build--run-process nil destination command args)
-      (setq args (cons command args))
-      (let ((dd (expand-file-name default-directory)))
-        (setq args (nconc `("--bind" ,dd ,dd) args)))
-      (dolist (b (append package-build--sandbox-ro-binds
-                         package-build--sandbox-extra-ro-dirs))
-        (when (file-exists-p b)
-          (setq b (expand-file-name b))
-          (setq args (nconc `("--ro-bind" ,b ,b) args))))
       (apply #'package-build--run-process
              nil destination "bwrap"
-             (append package-build--bwrap-args args)))))
+             `(,@package-build--sandbox-args
+               ,@(list "--bind" default-directory default-directory)
+               ,@(mapcan (lambda (dir)
+                           (and (file-exists-p dir)
+                                (setq dir (expand-file-name dir))
+                                (list "--ro-bind" dir dir)))
+                         (append
+                          package-build--sandbox-ro-binds
+                          package-build--sandbox-extra-ro-dirs))
+               ,command ,@args)))))
 
 ;;; Checkout
 ;;;; Common
