@@ -654,12 +654,6 @@ still be renamed."
   "Default value for :files attribute in recipes.")
 
 (defun package-build-expand-file-specs (dir specs &optional subdir allow-empty)
-  "In DIR, expand SPECS, optionally under SUBDIR.
-The result is a list of (SOURCE . DEST), where SOURCE is a source
-file path and DEST is the relative path to which it should be copied.
-
-If the resulting list is empty, an error will be reported.  Pass t
-for ALLOW-EMPTY to prevent this error."
   (let ((default-directory dir)
         (prefix (if subdir (format "%s/" subdir) ""))
         (lst))
