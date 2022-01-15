@@ -653,37 +653,37 @@ still be renamed."
     (:exclude ".dir-locals.el" "test.el" "tests.el" "*-test.el" "*-tests.el"))
   "Default value for :files attribute in recipes.")
 
-(defun package-build-expand-file-specs (dir specs &optional subdir allow-empty)
-  (let ((default-directory dir)
-        (prefix (if subdir (format "%s/" subdir) ""))
-        (lst))
-    (dolist (entry specs)
-      (setq lst
+(defun package-build-expand-files-spec (repo spec &optional subdir allow-empty)
+  (let ((default-directory repo)
+        (subdir (if subdir (file-name-as-directory subdir) ""))
+        (files nil))
+    (dolist (entry spec)
+      (setq files
             (if (consp entry)
                 (if (eq :exclude (car entry))
-                    (cl-nset-difference lst
-                                        (package-build-expand-file-specs
-                                         dir (cdr entry) nil t)
+                    (cl-nset-difference files
+                                        (package-build-expand-files-spec
+                                         repo (cdr entry) nil t)
                                         :key #'car
                                         :test #'equal)
-                  (nconc lst
-                         (package-build-expand-file-specs
-                          dir
+                  (nconc files
+                         (package-build-expand-files-spec
+                          repo
                           (cdr entry)
-                          (concat prefix (car entry))
+                          (concat subdir (car entry))
                           t)))
               (nconc
-               lst (mapcar (lambda (f)
-                             (cons f
-                                   (concat prefix
-                                           (replace-regexp-in-string
-                                            "\\.el\\.in\\'"
-                                            ".el"
-                                            (file-name-nondirectory f)))))
+               files (mapcar (lambda (f)
+                               (cons f
+                                     (concat subdir
+                                             (replace-regexp-in-string
+                                              "\\.el\\.in\\'"
+                                              ".el"
+                                              (file-name-nondirectory f)))))
                            (file-expand-wildcards entry))))))
-    (when (and (null lst) (not allow-empty))
-      (error "No matching file(s) found in %s: %s" dir specs))
-    lst))
+    (when (and (null files) (not allow-empty))
+      (error "No matching file(s) found in %s: %s" repo spec))
+    files))
 
 (defun package-build--config-file-list (rcp)
   (let ((file-list (oref rcp files)))
@@ -697,7 +697,7 @@ still be renamed."
 
 (defun package-build--expand-source-file-list (rcp)
   (mapcar #'car
-          (package-build-expand-file-specs
+          (package-build-expand-files-spec
            (package-recipe--working-tree rcp)
            (package-build--config-file-list rcp))))
 
@@ -754,11 +754,11 @@ in `package-build-archive-dir'."
   (let ((source-dir (package-recipe--working-tree rcp)))
     (unwind-protect
         (let* ((file-specs (package-build--config-file-list rcp))
-               (files (package-build-expand-file-specs source-dir file-specs))
+               (files (package-build-expand-files-spec source-dir file-specs))
                (commit (package-build--get-commit rcp))
                (name (oref rcp name)))
           (unless (equal file-specs package-build-default-files-spec)
-            (when (equal files (package-build-expand-file-specs
+            (when (equal files (package-build-expand-files-spec
                                 source-dir
                                 package-build-default-files-spec
                                 nil t))
