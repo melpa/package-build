@@ -364,6 +364,13 @@ is used instead."
   (let ((default-directory (package-recipe--working-tree rcp)))
     (car (process-lines "git" "rev-parse" (or rev "HEAD")))))
 
+(cl-defmethod package-build--get-revdesc ((rcp package-git-recipe) &optional rev)
+  (if (oref rcp version-regexp)
+      (package-build--get-commit rcp rev)
+    (let ((default-directory (package-recipe--working-tree rcp)))
+      (car (process-lines "git" "describe" "--always" "--long"
+                          (or rev "HEAD"))))))
+
 ;;;; Hg
 
 (cl-defmethod package-build--checkout ((rcp package-hg-recipe))
@@ -415,6 +422,13 @@ is used instead."
     (car (process-lines "hg" "id" "--id" "--rev" (or rev ".")
                         "--template" "{node}"))))
 
+(cl-defmethod package-build--get-revdesc ((rcp package-hg-recipe) &optional rev)
+  (if (oref rcp version-regexp)
+      (package-build--get-commit rcp rev)
+    (let ((default-directory (package-recipe--working-tree rcp)))
+      (car (process-lines "hg" "id" "--id" "--rev" (or rev ".") "--template" "\
+{ifeq(latesttag,'null',node,\
+'{latesttag}{sub('^-0-.*','','-{latesttagdistance}-m{short(node)}')}')}\n")))))
 
 ;;; Generate Files
 
@@ -562,7 +576,7 @@ still be renamed."
 
 ;;; Package Structs
 
-(defun package-build--desc-from-library (name version commit files &optional type)
+(defun package-build--desc-from-library (name version commit revdesc files &optional type)
   (let* ((file (concat name ".el"))
          (file (or (car (rassoc file files)) file)))
     (and (file-exists-p file)
@@ -588,9 +602,10 @@ still be renamed."
                           (with-no-warnings
                             (lm-maintainer)))
             :authors    (lm-authors)
-            :commit     commit)))))
+            :commit     commit
+            :revdesc    revdesc)))))
 
-(defun package-build--desc-from-package (name version commit files)
+(defun package-build--desc-from-package (name version commit revdesc files)
   (let* ((file (concat name "-pkg.el"))
          (file (or (car (rassoc file files))
                    file)))
@@ -605,7 +620,7 @@ still be renamed."
                ((`(,_ ,_ ,_ ,summary ,deps . ,extra) form)
                 (deps (eval deps))
                 (alt-desc (package-build--desc-from-library
-                           name version nil files))
+                           name version nil nil files))
                 (alt (and alt-desc (package-desc-extras alt-desc))))
              (when (string-match "[\r\n]" summary)
                (error "Illegal multi-line package description in %s" file))
@@ -630,7 +645,8 @@ still be renamed."
                               (alist-get :maintainer alt))
               :authors    (or (alist-get :authors extra)
                               (alist-get :authors alt))
-              :commit     commit))))))
+              :commit     commit
+              :revdesc    revdesc))))))
 
 (defun package-build--write-archive-entry (desc)
   (with-temp-file
@@ -814,16 +830,17 @@ in `package-build-archive-dir'."
   (let ((source-dir (package-recipe--working-tree rcp)))
     (unwind-protect
         (let ((files (package-build-expand-files-spec rcp t))
-              (commit (package-build--get-commit rcp)))
+              (commit (package-build--get-commit rcp))
+              (revdesc (package-build--get-revdesc rcp)))
           (cond
            ((not version)
             (error "Unable to check out repository for %s" (oref rcp name)))
            ((= (length files) 1)
             (package-build--build-single-file-package
-             rcp version commit files source-dir))
+             rcp version commit revdesc files source-dir))
            ((> (length files) 1)
             (package-build--build-multi-file-package
-             rcp version commit files source-dir))
+             rcp version commit revdesc files source-dir))
            (t (error "Unable to find files matching recipe patterns"))))
       (cond ((cl-typep rcp 'package-git-recipe)
              (package-build--run-process
@@ -832,7 +849,8 @@ in `package-build-archive-dir'."
                   package-build-use-hg-purge)
              (package-build--run-process source-dir nil "hg" "purge"))))))
 
-(defun package-build--build-single-file-package (rcp version commit files source-dir)
+(defun package-build--build-single-file-package
+    (rcp version commit revdesc files source-dir)
   (let* ((name (oref rcp name))
          (file (caar files))
          (source (expand-file-name file source-dir))
@@ -840,7 +858,7 @@ in `package-build-archive-dir'."
                                    package-build-archive-dir))
          (desc (let ((default-directory source-dir))
                  (package-build--desc-from-library
-                  name version commit files))))
+                  name version commit revdesc files))))
     (unless (string-equal (downcase (concat name ".el"))
                           (downcase (file-name-nondirectory file)))
       (error "Single file %s does not match package name %s" file name))
@@ -856,16 +874,17 @@ in `package-build-archive-dir'."
     (package-build--write-pkg-readme name files source-dir)
     (package-build--write-archive-entry desc)))
 
-(defun package-build--build-multi-file-package (rcp version commit files source-dir)
+(defun package-build--build-multi-file-package
+    (rcp version commit revdesc files source-dir)
   (let* ((name (oref rcp name))
          (tmp-dir (file-name-as-directory (make-temp-file name t))))
     (unwind-protect
         (let* ((target (expand-file-name (concat name "-" version) tmp-dir))
                (desc (let ((default-directory source-dir))
                        (or (package-build--desc-from-package
-                            name version commit files)
+                            name version commit revdesc files)
                            (package-build--desc-from-library
-                            name version commit files 'tar)
+                            name version commit revdesc files 'tar)
                            (error "%s[-pkg].el matching package name is missing"
                                   name)))))
           (package-build--copy-package-files files source-dir target)
