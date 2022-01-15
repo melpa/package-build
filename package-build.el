@@ -57,6 +57,10 @@
    (directory-file-name
     (file-name-directory (or load-file-name (buffer-file-name))))))
 
+(cl-eval-when (load eval)
+  (let ((config (expand-file-name "config.el" package-build--melpa-base)))
+    (load-file config)))
+
 (defgroup package-build nil
   "Facilities for building package.el-compliant packages from upstream source code."
   :group 'development)
