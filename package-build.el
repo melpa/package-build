@@ -60,7 +60,7 @@
     (file-name-directory (or load-file-name (buffer-file-name))))))
 
 (defgroup package-build nil
-  "Facilities for building package.el-compliant packages from upstream source code."
+  "Tools for building package.el-compliant packages from upstream source code."
   :group 'development)
 
 (defcustom package-build-working-dir
