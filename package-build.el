@@ -1025,11 +1025,6 @@ line per entry."
 
 (provide 'package-build)
 
-;; For the time being just require all libraries that contain code
-;; that was previously located in this library.
-
-(require 'package-recipe-mode)
-
 ;; Local Variables:
 ;; coding: utf-8
 ;; checkdoc-minor-mode: 1
