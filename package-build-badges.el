@@ -32,7 +32,7 @@
 
 ;;; Code:
 
-(require 'package-build)
+(defvar package-build-stable)
 
 (defun package-build--write-melpa-badge-image (name version target-dir)
   (unless (zerop (call-process

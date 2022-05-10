@@ -2,9 +2,9 @@
 
 PKG = package-build
 
-ELS   = $(PKG).el
+ELS   = package-recipe.el
 ELS  += package-build-badges.el
-ELS  += package-recipe.el
+ELS  += $(PKG).el
 ELS  += package-recipe-mode.el
 ELCS  = $(ELS:.el=.elc)
 

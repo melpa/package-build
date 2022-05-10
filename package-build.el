@@ -50,6 +50,7 @@
 (require 'json)
 
 (require 'package-recipe)
+(require 'package-build-badges)
 
 ;;; Options
 
@@ -1027,7 +1028,6 @@ line per entry."
 ;; For the time being just require all libraries that contain code
 ;; that was previously located in this library.
 
-(require 'package-build-badges)
 (require 'package-recipe-mode)
 
 ;; Local Variables:
