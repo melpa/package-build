@@ -13,7 +13,7 @@
 ;; Keywords: maint tools
 
 ;; Package-Version: 0-git
-;; Package-Requires: ((cl-lib "0.5") (emacs "25.1"))
+;; Package-Requires: ((emacs "25.1"))
 
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 
