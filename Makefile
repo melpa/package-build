@@ -29,13 +29,7 @@ loaddefs: $(PKG)-autoloads.el
 
 %.elc: %.el
 	@printf "Compiling $<\n"
-	@$(EMACS) -Q --batch \
-	--load eieio \
-	--eval "(put 'object-class-fast 'byte-obsolete-info nil)" \
-	--load eieio-compat \
-	--eval "(put 'defmethod 'byte-obsolete-info nil)" \
-	--eval "(put 'defgeneric 'byte-obsolete-info nil)" \
-	$(EMACS_ARGS) $(LOAD_PATH) -f batch-byte-compile $<
+	@$(EMACS) -Q --batch $(EMACS_ARGS) $(LOAD_PATH) -f batch-byte-compile $<
 
 check-declare:
 	@printf " Checking function declarations\n"
