@@ -23,7 +23,7 @@ help:
 	$(info make clean        - remove generated files)
 	@printf "\n"
 
-lisp: $(ELCS) loaddefs
+lisp: $(ELCS) loaddefs check-declare
 
 loaddefs: $(PKG)-autoloads.el
 
@@ -37,10 +37,15 @@ loaddefs: $(PKG)-autoloads.el
 	--eval "(put 'defgeneric 'byte-obsolete-info nil)" \
 	$(EMACS_ARGS) $(LOAD_PATH) -f batch-byte-compile $<
 
+check-declare:
+	@printf " Checking function declarations\n"
+	@$(EMACS) -Q --batch $(EMACS_ARGS) $(LOAD_PATH) \
+	--eval "(check-declare-directory default-directory)"
+
 CLEAN  = $(ELCS) $(PKG)-autoloads.el
 
 clean:
-	@printf "Cleaning...\n"
+	@printf " Cleaning...\n"
 	@rm -rf $(CLEAN)
 
 define LOADDEFS_TMPL
