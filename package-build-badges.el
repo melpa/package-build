@@ -1,4 +1,4 @@
-;;; package-build-badges.el --- Create batches for packages  -*- lexical-binding:t -*-
+;;; package-build-badges.el --- Create batches for packages  -*- lexical-binding:t; coding:utf-8 -*-
 
 ;; Copyright (C) 2011-2022 Donald Ephraim Curtis
 ;; Copyright (C) 2012-2022 Steve Purcell
@@ -45,10 +45,4 @@
     (message "Failed to fetch badge")))
 
 (provide 'package-build-badges)
-
-;; Local Variables:
-;; coding: utf-8
-;; checkdoc-minor-mode: 1
-;; indent-tabs-mode: nil
-;; End:
 ;;; package-badges.el ends here

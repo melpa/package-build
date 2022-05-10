@@ -1,4 +1,4 @@
-;;; package-recipe-mode.el --- Minor mode for editing package recipes  -*- lexical-binding:t -*-
+;;; package-recipe-mode.el --- Minor mode for editing package recipes  -*- lexical-binding:t; coding:utf-8 -*-
 
 ;; Copyright (C) 2011-2022 Donald Ephraim Curtis
 ;; Copyright (C) 2012-2022 Steve Purcell
@@ -97,10 +97,4 @@
         (assq (intern name) (package-build-archive-alist)))))))
 
 (provide 'package-recipe-mode)
-
-;; Local Variables:
-;; coding: utf-8
-;; checkdoc-minor-mode: 1
-;; indent-tabs-mode: nil
-;; End:
 ;;; package-recipe-mode.el ends here

@@ -1,4 +1,4 @@
-;;; package-recipe.el --- Package recipes as EIEIO objects  -*- lexical-binding:t -*-
+;;; package-recipe.el --- Package recipes as EIEIO objects  -*- lexical-binding:t; coding:utf-8 -*-
 
 ;; Copyright (C) 2018-2022 Jonas Bernoulli
 
@@ -166,11 +166,5 @@ file is invalid, then raise an error."
       (list name ident all-keys))
     recipe))
 
-;;; _
 (provide 'package-recipe)
-;; Local Variables:
-;; coding: utf-8
-;; checkdoc-minor-mode: 1
-;; indent-tabs-mode: nil
-;; End:
 ;;; package-recipe.el ends here

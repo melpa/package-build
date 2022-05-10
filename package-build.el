@@ -1,4 +1,4 @@
-;;; package-build.el --- Tools for assembling a package archive  -*- lexical-binding:t -*-
+;;; package-build.el --- Tools for assembling a package archive  -*- lexical-binding:t; coding:utf-8 -*-
 
 ;; Copyright (C) 2011-2022 Donald Ephraim Curtis
 ;; Copyright (C) 2012-2022 Steve Purcell
@@ -1024,10 +1024,4 @@ line per entry."
   #'package-build-dump-archive-contents "Package-Build 3.0")
 
 (provide 'package-build)
-
-;; Local Variables:
-;; coding: utf-8
-;; checkdoc-minor-mode: 1
-;; indent-tabs-mode: nil
-;; End:
 ;;; package-build.el ends here
