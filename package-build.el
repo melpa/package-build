@@ -648,8 +648,8 @@ still be renamed."
 ;;; File Specs
 
 (defconst package-build-default-files-spec
-  '("*.el" "*.el.in" "dir"
-    "*.info" "*.texi" "*.texinfo"
+  '("*.el"
+    "dir" "*.info" "*.texi" "*.texinfo"
     "doc/dir" "doc/*.info" "doc/*.texi" "doc/*.texinfo"
     "docs/dir" "docs/*.info" "docs/*.texi" "docs/*.texinfo"
     (:exclude ".dir-locals.el" "test.el" "tests.el" "*-test.el" "*-tests.el"))
