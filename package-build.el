@@ -668,6 +668,50 @@ still be renamed."
                "Package-Build 3.2")
 
 (defun package-build-expand-files-spec (rcp &optional assert repo spec)
+  "Return an alist of files of package RCP to be included in tarball.
+
+Each element has the form (SOURCE . DESTINATION), where SOURCE
+is a file in the package's repository and DESTINATION is where
+that file is placed in the package's tarball.
+
+RCP is the package recipe as an object.  If the `files' slot of
+RCP is non-nil, then that is used as the file specification.
+Otherwise `package-build-default-files-spec' is used.
+
+If optional ASSERT is non-nil, then raise an error if nil would
+be returned.  If ASSERT and `files' are both non-nil and using
+`files' results in the same set of files as the default spec,
+then show a warning.
+
+A file specification SPEC is a list.  Its elements are processes
+in order and can have the following form:
+
+- :default
+
+  If the very first element of the top-level SPEC is `:default',
+  then that means to prepend the default file spec to the SPEC
+  specified by the remaining elements.
+
+- GLOB
+
+  A string is glob-expanded to match zero or more files.  Matched
+  files are copied to the top-level directory.
+
+- (SUBDIRECTORY . SPEC)
+
+  A list that begins with a string causes the files matched by
+  the second and subsequent elements to be copied into the sub-
+  directory specified by the first element.
+
+- (:exclude . SPEC)
+
+  A list that begins with `:exclude' causes files that were
+  matched by earlier elements that are also matched by the second
+  and subsequent elements of this list to be removed from the
+  returned alist.  Files matched by later elements are not
+  affected.
+
+\(fn RCP &optional ASSERT)" ; Other arguments only for backward compat.
   (let ((default-directory (or repo (package-recipe--working-tree rcp)))
         (spec (or spec (oref rcp files))))
     (when (eq :defaults (car spec))
