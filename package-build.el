@@ -836,8 +836,9 @@ in `package-build-archive-dir'."
          (desc (let ((default-directory source-dir))
                  (package-build--desc-from-library
                   name version commit files))))
-    (unless (string-equal (downcase (concat name ".el"))
-                          (downcase (file-name-nondirectory file)))
+    (unless (member (downcase (file-name-nondirectory file))
+                    (list (downcase (concat name ".el"))
+                          (downcase (concat name ".el.in"))))
       (error "Single file %s does not match package name %s" file name))
     (copy-file source target t)
     (let ((enable-local-variables nil)
