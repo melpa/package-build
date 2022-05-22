@@ -648,11 +648,14 @@ still be renamed."
 ;;; File Specs
 
 (defconst package-build-default-files-spec
-  '("*.el"
+  '("*.el" "lisp/*.el"
     "dir" "*.info" "*.texi" "*.texinfo"
     "doc/dir" "doc/*.info" "doc/*.texi" "doc/*.texinfo"
     "docs/dir" "docs/*.info" "docs/*.texi" "docs/*.texinfo"
-    (:exclude ".dir-locals.el" "test.el" "tests.el" "*-test.el" "*-tests.el"))
+    (:exclude
+     ".dir-locals.el" "lisp/.dir-locals.el"
+     "test.el" "tests.el" "*-test.el" "*-tests.el"
+     "lisp/test.el" "lisp/tests.el" "lisp/*-test.el" "lisp/*-tests.el"))
   "Default value for :files attribute in recipes.")
 
 (defun package-build-expand-file-specs (dir specs &optional subdir allow-empty)
