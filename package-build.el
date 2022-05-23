@@ -444,8 +444,11 @@ is used instead."
       (princ ";; Local Variables:\n;; no-byte-compile: t\n;; End:\n"
              (current-buffer)))))
 
-(defun package-build--create-tar (name version directory)
-  "Create a tar file containing the contents of VERSION of package NAME."
+(defun package-build--create-tar (name version directory tstamp)
+  "Create a tar file containing the contents of VERSION of package NAME with
+   mtime set to TSTAMP.
+
+   The timestamp adjustment ensures a reproducible build with constant file hash."
   (let ((tar (expand-file-name (concat name "-" version ".tar")
                                package-build-archive-dir))
         (dir (concat name "-" version)))
@@ -454,6 +457,13 @@ is used instead."
     (let ((default-directory directory))
       (process-file package-build-tar-executable nil
                     (get-buffer-create "*package-build-checkout*") nil
+                    "--sort=name"
+                    (concat "--mtime=" tstamp)
+                    "--owner=0"
+                    "--group=0"
+                    "--numeric-owner"
+                    (concat "--pax-option=exthdr.name=%d/PaxHeaders/%f"
+                            ",delete=atime,delete=ctime")
                     "-cvf" tar
                     "--exclude=.git"
                     "--exclude=.hg"
@@ -829,14 +839,13 @@ in `package-build-archive-dir'."
           (package-build--write-pkg-file desc target)
           (package-build--generate-info-files files source-dir target)
           (let ((tstamp (replace-regexp-in-string
-                         "\\." ""
+                         (concat "^\\([0-9]{4}\\)\\([0-9]{2}\\)\\([0-9]{2}\\)"
+                                 "\\.\\([0-9]{2}\\)\\([0-9]{2}\\)")
+                         "\\1-\\2-\\3T\\4:\\5Z"
                          (package-build--parse-time
                           (package-build--get-timestamp rcp commit)
                           (oref rcp time-regexp)))))
-            (package-build--run-process tmp-dir nil
-                                        "find" "." "-exec" "touch" "-t"
-                                        tstamp "\{\}" "\;"))
-          (package-build--create-tar name version tmp-dir)
+            (package-build--create-tar name version tmp-dir tstamp))
           (package-build--write-pkg-readme name files source-dir)
           (package-build--write-archive-entry desc))
       (delete-directory tmp-dir t nil))))
