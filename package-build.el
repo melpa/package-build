@@ -675,8 +675,8 @@ be returned.  If ASSERT and `files' are both non-nil and using
 `files' results in the same set of files as the default spec,
 then show a warning.
 
-A file specification SPEC is a list.  Its elements are processes
-in order and can have the following form:
+A files specification is a list.  Its elements are processed in
+order and can have the following form:
 
 - :default
 
