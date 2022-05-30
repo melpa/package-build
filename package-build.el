@@ -428,17 +428,28 @@ is used instead."
       (princ ";; Local Variables:\n;; no-byte-compile: t\n;; End:\n"
              (current-buffer)))))
 
-(defun package-build--create-tar (name version directory)
-  "Create a tar file containing the contents of VERSION of package NAME."
+(defun package-build--create-tar (name version directory mtime)
+  "Create a tar file containing the contents of VERSION of package NAME.
+DIRECTORY is a temporary directory that contains the directory
+that is put in the tarball.  MTIME is used as the modification
+time of all files, making the tarball reproducible."
   (let ((tar (expand-file-name (concat name "-" version ".tar")
                                package-build-archive-dir))
         (dir (concat name "-" version)))
     (when (eq system-type 'windows-nt)
       (setq tar (replace-regexp-in-string "^\\([a-z]\\):" "/\\1" tar)))
     (let ((default-directory directory))
-      (process-file package-build-tar-executable nil
-                    (get-buffer-create "*package-build-checkout*") nil
-                    "-cf" tar dir))
+      (process-file
+       package-build-tar-executable nil
+       (get-buffer-create "*package-build-checkout*") nil
+       "-cf" tar dir
+       ;; Arguments that are need to strip metadata that
+       ;; prevent a reproducable tarball as described at
+       ;; https://reproducible-builds.org/docs/archives.
+       "--sort=name"
+       (format "--mtime=@%d" mtime)
+       "--owner=0" "--group=0" "--numeric-owner"
+       "--pax-option=exthdr.name=%d/PaxHeaders/%f,delete=atime,delete=ctime"))
     (when (and package-build-verbose noninteractive)
       (message "Created %s containing:" (file-name-nondirectory tar))
       (dolist (line (sort (process-lines package-build-tar-executable
@@ -844,11 +855,12 @@ in `package-build-archive-dir'."
                            (package-build--desc-from-library
                             name version commit files 'tar)
                            (error "%s[-pkg].el matching package name is missing"
-                                  name)))))
+                                  name))))
+               (mtime (cadr (package-build--get-timestamp rcp commit))))
           (package-build--copy-package-files files source-dir target)
           (package-build--write-pkg-file desc target)
           (package-build--generate-info-files files source-dir target)
-          (package-build--create-tar name version tmp-dir)
+          (package-build--create-tar name version tmp-dir mtime)
           (package-build--write-pkg-readme name files source-dir)
           (package-build--write-archive-entry desc))
       (delete-directory tmp-dir t nil))))
