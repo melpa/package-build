@@ -438,10 +438,7 @@ is used instead."
     (let ((default-directory directory))
       (process-file package-build-tar-executable nil
                     (get-buffer-create "*package-build-checkout*") nil
-                    "-cvf" tar
-                    "--exclude=.git"
-                    "--exclude=.hg"
-                    dir))
+                    "-cf" tar dir))
     (when (and package-build-verbose noninteractive)
       (message "Created %s containing:" (file-name-nondirectory tar))
       (dolist (line (sort (process-lines package-build-tar-executable
