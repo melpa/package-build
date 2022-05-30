@@ -195,41 +195,20 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
           version)))
 
 (defun package-build-get-timestamp-version (rcp)
-  (let ((rev (and (cl-typep rcp 'package-git-recipe)
-                  (or (oref rcp commit)
-                      (when-let ((branch (oref rcp branch)))
-                        (concat "origin/" branch))
-                      "origin/HEAD"))))
+  (let* ((rev (and (cl-typep rcp 'package-git-recipe)
+                   (or (oref rcp commit)
+                       (when-let ((branch (oref rcp branch)))
+                         (concat "origin/" branch))
+                       "origin/HEAD")))
+         (time (package-build--get-timestamp rcp rev)))
     (cons (package-build--get-commit rcp rev)
-          (package-build--parse-time
-           (package-build--get-timestamp rcp rev)
-           (oref rcp time-regexp)))))
+          ;; We remove zero-padding of the HH portion, as
+          ;; that is lost when stored in archive-contents.
+          (concat (format-time-string "%Y%m%d." time t)
+                  (format "%d" (string-to-number
+                                (format-time-string "%H%M" time t)))))))
 
 ;;;; Internal
-
-(defun package-build--parse-time (str &optional regexp)
-  "Parse STR as a time, and format as a YYYYMMDD.HHMM string.
-Always use Coordinated Universal Time (UTC) for output string.
-If REGEXP is provided, it is applied to STR and the function
-parses the first match group instead of STR."
-  (unless str
-    (error "No valid timestamp found"))
-  (setq str (substring-no-properties str))
-  (when regexp
-    (if (string-match regexp str)
-        (setq str (match-string 1 str))
-      (error "No valid timestamp found")))
-  ;; We remove zero-padding the HH portion, as it is lost
-  ;; when stored in the archive-contents
-  (let ((time (date-to-time
-               (if (string-match "\
-^\\([0-9]\\{4\\}\\)/\\([0-9]\\{2\\}\\)/\\([0-9]\\{2\\}\\) \
-\\([0-9]\\{2\\}:[0-9]\\{2\\}:[0-9]\\{2\\}\\)$" str)
-                   (concat (match-string 1 str) "-" (match-string 2 str) "-"
-                           (match-string 3 str) " " (match-string 4 str))
-                 str))))
-    (concat (format-time-string "%Y%m%d." time t)
-            (format "%d" (string-to-number (format-time-string "%H%M" time t))))))
 
 (defun package-build--find-version-newest (tags &optional regexp)
   "Find the newest version in TAGS matching REGEXP.
@@ -353,9 +332,11 @@ is used instead."
   (let ((default-directory (package-recipe--working-tree rcp)))
     ;; `package-build-expand-files-spec' expects REV to be checked out.
     (package-build--checkout-1 rcp rev)
-    (car (apply #'process-lines
-                "git" "log" "--first-parent" "-n1" "--pretty=format:'\%ci'" rev
-                "--" (mapcar #'car (package-build-expand-files-spec rcp))))))
+    (string-to-number
+     (car (apply #'process-lines
+                 "git" "log" "-n1" "--first-parent"
+                 "--pretty=format:%cd" "--date=unix"
+                 rev "--" (mapcar #'car (package-build-expand-files-spec rcp)))))))
 
 (cl-defmethod package-build--used-url ((rcp package-git-recipe))
   (let ((default-directory (package-recipe--working-tree rcp)))
@@ -401,10 +382,13 @@ is used instead."
 
 (cl-defmethod package-build--get-timestamp ((rcp package-hg-recipe) rev)
   (let ((default-directory (package-recipe--working-tree rcp)))
-    (car (apply #'process-lines
-                "hg" "log" "--style" "compact" "-l1"
-                `(,@(and rev (list "--rev" rev))
-                  ,@(mapcar #'car (package-build-expand-files-spec rcp)))))))
+    (string-to-number
+     (car (split-string ; "hgdate" is "<unix-date> <timezone>"
+           (car (apply #'process-lines
+                       "hg" "log" "--limit" "1" "--template" "{date|hgdate}\n"
+                       `(,@(and rev (list "--rev" rev))
+                         ,@(mapcar #'car (package-build-expand-files-spec rcp)))))
+           " ")))))
 
 (cl-defmethod package-build--used-url ((rcp package-hg-recipe))
   (let ((default-directory (package-recipe--working-tree rcp)))
