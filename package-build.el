@@ -344,7 +344,10 @@ is used instead."
 
 (cl-defmethod package-build--get-commit ((rcp package-git-recipe) &optional rev)
   (let ((default-directory (package-recipe--working-tree rcp)))
-    (car (process-lines "git" "rev-parse" (or rev "HEAD")))))
+    (car (apply #'process-lines
+          "git" "log" "-n1" "--first-parent" "--pretty=format:%H"
+          (or rev "HEAD") "--"
+          (mapcar #'car (package-build-expand-files-spec rcp))))))
 
 ;;;; Hg
 
@@ -397,9 +400,10 @@ is used instead."
 (cl-defmethod package-build--get-commit ((rcp package-hg-recipe) &optional rev)
   (let ((default-directory (package-recipe--working-tree rcp)))
     ;; "--debug" is needed to get the full hash.
-    (car (apply #'process-lines "hg" "--debug" "id" "-i"
-                (and rev (list rev))))))
-
+    (car (apply #'process-lines
+                "hg" "log" "--limit" "1" "--template" "{node}\n"
+                `(,@(and rev (list "--rev" rev))
+                  ,@(mapcar #'car (package-build-expand-files-spec rcp)))))))
 
 ;;; Generate Files
 
