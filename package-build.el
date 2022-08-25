@@ -333,10 +333,12 @@ is used instead."
        ;; `package-build-expand-files-spec' expects REV to be checked out.
        (_ (package-build--checkout-1 rcp rev))
        (`(,hash ,time)
-        (car (apply #'process-lines
-                    "git" "log" "-n1" "--first-parent"
-                    "--pretty=format:%H %cd" "--date=unix" rev
-                    "--" (mapcar #'car (package-build-expand-files-spec rcp))))))
+        (split-string
+         (car (apply #'process-lines
+                     "git" "log" "-n1" "--first-parent"
+                     "--pretty=format:%H %cd" "--date=unix" rev
+                     "--" (mapcar #'car (package-build-expand-files-spec rcp))))
+         " ")))
     (cons hash (string-to-number time))))
 
 (cl-defmethod package-build--get-commit-time ((rcp package-git-recipe) rev)
