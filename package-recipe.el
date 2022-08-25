@@ -88,8 +88,8 @@
    (repopage-format :initform "https://gitlab.com/%s")))
 
 (defclass package-codeberg-recipe (package-git-recipe)
-  ((url-format      :initform "https://codeberg.com/%s.git")
-   (repopage-format :initform "https://codeberg.com/%s")))
+  ((url-format      :initform "https://codeberg.org/%s.git")
+   (repopage-format :initform "https://codeberg.org/%s")))
 
 (defclass package-sourcehut-recipe (package-git-recipe)
   ((url-format      :initform "https://git.sr.ht/~%s")
