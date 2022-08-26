@@ -171,6 +171,9 @@ disallowed."
                  (car (process-lines "hg" "config" "extensions.purge")))))
     (and value (not (string-prefix-p "!" value)))))
 
+(defvar package-build--inhibit-fetch nil
+  "Whether to inhibit fetching.  Useful for testing purposes.")
+
 ;;; Generic Utilities
 
 (defun package-build--message (format-string &rest args)
@@ -288,13 +291,14 @@ is used instead."
     (cond
      ((and (file-exists-p (expand-file-name ".git" dir))
            (string-equal (package-build--used-url rcp) url))
-      (package-build--message "Updating %s" dir)
-      (package-build--run-process dir nil "git" "fetch" "-f" "--all" "--tags")
-      ;; We might later checkout "origin/HEAD". Sadly "git fetch"
-      ;; cannot be told to keep it up-to-date, so we have to make
-      ;; a second request.
-      (package-build--run-process dir nil "git" "remote" "set-head"
-                                  "origin" "--auto"))
+      (unless package-build--inhibit-fetch
+        (package-build--message "Updating %s" dir)
+        (package-build--run-process dir nil "git" "fetch" "-f" "--all" "--tags")
+        ;; We might later checkout "origin/HEAD". Sadly "git fetch"
+        ;; cannot be told to keep it up-to-date, so we have to make
+        ;; a second request.
+        (package-build--run-process dir nil "git" "remote" "set-head"
+                                    "origin" "--auto")))
      (t
       (when (file-exists-p dir)
         (delete-directory dir t))
@@ -363,9 +367,10 @@ is used instead."
     (cond
      ((and (file-exists-p (expand-file-name ".hg" dir))
            (string-equal (package-build--used-url rcp) url))
-      (package-build--message "Updating %s" dir)
-      (package-build--run-process dir nil "hg" "pull")
-      (package-build--run-process dir nil "hg" "update"))
+      (unless package-build--inhibit-fetch
+        (package-build--message "Updating %s" dir)
+        (package-build--run-process dir nil "hg" "pull")
+        (package-build--run-process dir nil "hg" "update")))
      (t
       (when (file-exists-p dir)
         (delete-directory dir t))
