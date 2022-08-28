@@ -732,9 +732,8 @@ order and can have the following form:
         (when (and rcp spec
                    (equal files (package-build--expand-files-spec-1
                                  package-build-default-files-spec)))
-          (package-build--message
-           "Note: %s :files spec is equivalent to the default."
-           (oref rcp name)))
+          (message "Warning: %s :files spec is equivalent to the default"
+                   (oref rcp name)))
         (unless files
           (error "No matching file(s) found in %s using %s"
                  default-directory (or spec "default spec"))))
