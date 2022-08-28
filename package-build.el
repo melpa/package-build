@@ -186,19 +186,24 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
     (apply #'message format-string args)))
 
 ;;; Version Handling
-;;;; Public
 
 (defun package-build-get-tag-version (rcp)
-  (pcase-let ((`(,tag . ,version)
-               (package-build--find-version-newest
-                (package-build--list-tags rcp)
-                (oref rcp version-regexp))))
-    (unless tag
-      (error "No valid stable versions found for %s" (oref rcp name)))
-    (when (cl-typep rcp 'package-git-recipe)
-      (setq tag (concat "tags/" tag)))
-    (cons (package-build--get-commit rcp tag)
-          version)))
+  (let ((regexp (or (oref rcp version-regexp) package-build-version-regexp))
+        (tag nil)
+        (version '(0)))
+      (dolist (n (package-build--list-tags rcp))
+        (let ((v (ignore-errors
+                   (version-to-list (and (string-match regexp n)
+                                         (match-string 1 n))))))
+          (when (and v (version-list-<= version v))
+            (if (cl-typep rcp 'package-git-recipe)
+                (setq tag (concat "refs/tags/" n))
+              (setq tag n))
+            (setq version v))))
+      (unless tag
+        (error "No valid stable versions found for %s" (oref rcp name)))
+      (cons (package-build--get-commit rcp tag)
+            (package-version-join version))))
 
 (defun package-build-get-timestamp-version (rcp)
   (pcase-let ((`(,hash . ,time) (package-build--get-timestamp rcp)))
@@ -208,35 +213,6 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
           (concat (format-time-string "%Y%m%d." time t)
                   (format "%d" (string-to-number
                                 (format-time-string "%H%M" time t)))))))
-
-;;;; Internal
-
-(defun package-build--find-version-newest (tags &optional regexp)
-  "Find the newest version in TAGS matching REGEXP.
-If optional REGEXP is nil, then `package-build-version-regexp'
-is used instead."
-  (let ((ret '(nil 0))
-        (regexp (or regexp package-build-version-regexp)))
-    (cl-flet ((match (regexp separator tag)
-                (let* ((version-string (and (string-match regexp tag)
-                                            (match-string 1 tag)))
-                       (version-separator separator)
-                       (version (ignore-errors (version-to-list version-string))))
-                  (when (and version (version-list-<= (cdr ret) version))
-                    (setq ret (cons tag version))))))
-      (dolist (tag tags)
-        (match regexp "." tag)
-        ;; Some version tags use "_" as version separator instead of
-        ;; the default ".", e.g. "1_4_5".  Check for valid versions
-        ;; again, this time using "_" as a `version-separator'.
-        ;; Since "_" is otherwise treated as a snapshot separator by
-        ;; `version-regexp-alist', we don't have to worry about the
-        ;; incorrect version list above `(1 -4 4 -4 5)' since it will
-        ;; always be treated as smaller by `version-list-<'.
-        (match regexp "_" tag)))
-    (and (car ret)
-         (cons (car ret)
-               (package-version-join (cdr ret))))))
 
 ;;; Run Process
 
