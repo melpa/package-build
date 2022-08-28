@@ -800,20 +800,20 @@ FILES is a list of (SOURCE . DEST) relative filepath pairs."
 If DUMP-ARCHIVE-CONTENTS is non-nil, the updated archive contents
 are subsequently dumped."
   (interactive (list (package-recipe-read-name) t))
+  (unless (file-exists-p package-build-archive-dir)
+    (package-build--message "Creating directory %s" package-build-archive-dir)
+    (make-directory package-build-archive-dir))
   (let ((start-time (current-time))
         (rcp (package-recipe-lookup name)))
-    (unless (file-exists-p package-build-archive-dir)
-      (package-build--message "Creating directory %s" package-build-archive-dir)
-      (make-directory package-build-archive-dir))
     (let ((default-directory package-build-working-dir)
           (version (package-build--checkout rcp)))
       (package-build--package rcp version)
+      (when dump-archive-contents
+        (package-build-dump-archive-contents))
       (package-build--message "Built %s in %.3fs, finished at %s"
                               name
                               (float-time (time-since start-time))
-                              (format-time-string "%FT%T%z" nil t))))
-  (when dump-archive-contents
-    (package-build-dump-archive-contents)))
+                              (format-time-string "%FT%T%z" nil t)))))
 
 ;;;###autoload
 (defun package-build--package (rcp version)
