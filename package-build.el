@@ -318,8 +318,8 @@ is used instead."
 (cl-defmethod package-build--checkout-1 ((rcp package-git-recipe) rev)
   (unless package-build--inhibit-checkout
     (package-build--message "Checking out %s" rev)
-    (let ((dir (package-recipe--working-tree rcp)))
-      (package-build--run-process dir nil "git" "reset" "--hard" rev))))
+    (package-build--run-process (package-recipe--working-tree rcp)
+                                nil "git" "reset" "--hard" rev)))
 
 (cl-defmethod package-build--list-tags ((rcp package-git-recipe))
   (let ((default-directory (package-recipe--working-tree rcp)))
