@@ -808,9 +808,6 @@ are subsequently dumped."
     (let ((default-directory package-build-working-dir)
           (version (package-build--checkout rcp)))
       (package-build--package rcp version)
-      (when package-build-write-melpa-badge-images
-        (package-build--write-melpa-badge-image
-         name version package-build-archive-dir))
       (package-build--message "Built %s in %.3fs, finished at %s"
                               name
                               (float-time (time-since start-time))
@@ -825,18 +822,22 @@ Return the archive entry for the package and store the package
 in `package-build-archive-dir'."
   (let ((source-dir (package-recipe--working-tree rcp)))
     (unwind-protect
-        (let ((files (package-build-expand-files-spec rcp t))
+        (let ((name (oref rcp name))
+              (files (package-build-expand-files-spec rcp t))
               (commit (package-build--get-commit rcp)))
           (cond
            ((not version)
-            (error "Unable to check out repository for %s" (oref rcp name)))
+            (error "Unable to check out repository for %s" name))
            ((= (length files) 1)
             (package-build--build-single-file-package
              rcp version commit files source-dir))
            ((> (length files) 1)
             (package-build--build-multi-file-package
              rcp version commit files source-dir))
-           (t (error "Unable to find files matching recipe patterns"))))
+           (t (error "Unable to find files matching recipe patterns")))
+          (when package-build-write-melpa-badge-images
+            (package-build--write-melpa-badge-image
+             name version package-build-archive-dir)))
       (cond ((cl-typep rcp 'package-git-recipe)
              (package-build--run-process
               source-dir nil "git" "clean" "-f" "-d" "-x"))
