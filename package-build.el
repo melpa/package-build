@@ -272,13 +272,6 @@ is used instead."
           (error "Command exited with non-zero exit-code: %d" exit-code))))))
 
 ;;; Checkout
-;;;; Common
-
-(cl-defmethod package-build--checkout :before ((rcp package-recipe))
-  (package-build--message "Package: %s" (oref rcp name))
-  (package-build--message "Fetcher: %s" (package-recipe--fetcher rcp))
-  (package-build--message "Source:  %s\n" (package-recipe--upstream-url rcp)))
-
 ;;;; Git
 
 (cl-defmethod package-build--checkout ((rcp package-git-recipe))
@@ -803,17 +796,26 @@ are subsequently dumped."
   (unless (file-exists-p package-build-archive-dir)
     (package-build--message "Creating directory %s" package-build-archive-dir)
     (make-directory package-build-archive-dir))
-  (let ((start-time (current-time))
-        (rcp (package-recipe-lookup name)))
+  (let* ((start-time (current-time))
+         (rcp (package-recipe-lookup name))
+         (url (package-recipe--upstream-url rcp))
+         (repo (oref rcp repo))
+         (fetcher (package-recipe--fetcher rcp)))
+    (cond ((not noninteractive)
+           (message " • Building package %s (from %s)..." name
+                    (if repo (format "%s:%s" fetcher repo) url)))
+          (package-build-verbose
+           (message "Package: %s" name)
+           (message "Fetcher: %s" fetcher)
+           (message "Source:  %s\n" url)))
     (let ((default-directory package-build-working-dir)
           (version (package-build--checkout rcp)))
       (package-build--package rcp version)
       (when dump-archive-contents
         (package-build-dump-archive-contents))
-      (package-build--message "Built %s in %.3fs, finished at %s"
-                              name
-                              (float-time (time-since start-time))
-                              (format-time-string "%FT%T%z" nil t)))))
+      (message "Built %s in %.3fs, finished at %s" name
+               (float-time (time-since start-time))
+               (format-time-string "%FT%T%z" nil t)))))
 
 ;;;###autoload
 (defun package-build--package (rcp version)
