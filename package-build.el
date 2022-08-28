@@ -389,8 +389,8 @@ is used instead."
   (let ((default-directory (package-recipe--working-tree rcp)))
     (mapcar (lambda (line)
               ;; Remove space and rev that follow ref.
-              (string-match "\\`[^ ]+" line)
-              (match-string 0))
+              (and (string-match "\\`[^ ]+" line)
+                   (match-string 0 line)))
             (process-lines "hg" "tags"))))
 
 (cl-defmethod package-build--get-timestamp ((rcp package-hg-recipe))
