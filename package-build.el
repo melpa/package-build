@@ -550,20 +550,20 @@ Any existing header will be preserved and given the \"X-Original-\" prefix.
 If VALUE is nil, the new header will not be inserted, but any original will
 still be renamed."
   (goto-char (point-min))
-  (if (let ((case-fold-search t))
-        (re-search-forward (concat "^;+* *" (regexp-quote name)  " *: *") nil t))
-      (progn
-        (move-beginning-of-line nil)
-        (search-forward "V" nil t)
-        (backward-char)
-        (insert "X-Original-")
-        (move-beginning-of-line nil))
-    ;; Put the new header in a sensible place if we can
-    (re-search-forward "^;+* *\\(Version\\|Package-Requires\\|Keywords\\|URL\\) *:"
-                       nil t)
-    (forward-line))
-  (insert (format ";; %s: %s" name value))
-  (newline))
+  (cond
+   ((let ((case-fold-search t))
+      (re-search-forward (format "^;+* *%s *: *" (regexp-quote name)) nil t))
+    (move-beginning-of-line nil)
+    (search-forward "V" nil t)
+    (backward-char)
+    (insert "X-Original-")
+    (move-beginning-of-line nil))
+   (t
+    ;; Put the new header in a sensible place if we can.
+    (re-search-forward
+     "^;+* *\\(Version\\|Package-Requires\\|Keywords\\|URL\\) *:" nil t)
+    (forward-line)))
+  (insert (format ";; %s: %s\n" name value)))
 
 (defun package-build--ensure-ends-here-line (file)
   "Add a 'FILE ends here' trailing line if missing."
