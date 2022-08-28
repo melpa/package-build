@@ -566,17 +566,13 @@ still be renamed."
   (insert (format ";; %s: %s\n" name value)))
 
 (defun package-build--ensure-ends-here-line (file)
-  "Add a 'FILE ends here' trailing line if missing."
+  "Add the \"FILE ends here\" trailing line if it is missing."
   (save-excursion
     (goto-char (point-min))
-    (let ((trailer (concat ";;; "
-                           (file-name-nondirectory file)
-                           " ends here")))
+    (let ((trailer (format ";;; %s ends here" (file-name-nondirectory file))))
       (unless (search-forward trailer nil t)
         (goto-char (point-max))
-        (newline)
-        (insert trailer)
-        (newline)))))
+        (insert ?\n trailer ?\n)))))
 
 ;;; Package Structs
 
