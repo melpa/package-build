@@ -569,7 +569,7 @@ still be renamed."
   "Add the \"FILE ends here\" trailing line if it is missing."
   (save-excursion
     (goto-char (point-min))
-    (let ((trailer (format ";;; %s ends here" (file-name-nondirectory file))))
+    (let ((trailer (format "^;;; %s ends here" (file-name-nondirectory file))))
       (unless (search-forward trailer nil t)
         (goto-char (point-max))
         (insert ?\n trailer ?\n)))))
