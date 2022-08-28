@@ -254,13 +254,15 @@ is used instead."
                        (if (and package-build-timeout-secs
                                 package-build-timeout-executable)
                            (nconc (list package-build-timeout-executable
-                                        "-k" "60" (number-to-string
-                                                   package-build-timeout-secs)
+                                        "-k" "60"
+                                        (number-to-string
+                                         package-build-timeout-secs)
                                         command)
                                   args)
                          (cons command args)))))
       (unless (file-directory-p default-directory)
-        (error "Can't run process in non-existent directory: %s" default-directory))
+        (error "Cannot run process in non-existent directory: %s"
+               default-directory))
       (let ((exit-code (apply #'call-process
                               (car argv) nil (current-buffer) nil
                               (cdr argv))))
@@ -269,7 +271,8 @@ is used instead."
                    (mapconcat #'shell-quote-argument argv " ")
                    exit-code)
           (message "%s" (buffer-string))
-          (error "Command exited with non-zero exit-code: %d" exit-code))))))
+          (error "Command exited with non-zero exit-code: %d"
+                 exit-code))))))
 
 ;;; Checkout
 ;;;; Git
