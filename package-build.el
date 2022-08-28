@@ -242,37 +242,41 @@ is used instead."
 
 (defun package-build--run-process (directory destination command &rest args)
   (setq directory (file-name-as-directory (or directory default-directory)))
-  (with-current-buffer
-      (if (eq destination t)
-          (current-buffer)
-        (or destination (get-buffer-create "*package-build-checkout*")))
-    (unless destination
-      (setq default-directory directory))
-    (let ((default-directory directory)
-          (argv (nconc (unless (eq system-type 'windows-nt)
-                         (list "env" "LC_ALL=C"))
-                       (if (and package-build-timeout-secs
-                                package-build-timeout-executable)
-                           (nconc (list package-build-timeout-executable
-                                        "-k" "60"
-                                        (number-to-string
-                                         package-build-timeout-secs)
-                                        command)
-                                  args)
-                         (cons command args)))))
-      (unless (file-directory-p default-directory)
-        (error "Cannot run process in non-existent directory: %s"
-               default-directory))
-      (let ((exit-code (apply #'call-process
-                              (car argv) nil (current-buffer) nil
-                              (cdr argv))))
-        (unless (zerop exit-code)
-          (message "\nCommand '%s' exited with non-zero exit-code: %d\n"
-                   (mapconcat #'shell-quote-argument argv " ")
-                   exit-code)
-          (message "%s" (buffer-string))
-          (error "Command exited with non-zero exit-code: %d"
-                 exit-code))))))
+  (let (temp-buffer)
+    (unwind-protect
+        (with-current-buffer
+            (cond ((eq destination t) (current-buffer))
+                  (destination)
+                  ((setq temp-buffer (generate-new-buffer " *temp*" t))))
+          (unless destination
+            (setq default-directory directory))
+          (let ((default-directory directory)
+                (argv (nconc (unless (eq system-type 'windows-nt)
+                               (list "env" "LC_ALL=C"))
+                             (if (and package-build-timeout-secs
+                                      package-build-timeout-executable)
+                                 (nconc (list package-build-timeout-executable
+                                              "-k" "60"
+                                              (number-to-string
+                                               package-build-timeout-secs)
+                                              command)
+                                        args)
+                               (cons command args)))))
+            (unless (file-directory-p default-directory)
+              (error "Cannot run process in non-existent directory: %s"
+                     default-directory))
+            (let ((exit-code (apply #'call-process
+                                    (car argv) nil (current-buffer) nil
+                                    (cdr argv))))
+              (unless (zerop exit-code)
+                (message "\nCommand '%s' exited with non-zero exit-code: %d\n"
+                         (mapconcat #'shell-quote-argument argv " ")
+                         exit-code)
+                (message "%s" (buffer-string))
+                (error "Command exited with non-zero exit-code: %d"
+                       exit-code)))))
+      (when temp-buffer
+        (kill-buffer temp-buffer)))))
 
 ;;; Checkout
 ;;;; Git
