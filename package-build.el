@@ -191,19 +191,19 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
   (let ((regexp (or (oref rcp version-regexp) package-build-version-regexp))
         (tag nil)
         (version '(0)))
-      (dolist (n (package-build--list-tags rcp))
-        (let ((v (ignore-errors
-                   (version-to-list (and (string-match regexp n)
-                                         (match-string 1 n))))))
-          (when (and v (version-list-<= version v))
-            (if (cl-typep rcp 'package-git-recipe)
-                (setq tag (concat "refs/tags/" n))
-              (setq tag n))
-            (setq version v))))
-      (unless tag
-        (error "No valid stable versions found for %s" (oref rcp name)))
-      (cons (package-build--get-commit rcp tag)
-            (package-version-join version))))
+    (dolist (n (package-build--list-tags rcp))
+      (let ((v (ignore-errors
+                 (version-to-list (and (string-match regexp n)
+                                       (match-string 1 n))))))
+        (when (and v (version-list-<= version v))
+          (if (cl-typep rcp 'package-git-recipe)
+              (setq tag (concat "refs/tags/" n))
+            (setq tag n))
+          (setq version v))))
+    (unless tag
+      (error "No valid stable versions found for %s" (oref rcp name)))
+    (cons (package-build--get-commit rcp tag)
+          (package-version-join version))))
 
 (defun package-build-get-timestamp-version (rcp)
   (pcase-let ((`(,hash . ,time) (package-build--get-timestamp rcp)))
