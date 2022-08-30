@@ -299,7 +299,7 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
 
 (cl-defmethod package-build--list-tags ((rcp package-git-recipe))
   (let ((default-directory (package-recipe--working-tree rcp)))
-    (process-lines "git" "tag")))
+    (process-lines "git" "tag" "--list")))
 
 (cl-defmethod package-build--get-timestamp ((rcp package-git-recipe))
   (pcase-let*
@@ -363,11 +363,7 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
 
 (cl-defmethod package-build--list-tags ((rcp package-hg-recipe))
   (let ((default-directory (package-recipe--working-tree rcp)))
-    (mapcar (lambda (line)
-              ;; Remove space and rev that follow ref.
-              (and (string-match "\\`[^ ]+" line)
-                   (match-string 0 line)))
-            (process-lines "hg" "tags"))))
+    (process-lines "hg" "tags" "--quiet")))
 
 (cl-defmethod package-build--get-timestamp ((rcp package-hg-recipe))
   (pcase-let*
