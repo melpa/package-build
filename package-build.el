@@ -268,7 +268,9 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
       (error "Fetching using the %s protocol is not allowed" protocol))
     (cond
      ((and (file-exists-p (expand-file-name ".git" dir))
-           (string-equal (package-build--used-url rcp) url))
+           (let ((default-directory dir))
+             (string= (car (process-lines "git" "config" "remote.origin.url"))
+                      url)))
       (unless package-build--inhibit-fetch
         (package-build--message "Updating %s" dir)
         (package-build--run-process dir nil "git" "fetch" "-f" "--all" "--tags")
@@ -324,10 +326,6 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
      (car (process-lines "git" "log" "-n1" "--first-parent"
                          "--pretty=format:%cd" "--date=unix" rev)))))
 
-(cl-defmethod package-build--used-url ((rcp package-git-recipe))
-  (let ((default-directory (package-recipe--working-tree rcp)))
-    (car (process-lines "git" "config" "remote.origin.url"))))
-
 (cl-defmethod package-build--get-commit ((rcp package-git-recipe) &optional rev)
   (let ((default-directory (package-recipe--working-tree rcp)))
     (car (process-lines "git" "rev-parse" (or rev "HEAD")))))
@@ -339,7 +337,8 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
         (url (package-recipe--upstream-url rcp)))
     (cond
      ((and (file-exists-p (expand-file-name ".hg" dir))
-           (string-equal (package-build--used-url rcp) url))
+           (let ((default-directory dir))
+             (string= (car (process-lines "hg" "paths" "default")) url)))
       (unless package-build--inhibit-fetch
         (package-build--message "Updating %s" dir)
         (package-build--run-process dir nil "hg" "pull")
@@ -382,10 +381,6 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
                                "--template" "{date|hgdate}\n"
                                "--rev" rev))
            " ")))))
-
-(cl-defmethod package-build--used-url ((rcp package-hg-recipe))
-  (let ((default-directory (package-recipe--working-tree rcp)))
-    (car (process-lines "hg" "paths" "default"))))
 
 (cl-defmethod package-build--get-commit ((rcp package-hg-recipe) &optional rev)
   (let ((default-directory (package-recipe--working-tree rcp)))
