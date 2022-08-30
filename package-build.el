@@ -191,7 +191,10 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
   (let ((regexp (or (oref rcp version-regexp) package-build-version-regexp))
         (tag nil)
         (version '(0)))
-    (dolist (n (package-build--list-tags rcp))
+    (dolist (n (let ((default-directory (package-recipe--working-tree rcp)))
+                 (cl-etypecase rcp
+                   (package-git-recipe (process-lines "git" "tag" "--list"))
+                   (package-hg-recipe  (process-lines "hg" "tags" "--quiet")))))
       (let ((v (ignore-errors
                  (version-to-list (and (string-match regexp n)
                                        (match-string 1 n))))))
@@ -297,10 +300,6 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
     (package-build--run-process (package-recipe--working-tree rcp)
                                 nil "git" "reset" "--hard" rev)))
 
-(cl-defmethod package-build--list-tags ((rcp package-git-recipe))
-  (let ((default-directory (package-recipe--working-tree rcp)))
-    (process-lines "git" "tag" "--list")))
-
 (cl-defmethod package-build--get-timestamp ((rcp package-git-recipe))
   (pcase-let*
       ((default-directory (package-recipe--working-tree rcp))
@@ -360,10 +359,6 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
     (package-build--message "Checking out %s" rev)
     (package-build--run-process (package-recipe--working-tree rcp)
                                 nil "hg" "update" rev)))
-
-(cl-defmethod package-build--list-tags ((rcp package-hg-recipe))
-  (let ((default-directory (package-recipe--working-tree rcp)))
-    (process-lines "hg" "tags" "--quiet")))
 
 (cl-defmethod package-build--get-timestamp ((rcp package-hg-recipe))
   (pcase-let*
