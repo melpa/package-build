@@ -3,11 +3,13 @@
 ;; Copyright (C) 2011-2022 Donald Ephraim Curtis
 ;; Copyright (C) 2012-2022 Steve Purcell
 ;; Copyright (C) 2016-2022 Jonas Bernoulli
+;; Copyright (C) 2022 Akib Azmain Turja
 ;; Copyright (C) 2009 Phil Hagelberg
 
 ;; Author: Donald Ephraim Curtis <dcurtis@milkbox.net>
 ;;     Steve Purcell <steve@sanityinc.com>
 ;;     Jonas Bernoulli <jonas@bernoul.li>
+;;     Akib Azmain Turja <akib@disroot.org>
 ;;     Phil Hagelberg <technomancy@gmail.com>
 ;; Homepage: https://github.com/melpa/package-build
 ;; Keywords: maint tools
@@ -91,10 +93,17 @@
   :group 'package-build
   :type 'boolean)
 
+(defcustom package-build-elpa-versioning-scheme nil
+  "When non-nil, use GNU ELPA Devel versioning scheme for non-stable builds."
+  :group 'package-build
+  :type 'boolean)
+
 (defcustom package-build-get-version-function
   (if package-build-stable
       'package-build-get-tag-version
-    'package-build-get-timestamp-version)
+    (if package-build-elpa-versioning-scheme
+        'package-build-get-tag-and-timestamp-version
+      'package-build-get-timestamp-version))
   "The function used to determine the revision and version of a package.
 
 The default depends on the value of option `package-build-stable'.
@@ -216,6 +225,17 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
           (concat (format-time-string "%Y%m%d." time t)
                   (format "%d" (string-to-number
                                 (format-time-string "%H%M" time t)))))))
+
+(defun package-build-get-tag-and-timestamp-version (rcp)
+  (let ((tag (package-build-get-tag-version rcp))
+        (timestamp (package-build-get-timestamp-version rcp)))
+    (cons (car timestamp)
+          (package-version-join
+           (nconc (version-to-list (cdr tag))
+                  (make-list
+                   (max (- 3 (length (version-to-list (cdr tag)))) 1)
+                   0)
+                  (version-to-list (cdr timestamp)))))))
 
 ;;; Run Process
 
