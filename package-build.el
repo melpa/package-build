@@ -196,7 +196,7 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
 
 ;;; Version Handling
 
-(defun package-build-get-tag-version (rcp)
+(defun package-build-get-tag-version-1 (rcp &optional noerror)
   (let ((regexp (or (oref rcp version-regexp) package-build-version-regexp))
         (tag nil)
         (version '(0)))
@@ -212,10 +212,13 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
               (setq tag (concat "refs/tags/" n))
             (setq tag n))
           (setq version v))))
-    (unless tag
+    (unless (or tag noerror)
       (error "No valid stable versions found for %s" (oref rcp name)))
-    (cons (package-build--get-commit rcp tag)
-          (package-version-join version))))
+    (cons tag version)))
+
+(defun package-build-get-tag-version (rcp)
+  (let ((version (package-build-get-tag-version-1 rcp)))
+    (cons (car version) (package-version-join (cdr version)))))
 
 (defun package-build-get-timestamp-version (rcp)
   (pcase-let ((`(,hash . ,time) (package-build--get-timestamp rcp)))
@@ -227,14 +230,13 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
                                 (format-time-string "%H%M" time t)))))))
 
 (defun package-build-get-tag-and-timestamp-version (rcp)
-  (let ((tag (package-build-get-tag-version rcp))
-        (timestamp (package-build-get-timestamp-version rcp)))
+  (let* ((timestamp (package-build-get-timestamp-version rcp))
+         (tag (package-build-get-tag-version-1 rcp 'noerror))
+         (tag-version (when (car tag) (cdr tag))))
     (cons (car timestamp)
           (package-version-join
-           (nconc (version-to-list (cdr tag))
-                  (make-list
-                   (max (- 3 (length (version-to-list (cdr tag)))) 1)
-                   0)
+           (nconc tag-version
+                  (make-list (max (- 3 (length tag-version)) 1) 0)
                   (version-to-list (cdr timestamp)))))))
 
 ;;; Run Process
