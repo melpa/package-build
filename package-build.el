@@ -222,8 +222,7 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
                      "git" "log" "-n1" "--first-parent"
                      "--pretty=format:%H %cd" "--date=unix" rev
                      (and (not exact)
-                          (cons "--" (mapcar #'car (package-build-expand-files-spec
-                                                    rcp))))))
+                          (cons "--" (package-build--spec-globs rcp)))))
          " ")))
     (list hash (string-to-number time))))
 
@@ -240,8 +239,7 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
                      "hg" "log" "--limit" "1"
                      "--template" "{node} {date|hgdate}\n" "--rev" rev
                      (and (not exact)
-                          (cons "--" (mapcar #'car (package-build-expand-files-spec
-                                                    rcp))))))
+                          (cons "--" (package-build--spec-globs rcp)))))
          " ")))
     (list hash (string-to-number time))))
 
@@ -283,8 +281,6 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
        (branch (oref rcp branch))
        (branch (and branch (concat "origin/" branch)))
        (rev (or commit branch "origin/HEAD")))
-    ;; `package-build-expand-files-spec' expects REV to be checked out.
-    (package-build--checkout rcp rev)
     (package-build--select-commit rcp rev commit)))
 
 (cl-defmethod package-build--get-timestamp-version ((rcp package-hg-recipe))
@@ -386,9 +382,9 @@ with a timeout so that no command can block the build process."
 
 ;;; Checkout
 
-(cl-defmethod package-build--checkout ((rcp package-git-recipe) &optional rev)
+(cl-defmethod package-build--checkout ((rcp package-git-recipe))
   (unless package-build--inhibit-checkout
-    (let ((rev (or rev (oref rcp commit))))
+    (let ((rev (oref rcp commit)))
       (package-build--message "Checking out %s" rev)
       (package-build--run-process "git" "reset" "--hard" rev))))
 
@@ -700,22 +696,22 @@ order and can have the following form:
 
 - :defaults
 
-  If the very first element of the top-level SPEC is `:defaults',
-  then that means to prepend the default file spec to the SPEC
-  specified by the remaining elements.
+  If the first element is `:defaults', then that means to prepend
+  the default files spec to the SPEC specified by the remaining
+  elements.
 
 - GLOB
 
   A string is glob-expanded to match zero or more files.  Matched
   files are copied to the top-level directory.
 
-- (SUBDIRECTORY . SPEC)
+- (SUBDIRECTORY GLOB...)
 
   A list that begins with a string causes the files matched by
   the second and subsequent elements to be copied into the sub-
   directory specified by the first element.
 
-- (:exclude . SPEC)
+- (:exclude GLOB...)
 
   A list that begins with `:exclude' causes files that were
   matched by earlier elements that are also matched by the second
@@ -739,31 +735,38 @@ order and can have the following form:
                  default-directory (or spec "default spec"))))
       files)))
 
-(defun package-build--expand-files-spec-1 (spec &optional subdir)
-  (let ((files nil))
+(defun package-build--expand-files-spec-1 (spec)
+  "Return a list of all files matching SPEC in `default-directory'.
+SPEC is a full files spec as stored in a recipe object."
+  (let (include exclude)
     (dolist (entry spec)
-      (setq files
-            (cond
-             ((stringp entry)
-              (nconc files
-                     (mapcar (lambda (f)
-                               (cons f
-                                     (concat subdir
-                                             (replace-regexp-in-string
-                                              "\\.el\\.in\\'"  ".el"
-                                              (file-name-nondirectory f)))))
-                             (file-expand-wildcards entry))))
-             ((eq (car entry) :exclude)
-              (cl-nset-difference
-               files
-               (package-build--expand-files-spec-1 (cdr entry))
-               :key #'car :test #'equal))
-             (t
-              (nconc files
-                     (package-build--expand-files-spec-1
-                      (cdr entry)
-                      (concat subdir (car entry) "/")))))))
-    files))
+      (if (eq (car-safe entry) :exclude)
+          (dolist (entry (cdr entry))
+            (push entry exclude))
+        (push entry include)))
+    (cl-set-difference
+     (package-build--expand-files-spec-2 (nreverse include))
+     (package-build--expand-files-spec-2 (nreverse exclude))
+     :test #'equal :key #'car)))
+
+(defun package-build--expand-files-spec-2 (spec &optional subdir)
+  "Return a list of all files matching SPEC in SUBDIR.
+If SUBDIR is nil, use `default-directory'.  SPEC is expected to
+be a partial files spec, consisting of either all include rules
+or all exclude rules (with the `:exclude' keyword removed)."
+  (mapcan (lambda (entry)
+            (if (stringp entry)
+                (mapcar (lambda (f)
+                          (cons f
+                                (concat subdir
+                                        (replace-regexp-in-string
+                                         "\\.el\\.in\\'"  ".el"
+                                         (file-name-nondirectory f)))))
+                        (file-expand-wildcards entry))
+              (package-build--expand-files-spec-2
+               (cdr entry)
+               (concat subdir (car entry) "/"))))
+          spec))
 
 (defun package-build--copy-package-files (files target-dir)
   "Copy FILES from `default-directory' to TARGET-DIR.
@@ -783,6 +786,40 @@ FILES is a list of (SOURCE . DEST) relative filepath pairs."
              (package-build--message
               "  %s %s => %s" (if (equal src dst) " " "!") src dst)
              (copy-directory src* dst*))))))
+
+(defun package-build--spec-globs (rcp)
+  "Return a list of vcs arguments to match the files specified in RCP."
+  ;; See glob(7), gitglossary(7) and "hg help patterns".
+  (cl-flet ((toargs (glob &optional exclude)
+              ;; Given an element like ("dir" "dir/*"), we want to move
+              ;; all children of "dir" to the top-level.  Glob handling
+              ;; of git-log/hg-log only cares about regular file, so if
+              ;; "dir/subdir/file" is modified, then "dir/*" does not
+              ;; match that change.  Use "dir/**" instead, to make them
+              ;; look for changes to files in "dir" and all subdirs.
+              (when (string-suffix-p "/*" glob)
+                (setq glob (concat glob "*")))
+              (cl-etypecase rcp
+                (package-git-recipe
+                 (list (format ":(glob%s)%s" (if exclude ",exclude" "") glob)))
+                (package-hg-recipe
+                 (list (if exclude "--exclude" "--include")
+                       (concat "glob:" glob))))))
+    (mapcan (lambda (entry)
+              (pcase-exhaustive entry
+                ((and glob (pred stringp))
+                 (toargs glob))
+                ((and `(:exclude . ,globs)
+                      (guard (cl-every #'stringp globs)))
+                 (mapcan (lambda (g) (toargs g t)) globs))
+                ((and `(,dir . ,globs)
+                      (guard (stringp dir))
+                      (guard (cl-every #'stringp globs)))
+                 (mapcan #'toargs globs))))
+            (let ((spec (or (oref rcp files) package-build-default-files-spec)))
+              (if (eq (car spec) :defaults)
+                  (append package-build-default-files-spec (cdr spec))
+                spec)))))
 
 ;;; Commands
 
