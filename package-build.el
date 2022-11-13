@@ -115,6 +115,15 @@ If nil (the default), then all packages are build."
   :group 'package-build
   :type '(choice (const :tag "build all") function))
 
+;; NOTE that these hooks are still experimental.  Let me know if these
+;; are potentially useful for you and whether any changes are required
+;; to make them more appropriate for your usecase.
+(defvar package-build-worktree-function #'package-recipe--working-tree)
+(defvar package-build-early-worktree-function #'package-recipe--working-tree)
+(defvar package-build-fetch-function #'package-build--fetch)
+(defvar package-build-checkout-function #'package-build--checkout)
+(defvar package-build-cleanup-function #'package-build--cleanup)
+
 (defcustom package-build-timeout-executable "timeout"
   "Path to a GNU coreutils \"timeout\" command if available.
 This must be a version which supports the \"-k\" option.
@@ -185,7 +194,7 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
 ;;;; Common
 
 (defun package-build--select-version (rcp)
-  (pcase-let* ((default-directory (package-recipe--working-tree rcp))
+  (pcase-let* ((default-directory (package-build--working-tree rcp t))
                (`(,commit ,time ,version)
                 (funcall package-build-get-version-function rcp)))
     (unless version
@@ -302,10 +311,17 @@ with a timeout so that no command can block the build process."
         (message "%s" (buffer-string))
         (error "Command exited with non-zero exit-code: %d" exit-code)))))
 
+;;; Worktree
+
+(defun package-build--working-tree (rcp &optional early)
+  (if early
+      (funcall package-build-early-worktree-function rcp)
+    (funcall package-build-worktree-function rcp)))
+
 ;;; Fetch
 
 (cl-defmethod package-build--fetch ((rcp package-git-recipe))
-  (let ((dir (package-recipe--working-tree rcp))
+  (let ((dir (package-build--working-tree rcp t))
         (url (package-recipe--upstream-url rcp))
         (protocol (package-recipe--upstream-protocol rcp)))
     (unless (member protocol package-build-allowed-git-protocols)
@@ -339,7 +355,7 @@ with a timeout so that no command can block the build process."
                     (list "--filter=blob:none" "--no-checkout"))))))))
 
 (cl-defmethod package-build--fetch ((rcp package-hg-recipe))
-  (let ((dir (package-recipe--working-tree rcp))
+  (let ((dir (package-build--working-tree rcp t))
         (url (package-recipe--upstream-url rcp)))
     (cond
      ((and (file-exists-p (expand-file-name ".hg" dir))
@@ -695,7 +711,7 @@ order and can have the following form:
   and subsequent elements of this list to be removed from the
   returned alist.  Files matched by later elements are not
   affected."
-  (let ((default-directory (or repo (package-recipe--working-tree rcp)))
+  (let ((default-directory (or repo (package-build--working-tree rcp)))
         (spec (or spec (oref rcp files))))
     (when (eq (car spec) :defaults)
       (setq spec (append package-build-default-files-spec (cdr spec))))
@@ -780,7 +796,7 @@ are subsequently dumped."
            (message "Package: %s" name)
            (message "Fetcher: %s" fetcher)
            (message "Source:  %s\n" url)))
-    (package-build--fetch rcp)
+    (funcall package-build-fetch-function rcp)
     (package-build--select-version rcp)
     (package-build--package rcp)
     (when dump-archive-contents
@@ -794,10 +810,10 @@ are subsequently dumped."
   "Build the package version specified by RCP.
 Return the archive entry for the package and store the package
 in `package-build-archive-dir'."
-  (let ((default-directory (package-recipe--working-tree rcp)))
+  (let ((default-directory (package-build--working-tree rcp)))
     (unwind-protect
         (progn
-          (package-build--checkout rcp)
+          (funcall package-build-checkout-function rcp)
           (let ((files (package-build-expand-files-spec rcp t)))
             (cond
              ((= (length files) 1)
@@ -808,10 +824,7 @@ in `package-build-archive-dir'."
             (when package-build-write-melpa-badge-images
               (package-build--write-melpa-badge-image
                (oref rcp name) (oref rcp version) package-build-archive-dir))))
-      (cond ((cl-typep rcp 'package-git-recipe)
-             (package-build--run-process "git" "clean" "-f" "-d" "-x"))
-            ((cl-typep rcp 'package-hg-recipe)
-             (package-build--run-process "hg" "purge"))))))
+      (funcall package-build-cleanup-function rcp))))
 
 (defun package-build--build-single-file-package (rcp files)
   (let* ((name (oref rcp name))
@@ -856,6 +869,12 @@ in `package-build-archive-dir'."
           (package-build--write-pkg-readme rcp files)
           (package-build--write-archive-entry desc))
       (delete-directory tmp-dir t nil))))
+
+(defun package-build--cleanup (rcp)
+  (cond ((cl-typep rcp 'package-git-recipe)
+         (package-build--run-process "git" "clean" "-f" "-d" "-x"))
+        ((cl-typep rcp 'package-hg-recipe)
+         (package-build--run-process "hg" "purge"))))
 
 ;;;###autoload
 (defun package-build-all ()
