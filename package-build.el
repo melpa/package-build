@@ -265,43 +265,35 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
 
 ;;; Run Process
 
-(defun package-build--run-process (directory destination command &rest args)
-  (setq directory (file-name-as-directory (or directory default-directory)))
-  (let (temp-buffer)
-    (unwind-protect
-        (with-current-buffer
-            (cond ((eq destination t) (current-buffer))
-                  (destination)
-                  ((setq temp-buffer (generate-new-buffer " *temp*"))))
-          (unless destination
-            (setq default-directory directory))
-          (let ((default-directory directory)
-                (argv (nconc (unless (eq system-type 'windows-nt)
-                               (list "env" "LC_ALL=C"))
-                             (if (and package-build-timeout-secs
-                                      package-build-timeout-executable)
-                                 (nconc (list package-build-timeout-executable
-                                              "-k" "60"
-                                              (number-to-string
-                                               package-build-timeout-secs)
-                                              command)
-                                        args)
-                               (cons command args)))))
-            (unless (file-directory-p default-directory)
-              (error "Cannot run process in non-existent directory: %s"
-                     default-directory))
-            (let ((exit-code (apply #'call-process
-                                    (car argv) nil (current-buffer) nil
-                                    (cdr argv))))
-              (unless (zerop exit-code)
-                (message "\nCommand '%s' exited with non-zero exit-code: %d\n"
-                         (mapconcat #'shell-quote-argument argv " ")
-                         exit-code)
-                (message "%s" (buffer-string))
-                (error "Command exited with non-zero exit-code: %d"
-                       exit-code)))))
-      (when temp-buffer
-        (kill-buffer temp-buffer)))))
+(defun package-build--run-process (command &rest args)
+  "Run COMMAND with ARGS in `default-directory'.
+We use this to wrap commands is proper environment settings and
+with a timeout so that no command can block the build process."
+  (with-temp-buffer
+    (let ((argv (nconc (unless (eq system-type 'windows-nt)
+                         (list "env" "LC_ALL=C"))
+                       (if (and package-build-timeout-secs
+                                package-build-timeout-executable)
+                           (nconc (list package-build-timeout-executable
+                                        "-k" "60"
+                                        (number-to-string
+                                         package-build-timeout-secs)
+                                        command)
+                                  args)
+                         (cons command args)))))
+      (unless (file-directory-p default-directory)
+        (error "Cannot run process in non-existent directory: %s"
+               default-directory))
+      (let ((exit-code (apply #'call-process
+                              (car argv) nil (current-buffer) nil
+                              (cdr argv))))
+        (unless (zerop exit-code)
+          (message "\nCommand '%s' exited with non-zero exit-code: %d\n"
+                   (mapconcat #'shell-quote-argument argv " ")
+                   exit-code)
+          (message "%s" (buffer-string))
+          (error "Command exited with non-zero exit-code: %d"
+                 exit-code))))))
 
 ;;; Checkout
 
@@ -319,17 +311,17 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
       (unless package-build--inhibit-fetch
         (let ((default-directory dir))
           (package-build--message "Updating %s" dir)
-          (package-build--run-process nil nil "git" "fetch" "-f" "--all" "--tags")
+          (package-build--run-process "git" "fetch" "-f" "--all" "--tags")
           ;; We might later checkout "origin/HEAD". Sadly "git fetch"
           ;; cannot be told to keep it up-to-date, so we have to make
           ;; a second request.
-          (package-build--run-process nil nil "git" "remote" "set-head"
+          (package-build--run-process "git" "remote" "set-head"
                                       "origin" "--auto"))))
      (t
       (when (file-exists-p dir)
         (delete-directory dir t))
       (package-build--message "Cloning %s to %s" url dir)
-      (apply #'package-build--run-process nil nil "git" "clone" url dir
+      (apply #'package-build--run-process "git" "clone" url dir
              ;; This can dramatically reduce the size of large repos.
              ;; But we can only do this when using a version function
              ;; that is known not to require a checkout and history.
@@ -353,13 +345,13 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
       (unless package-build--inhibit-fetch
         (let ((default-directory dir))
           (package-build--message "Updating %s" dir)
-          (package-build--run-process nil nil "hg" "pull")
-          (package-build--run-process nil nil "hg" "update"))))
+          (package-build--run-process "hg" "pull")
+          (package-build--run-process "hg" "update"))))
      (t
       (when (file-exists-p dir)
         (delete-directory dir t))
       (package-build--message "Cloning %s to %s" url dir)
-      (package-build--run-process nil nil "hg" "clone" url dir)))
+      (package-build--run-process "hg" "clone" url dir)))
      (pcase-let* ((default-directory dir)
                   (`(,rev . ,version)
                    (funcall package-build-get-version-function rcp)))
@@ -369,12 +361,12 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
 (cl-defmethod package-build--checkout-1 ((_rcp package-git-recipe) rev)
   (unless package-build--inhibit-checkout
     (package-build--message "Checking out %s" rev)
-    (package-build--run-process nil nil "git" "reset" "--hard" rev)))
+    (package-build--run-process "git" "reset" "--hard" rev)))
 
 (cl-defmethod package-build--checkout-1 ((_rcp package-hg-recipe) rev)
   (when (and (not package-build--inhibit-checkout) rev)
     (package-build--message "Checking out %s" rev)
-    (package-build--run-process nil nil "hg" "update" rev)))
+    (package-build--run-process "hg" "update" rev)))
 
 ;;; Generate Files
 
@@ -485,12 +477,13 @@ file.  The source and destination file paths are expanded in
               ;; and contains relative includes, then it is
               ;; necessary to run makeinfo in the subdirectory.
               (with-demoted-errors "Error: %S"
-                (package-build--run-process
-                 (file-name-directory texi) nil
-                 "makeinfo" "--no-split" texi "-o" info))))
+                (let ((default-directory (file-name-directory texi)))
+                  (package-build--run-process
+                   "makeinfo" "--no-split" texi "-o" info)))))
           (with-demoted-errors "Error: %S"
-            (package-build--run-process
-             target-dir nil "install-info" "--dir=dir" info)))))))
+            (let ((default-directory target-dir))
+              (package-build--run-process
+               "install-info" "--dir=dir" info))))))))
 
 ;;; Patch Libraries
 
@@ -782,9 +775,9 @@ in `package-build-archive-dir'."
             (package-build--write-melpa-badge-image
              name version package-build-archive-dir)))
       (cond ((cl-typep rcp 'package-git-recipe)
-             (package-build--run-process nil nil "git" "clean" "-f" "-d" "-x"))
+             (package-build--run-process "git" "clean" "-f" "-d" "-x"))
             ((cl-typep rcp 'package-hg-recipe)
-             (package-build--run-process nil nil "hg" "purge"))))))
+             (package-build--run-process "hg" "purge"))))))
 
 (defun package-build--build-single-file-package (rcp version commit files)
   (let* ((name (oref rcp name))
