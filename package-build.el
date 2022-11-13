@@ -269,31 +269,30 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
   "Run COMMAND with ARGS in `default-directory'.
 We use this to wrap commands is proper environment settings and
 with a timeout so that no command can block the build process."
+  (unless (file-directory-p default-directory)
+    (error "Cannot run process in non-existent directory: %s"
+           default-directory))
   (with-temp-buffer
-    (let ((argv (nconc (unless (eq system-type 'windows-nt)
-                         (list "env" "LC_ALL=C"))
-                       (if (and package-build-timeout-secs
-                                package-build-timeout-executable)
-                           (nconc (list package-build-timeout-executable
-                                        "-k" "60"
-                                        (number-to-string
-                                         package-build-timeout-secs)
-                                        command)
-                                  args)
-                         (cons command args)))))
-      (unless (file-directory-p default-directory)
-        (error "Cannot run process in non-existent directory: %s"
-               default-directory))
-      (let ((exit-code (apply #'call-process
-                              (car argv) nil (current-buffer) nil
-                              (cdr argv))))
-        (unless (zerop exit-code)
-          (message "\nCommand '%s' exited with non-zero exit-code: %d\n"
-                   (mapconcat #'shell-quote-argument argv " ")
-                   exit-code)
-          (message "%s" (buffer-string))
-          (error "Command exited with non-zero exit-code: %d"
-                 exit-code))))))
+    (pcase-let* ((`(,command . ,args)
+                  (nconc (and (not (eq system-type 'windows-nt))
+                              (list "env" "LC_ALL=C"))
+                         (if (and package-build-timeout-secs
+                                  package-build-timeout-executable)
+                             (nconc (list package-build-timeout-executable
+                                          "-k" "60"
+                                          (number-to-string
+                                           package-build-timeout-secs)
+                                          command)
+                                    args)
+                           (cons command args))))
+                 (exit-code
+                  (apply #'call-process command nil (current-buffer) nil args)))
+      (unless (zerop exit-code)
+        (message "\nCommand '%s' exited with non-zero exit-code: %d\n"
+                 (mapconcat #'shell-quote-argument argv " ")
+                 exit-code)
+        (message "%s" (buffer-string))
+        (error "Command exited with non-zero exit-code: %d" exit-code)))))
 
 ;;; Checkout
 
