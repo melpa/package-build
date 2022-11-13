@@ -116,6 +116,14 @@ of the recipe."
   :set-after '(package-build-stable)
   :type 'function)
 
+(defcustom package-build-predicate-function nil
+  "Predicate used by `package-build-all' to determine which packages to build.
+If non-nil, this function is called with the recipe object as
+argument, and must return non-nil if the package is to be build.
+If nil (the default), then all packages are build."
+  :group 'package-build
+  :type '(choice (const :tag "build all") function))
+
 (defcustom package-build-timeout-executable "timeout"
   "Path to a GNU coreutils \"timeout\" command if available.
 This must be a version which supports the \"-k\" option.
@@ -856,35 +864,44 @@ in `package-build-archive-dir'."
 
 ;;;###autoload
 (defun package-build-all ()
-  "Build a package for each of the available recipes."
+  "Build a package for each of the available recipes.
+If `package-build-predicate-function' is non-nil, then only
+packages for which that returns non-nil are build."
   (interactive)
   (let* ((start (current-time))
          (recipes (package-recipe-recipes))
          (total (length recipes))
          (success 0)
-         invalid failed)
+         skipped invalid failed)
     (dolist (name recipes)
       (let ((rcp (with-demoted-errors "Recipe error: %S"
                    (package-recipe-lookup name))))
-        (if rcp
-            (if (with-demoted-errors "Build error: %S"
-                  (package-build-archive name) t)
-                (cl-incf success)
-              (push name failed))
-          (push name invalid))))
+        (cond ((not rcp)
+               (push name invalid))
+              ((and package-build-predicate-function
+                    (not (funcall package-build-predicate-function rcp)))
+               (push name skipped))
+              ((with-demoted-errors "Build error: %S"
+                 (package-build-archive name) t)
+               (cl-incf success))
+              ((push name failed)))))
     (let ((duration (/ (float-time (time-subtract (current-time) start)) 60)))
-      (if (not (or invalid failed))
+      (if (not (or skipped invalid failed))
           (message "Successfully built all %s packages (%.0fm)" total duration)
         (message "Successfully built %i of %s packages (%.0fm)"
                  success total duration)
+        (when skipped
+          (message "Skipped %i packages:\n%s"
+                   (length skipped)
+                   (mapconcat (lambda (n) (concat "  " n)) (nreverse skipped) "\n")))
         (when invalid
           (message "Did not built packages for %i invalid recipes:\n%s"
                    (length invalid)
-                   (mapconcat (lambda (n) (concat "  " n)) invalid "\n")))
+                   (mapconcat (lambda (n) (concat "  " n)) (nreverse invalid) "\n")))
         (when failed
           (message "Building %i packages failed:\n%s"
                    (length failed)
-                   (mapconcat (lambda (n) (concat "  " n)) failed "\n"))))))
+                   (mapconcat (lambda (n) (concat "  " n)) (nreverse failed) "\n"))))))
   (package-build-cleanup))
 
 (defun package-build-cleanup ()
