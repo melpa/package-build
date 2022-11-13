@@ -165,12 +165,6 @@ disallowed."
   :group 'package-build
   :type '(repeat string))
 
-(defvar package-build-use-hg-purge
-  "Whether `package-build--package' runs \"hg purge\" in mercurial repos."
-  (let ((value (ignore-errors
-                 (car (process-lines "hg" "config" "extensions.purge")))))
-    (and value (not (string-prefix-p "!" value)))))
-
 (defvar package-build--inhibit-fetch nil
   "Whether to inhibit fetching.  Useful for testing purposes.")
 
@@ -807,8 +801,7 @@ in `package-build-archive-dir'."
       (cond ((cl-typep rcp 'package-git-recipe)
              (package-build--run-process
               source-dir nil "git" "clean" "-f" "-d" "-x"))
-            ((and (cl-typep rcp 'package-hg-recipe)
-                  package-build-use-hg-purge)
+            ((cl-typep rcp 'package-hg-recipe)
              (package-build--run-process source-dir nil "hg" "purge"))))))
 
 (defun package-build--build-single-file-package (rcp version commit files source-dir)
