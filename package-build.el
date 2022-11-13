@@ -624,15 +624,6 @@ still be renamed."
      "lisp/test.el" "lisp/tests.el" "lisp/*-test.el" "lisp/*-tests.el"))
   "Default value for :files attribute in recipes.")
 
-(defun package-build-expand-file-specs (repo spec &optional subdir allow-empty)
-  (when subdir
-    (error "%s: Non-nil SUBDIR is no longer supported"
-           'package-build-expand-file-specs))
-  (package-build-expand-files-spec nil (not allow-empty) repo spec))
-(make-obsolete 'package-build-expand-file-specs
-               'package-build-expand-files-spec
-               "Package-Build 3.2")
-
 (defun package-build-expand-files-spec (rcp &optional assert repo spec)
   "Return an alist of files of package RCP to be included in tarball.
 
@@ -675,9 +666,7 @@ order and can have the following form:
   matched by earlier elements that are also matched by the second
   and subsequent elements of this list to be removed from the
   returned alist.  Files matched by later elements are not
-  affected.
-
-\(fn RCP &optional ASSERT)" ; Other arguments only for backward compat.
+  affected."
   (let ((default-directory (or repo (package-recipe--working-tree rcp)))
         (spec (or spec (oref rcp files))))
     (when (eq (car spec) :defaults)
@@ -1061,9 +1050,6 @@ line per entry."
     (insert (json-encode (package-build--archive-alist-for-json)))))
 
 ;;; _
-
-(define-obsolete-function-alias 'package-build--archive-entries
-  #'package-build-dump-archive-contents "Package-Build 3.0")
 
 (provide 'package-build)
 ;;; package-build.el ends here
