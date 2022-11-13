@@ -47,6 +47,8 @@
    (files           :initarg :files          :initform nil)
    (branch          :initarg :branch         :initform nil)
    (commit          :initarg :commit         :initform nil)
+   (time                                     :initform nil)
+   (version                                  :initform nil)
    (version-regexp  :initarg :version-regexp :initform nil)
    (old-names       :initarg :old-names      :initform nil))
   :abstract t)

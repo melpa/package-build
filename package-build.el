@@ -394,14 +394,17 @@ with a timeout so that no command can block the build process."
       (princ ";; Local Variables:\n;; no-byte-compile: t\n;; End:\n"
              (current-buffer)))))
 
-(defun package-build--create-tar (name version directory mtime)
-  "Create a tar file containing the contents of VERSION of package NAME.
+(defun package-build--create-tar (rcp directory)
+  "Create a tar file containing the package version specified by RCP.
 DIRECTORY is a temporary directory that contains the directory
-that is put in the tarball.  MTIME is used as the modification
-time of all files, making the tarball reproducible."
-  (let ((tar (expand-file-name (concat name "-" version ".tar")
-                               package-build-archive-dir))
-        (dir (concat name "-" version)))
+that is put in the tarball."
+  (let* ((name (oref rcp name))
+         (version (oref rcp version))
+         (commit (oref rcp commit))
+         (time (package-build--get-commit-time rcp commit))
+         (tar (expand-file-name (concat name "-" version ".tar")
+                                package-build-archive-dir))
+         (dir (concat name "-" version)))
     (when (eq system-type 'windows-nt)
       (setq tar (replace-regexp-in-string "^\\([a-z]\\):" "/\\1" tar)))
     (let ((default-directory directory))
@@ -413,7 +416,7 @@ time of all files, making the tarball reproducible."
        ;; prevent a reproducable tarball as described at
        ;; https://reproducible-builds.org/docs/archives.
        "--sort=name"
-       (format "--mtime=@%d" mtime)
+       (format "--mtime=@%d" time)
        "--owner=0" "--group=0" "--numeric-owner"
        "--pax-option=exthdr.name=%d/PaxHeaders/%f,delete=atime,delete=ctime"))
     (when (and package-build-verbose noninteractive)
@@ -423,13 +426,14 @@ time of all files, making the tarball reproducible."
                           #'string<))
         (message "  %s" line)))))
 
-(defun package-build--write-pkg-readme (name files)
-  (when-let ((commentary
-              (let* ((file (concat name ".el"))
-                     (file (or (car (rassoc file files)) file))
-                     (file (and file (expand-file-name file))))
-                (and (file-exists-p file)
-                     (lm-commentary file)))))
+(defun package-build--write-pkg-readme (pkg files)
+  (when-let* ((name (oref pkg name))
+              (commentary
+               (let* ((file (concat name ".el"))
+                      (file (or (car (rassoc file files)) file))
+                      (file (and file (expand-file-name file))))
+                 (and (file-exists-p file)
+                      (lm-commentary file)))))
     (with-temp-buffer
       (if (>= emacs-major-version 28)
           (insert commentary)
@@ -518,8 +522,11 @@ still be renamed."
 
 ;;; Package Structs
 
-(defun package-build--desc-from-library (name version commit files &optional type)
-  (let* ((file (concat name ".el"))
+(defun package-build--desc-from-library (rcp files &optional type)
+  (let* ((name (oref rcp name))
+         (version (oref rcp version))
+         (commit (oref rcp commit))
+         (file (concat name ".el"))
          (file (or (car (rassoc file files)) file)))
     (and (file-exists-p file)
          (with-temp-buffer
@@ -546,8 +553,11 @@ still be renamed."
             :authors    (lm-authors)
             :commit     commit)))))
 
-(defun package-build--desc-from-package (name version commit files)
-  (let* ((file (concat name "-pkg.el"))
+(defun package-build--desc-from-package (rcp files)
+  (let* ((name (oref rcp name))
+         (version (oref rcp version))
+         (commit (oref rcp commit))
+         (file (concat name "-pkg.el"))
          (file (or (car (rassoc file files))
                    file)))
     (and (or (file-exists-p file)
@@ -560,8 +570,7 @@ still be renamed."
            (pcase-let*
                ((`(,_ ,_ ,_ ,summary ,deps . ,extra) form)
                 (deps (eval deps))
-                (alt-desc (package-build--desc-from-library
-                           name version nil files))
+                (alt-desc (package-build--desc-from-library rcp files))
                 (alt (and alt-desc (package-desc-extras alt-desc))))
              (when (string-match "[\r\n]" summary)
                (error "Illegal multi-line package description in %s" file))
@@ -741,9 +750,9 @@ are subsequently dumped."
            (message "Package: %s" name)
            (message "Fetcher: %s" fetcher)
            (message "Source:  %s\n" url)))
-    (let ((default-directory package-build-working-dir)
-          (version (package-build--checkout rcp)))
-      (package-build--package rcp version)
+    (let ((default-directory package-build-working-dir))
+      (oset rcp version (package-build--checkout rcp))
+      (package-build--package rcp)
       (when dump-archive-contents
         (package-build-dump-archive-contents))
       (message "Built %s in %.3fs, finished at %s" name
@@ -751,24 +760,23 @@ are subsequently dumped."
                (format-time-string "%FT%T%z" nil t)))))
 
 ;;;###autoload
-(defun package-build--package (rcp version)
-  "Create version VERSION of the package specified by RCP.
+(defun package-build--package (rcp)
+  "Build the package version specified by RCP.
 Return the archive entry for the package and store the package
 in `package-build-archive-dir'."
   (let ((default-directory (package-recipe--working-tree rcp)))
     (unwind-protect
         (let ((name (oref rcp name))
-              (files (package-build-expand-files-spec rcp t))
-              (commit (package-build--get-commit rcp)))
+              (version (oref rcp version))
+              (files (package-build-expand-files-spec rcp t)))
+          (oset rcp commit (package-build--get-commit rcp))
           (cond
            ((not version)
             (error "Unable to check out repository for %s" name))
            ((= (length files) 1)
-            (package-build--build-single-file-package
-             rcp version commit files))
+            (package-build--build-single-file-package rcp files))
            ((> (length files) 1)
-            (package-build--build-multi-file-package
-             rcp version commit files))
+            (package-build--build-multi-file-package rcp files))
            (t (error "Unable to find files matching recipe patterns")))
           (when package-build-write-melpa-badge-images
             (package-build--write-melpa-badge-image
@@ -778,13 +786,15 @@ in `package-build-archive-dir'."
             ((cl-typep rcp 'package-hg-recipe)
              (package-build--run-process "hg" "purge"))))))
 
-(defun package-build--build-single-file-package (rcp version commit files)
+(defun package-build--build-single-file-package (rcp files)
   (let* ((name (oref rcp name))
+         (version (oref rcp version))
+         (commit (oref rcp commit))
          (file (caar files))
          (source (expand-file-name file))
          (target (expand-file-name (concat name "-" version ".el")
                                    package-build-archive-dir))
-         (desc (package-build--desc-from-library name version commit files)))
+         (desc (package-build--desc-from-library rcp files)))
     (unless (member (downcase (file-name-nondirectory file))
                     (list (downcase (concat name ".el"))
                           (downcase (concat name ".el.in"))))
@@ -799,26 +809,24 @@ in `package-build-archive-dir'."
         (package-build--ensure-ends-here-line source)
         (write-file target nil)
         (kill-buffer)))
-    (package-build--write-pkg-readme name files)
+    (package-build--write-pkg-readme rcp files)
     (package-build--write-archive-entry desc)))
 
-(defun package-build--build-multi-file-package (rcp version commit files)
+(defun package-build--build-multi-file-package (rcp files)
   (let* ((name (oref rcp name))
+         (version (oref rcp version))
          (tmp-dir (file-name-as-directory (make-temp-file name t))))
     (unwind-protect
         (let* ((target (expand-file-name (concat name "-" version) tmp-dir))
-               (desc (or (package-build--desc-from-package
-                          name version commit files)
-                         (package-build--desc-from-library
-                          name version commit files 'tar)
+               (desc (or (package-build--desc-from-package rcp files)
+                         (package-build--desc-from-library rcp files 'tar)
                          (error "%s[-pkg].el matching package name is missing"
-                                name)))
-               (mtime (package-build--get-commit-time rcp commit)))
+                                name))))
           (package-build--copy-package-files files target)
           (package-build--write-pkg-file desc target)
           (package-build--generate-info-files files target)
-          (package-build--create-tar name version tmp-dir mtime)
-          (package-build--write-pkg-readme name files)
+          (package-build--create-tar rcp tmp-dir)
+          (package-build--write-pkg-readme rcp files)
           (package-build--write-archive-entry desc))
       (delete-directory tmp-dir t nil))))
 
