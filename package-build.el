@@ -115,6 +115,17 @@ If nil (the default), then all packages are build."
   :group 'package-build
   :type '(choice (const :tag "build all") function))
 
+(defcustom package-build-build-function nil
+  "Low-level function used to build a package.
+If nil (the default) then the funcion used depends on whether the
+package consists of more than one file or not.  One possible value
+is `package-build--build-multi-file-package', which would force
+building a tarball, even for packages that consist of a single
+file."
+  :group 'package-build
+  :type '(choice (const :tag "default, depending on number of files")
+                 function))
+
 ;; NOTE that these hooks are still experimental.  Let me know if these
 ;; are potentially useful for you and whether any changes are required
 ;; to make them more appropriate for your usecase.
@@ -816,11 +827,14 @@ in `package-build-archive-dir'."
           (funcall package-build-checkout-function rcp)
           (let ((files (package-build-expand-files-spec rcp t)))
             (cond
+             ((= (length files) 0)
+              (error "Unable to find files matching recipe patterns"))
+             (package-build-build-function
+              (funcall package-build-build-function))
              ((= (length files) 1)
               (package-build--build-single-file-package rcp files))
-             ((> (length files) 1)
-              (package-build--build-multi-file-package rcp files))
-             (t (error "Unable to find files matching recipe patterns")))
+             (t
+              (package-build--build-multi-file-package rcp files)))
             (when package-build-write-melpa-badge-images
               (package-build--write-melpa-badge-image
                (oref rcp name) (oref rcp version) package-build-archive-dir))))
