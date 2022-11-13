@@ -95,23 +95,14 @@
   (if package-build-stable
       'package-build-get-tag-version
     'package-build-get-timestamp-version)
-  "The function used to determine the revision and version of a package.
+  "The function used to determine the commit and version of a package.
 
 The default depends on the value of option `package-build-stable'.
 
-This function is called with one argument, the recipe object, and
-must return (REVISION . VERSION), where REVISION is the \"current\"
-revision according to some definition of the authors choosing and
-VERSION is the version string corresponding to that.
-
-REVISION should be determined first.  If it is necessary for that
-to be checked out to determine VERSION, then this function has to
-do so by calling `package-build--checkout-1'.  If not, then this
-step can be omitted.  Note that a helper functions might call the
-checkout function themselves; `package-build--get-timestamp' does.
-
-It might be appropriate to respect the `commit' and `branch' slots
-of the recipe."
+This function is called with one argument, the recipe object,
+and must return (COMMIT TIME VERSION), where COMMIT is the commit
+choosen by the function, TIME is its commit date, and VERSION is
+the version string choosen for COMMIT."
   :group 'package-build
   :set-after '(package-build-stable)
   :type 'function)
@@ -191,6 +182,49 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
     (apply #'message format-string args)))
 
 ;;; Version Handling
+;;;; Common
+
+(defun package-build--select-version (rcp)
+  (pcase-let* ((default-directory (package-recipe--working-tree rcp))
+               (`(,commit ,time ,version)
+                (funcall package-build-get-version-function rcp)))
+    (unless version
+      (error "Cannot detect version for %s" (oref rcp name)))
+    (oset rcp commit commit)
+    (oset rcp time time)
+    (oset rcp version version)))
+
+(cl-defmethod package-build--select-commit ((rcp package-git-recipe) rev exact)
+  (pcase-let*
+      ((`(,hash ,time)
+        (split-string
+         (car (apply #'process-lines
+                     "git" "log" "-n1" "--first-parent"
+                     "--pretty=format:%H %cd" "--date=unix" rev
+                     (and (not exact)
+                          (cons "--" (mapcar #'car (package-build-expand-files-spec
+                                                    rcp))))))
+         " ")))
+    (list hash (string-to-number time))))
+
+(cl-defmethod package-build--select-commit ((rcp package-hg-recipe) rev exact)
+  (pcase-let*
+      ((`(,hash ,time ,_timezone)
+        (split-string
+         (car (apply #'process-lines
+                     ;; The "date" keyword uses UTC. The "hgdate" filter
+                     ;; returns two integers separated by a space; the
+                     ;; unix timestamp and the timezone offset.  We use
+                     ;; "hgdate" because that makes it easier to discard
+                     ;; the time zone offset, which doesn't interest us.
+                     "hg" "log" "--limit" "1"
+                     "--template" "{node} {date|hgdate}\n" "--rev" rev
+                     (and (not exact)
+                          (cons "--" (mapcar #'car (package-build-expand-files-spec
+                                                    rcp))))))
+         " ")))
+    (list hash (string-to-number time))))
+
 ;;;; Release
 
 (defun package-build-get-tag-version (rcp)
@@ -208,60 +242,34 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
               (setq tag (concat "refs/tags/" n))
             (setq tag n))
           (setq version v))))
-    (unless tag
-      (error "No valid stable versions found for %s" (oref rcp name)))
-    (cons (package-build--get-commit rcp tag)
-          (package-version-join version))))
-
-(cl-defmethod package-build--get-commit ((_rcp package-git-recipe) &optional rev)
-  (car (process-lines "git" "rev-parse"
-                      (if rev (concat rev "^{commit}") "HEAD"))))
-
-(cl-defmethod package-build--get-commit ((_rcp package-hg-recipe) &optional rev)
-  ;; "--debug" is needed to get the full hash.
-  (car (apply #'process-lines "hg" "--debug" "identify" "--id"
-              (and rev (list "--rev" rev)))))
+    (and tag
+         (pcase-let ((`(,hash ,time) (package-build--select-commit rcp tag t)))
+           (list hash time (package-version-join version))))))
 
 ;;;; Snapshot
 
 (defun package-build-get-timestamp-version (rcp)
-  (pcase-let ((`(,hash . ,time) (package-build--get-timestamp rcp)))
-    (cons hash
+  (pcase-let ((`(,hash ,time) (package-build--get-timestamp-version rcp)))
+    (list hash time
           ;; We remove zero-padding of the HH portion, as
           ;; that is lost when stored in archive-contents.
           (concat (format-time-string "%Y%m%d." time t)
                   (format "%d" (string-to-number
                                 (format-time-string "%H%M" time t)))))))
 
-(cl-defmethod package-build--get-timestamp ((rcp package-git-recipe))
+(cl-defmethod package-build--get-timestamp-version ((rcp package-git-recipe))
   (pcase-let*
       ((commit (oref rcp commit))
        (branch (oref rcp branch))
        (branch (and branch (concat "origin/" branch)))
-       (rev (or commit branch "origin/HEAD"))
-       ;; `package-build-expand-files-spec' expects REV to be checked out.
-       (_ (package-build--checkout-1 rcp rev))
-       (`(,hash ,time)
-        (split-string
-         (car (apply #'process-lines
-                     "git" "log" "-n1" "--first-parent"
-                     "--pretty=format:%H %cd" "--date=unix" rev
-                     "--" (mapcar #'car (package-build-expand-files-spec rcp))))
-         " ")))
-    (cons hash (string-to-number time))))
+       (rev (or commit branch "origin/HEAD")))
+    ;; `package-build-expand-files-spec' expects REV to be checked out.
+    (package-build--checkout rcp rev)
+    (package-build--select-commit rcp rev commit)))
 
-(cl-defmethod package-build--get-timestamp ((rcp package-hg-recipe))
-  (pcase-let*
-      ((rev nil) ; TODO Respect commit and branch properties.
-       (`(,hash ,time ,_timezone)
-        (split-string
-         (car (apply #'process-lines
-                     "hg" "log" "--limit" "1"
-                     "--template" "{node} {date|hgdate}\n"
-                     `(,@(and rev (list "--rev" rev))
-                       ,@(mapcar #'car (package-build-expand-files-spec rcp)))))
-         " ")))
-    (cons hash (string-to-number time))))
+(cl-defmethod package-build--get-timestamp-version ((rcp package-hg-recipe))
+  ;; TODO Respect commit and branch properties.
+  (package-build--select-commit rcp "." nil))
 
 ;;; Run Process
 
@@ -294,9 +302,9 @@ with a timeout so that no command can block the build process."
         (message "%s" (buffer-string))
         (error "Command exited with non-zero exit-code: %d" exit-code)))))
 
-;;; Checkout
+;;; Fetch
 
-(cl-defmethod package-build--checkout ((rcp package-git-recipe))
+(cl-defmethod package-build--fetch ((rcp package-git-recipe))
   (let ((dir (package-recipe--working-tree rcp))
         (url (package-recipe--upstream-url rcp))
         (protocol (package-recipe--upstream-protocol rcp)))
@@ -320,21 +328,17 @@ with a timeout so that no command can block the build process."
       (when (file-exists-p dir)
         (delete-directory dir t))
       (package-build--message "Cloning %s to %s" url dir)
-      (apply #'package-build--run-process "git" "clone" url dir
-             ;; This can dramatically reduce the size of large repos.
-             ;; But we can only do this when using a version function
-             ;; that is known not to require a checkout and history.
-             ;; See #52.
-             (and (eq package-build-get-version-function
-                      #'package-build-get-tag-version)
-                  (list "--filter=blob:none" "--no-checkout")))))
-     (pcase-let* ((default-directory dir)
-                  (`(,rev . ,version)
-                   (funcall package-build-get-version-function rcp)))
-      (package-build--checkout-1 rcp rev)
-      version)))
+      (let ((default-directory package-build-working-dir))
+        (apply #'package-build--run-process "git" "clone" url dir
+               ;; This can dramatically reduce the size of large repos.
+               ;; But we can only do this when using a version function
+               ;; that is known not to require a checkout and history.
+               ;; See #52.
+               (and (eq package-build-get-version-function
+                        #'package-build-get-tag-version)
+                    (list "--filter=blob:none" "--no-checkout"))))))))
 
-(cl-defmethod package-build--checkout ((rcp package-hg-recipe))
+(cl-defmethod package-build--fetch ((rcp package-hg-recipe))
   (let ((dir (package-recipe--working-tree rcp))
         (url (package-recipe--upstream-url rcp)))
     (cond
@@ -350,22 +354,22 @@ with a timeout so that no command can block the build process."
       (when (file-exists-p dir)
         (delete-directory dir t))
       (package-build--message "Cloning %s to %s" url dir)
-      (package-build--run-process "hg" "clone" url dir)))
-     (pcase-let* ((default-directory dir)
-                  (`(,rev . ,version)
-                   (funcall package-build-get-version-function rcp)))
-      (package-build--checkout-1 rcp rev)
-      version)))
+      (let ((default-directory package-build-working-dir))
+        (package-build--run-process "hg" "clone" url dir))))))
 
-(cl-defmethod package-build--checkout-1 ((_rcp package-git-recipe) rev)
+;;; Checkout
+
+(cl-defmethod package-build--checkout ((rcp package-git-recipe) &optional rev)
   (unless package-build--inhibit-checkout
-    (package-build--message "Checking out %s" rev)
-    (package-build--run-process "git" "reset" "--hard" rev)))
+    (let ((rev (or rev (oref rcp commit))))
+      (package-build--message "Checking out %s" rev)
+      (package-build--run-process "git" "reset" "--hard" rev))))
 
-(cl-defmethod package-build--checkout-1 ((_rcp package-hg-recipe) rev)
-  (when (and (not package-build--inhibit-checkout) rev)
-    (package-build--message "Checking out %s" rev)
-    (package-build--run-process "hg" "update" rev)))
+(cl-defmethod package-build--checkout ((rcp package-hg-recipe))
+  (unless package-build--inhibit-checkout
+    (let ((rev (oref rcp commit)))
+      (package-build--message "Checking out %s" rev)
+      (package-build--run-process "hg" "update" rev))))
 
 ;;; Generate Files
 
@@ -400,8 +404,7 @@ DIRECTORY is a temporary directory that contains the directory
 that is put in the tarball."
   (let* ((name (oref rcp name))
          (version (oref rcp version))
-         (commit (oref rcp commit))
-         (time (package-build--get-commit-time rcp commit))
+         (time (oref rcp time))
          (tar (expand-file-name (concat name "-" version ".tar")
                                 package-build-archive-dir))
          (dir (concat name "-" version)))
@@ -777,14 +780,14 @@ are subsequently dumped."
            (message "Package: %s" name)
            (message "Fetcher: %s" fetcher)
            (message "Source:  %s\n" url)))
-    (let ((default-directory package-build-working-dir))
-      (oset rcp version (package-build--checkout rcp))
-      (package-build--package rcp)
-      (when dump-archive-contents
-        (package-build-dump-archive-contents))
-      (message "Built %s in %.3fs, finished at %s" name
-               (float-time (time-since start-time))
-               (format-time-string "%FT%T%z" nil t)))))
+    (package-build--fetch rcp)
+    (package-build--select-version rcp)
+    (package-build--package rcp)
+    (when dump-archive-contents
+      (package-build-dump-archive-contents))
+    (message "Built %s in %.3fs, finished at %s" name
+             (float-time (time-since start-time))
+             (format-time-string "%FT%T%z" nil t))))
 
 ;;;###autoload
 (defun package-build--package (rcp)
@@ -793,21 +796,18 @@ Return the archive entry for the package and store the package
 in `package-build-archive-dir'."
   (let ((default-directory (package-recipe--working-tree rcp)))
     (unwind-protect
-        (let ((name (oref rcp name))
-              (version (oref rcp version))
-              (files (package-build-expand-files-spec rcp t)))
-          (oset rcp commit (package-build--get-commit rcp))
-          (cond
-           ((not version)
-            (error "Unable to check out repository for %s" name))
-           ((= (length files) 1)
-            (package-build--build-single-file-package rcp files))
-           ((> (length files) 1)
-            (package-build--build-multi-file-package rcp files))
-           (t (error "Unable to find files matching recipe patterns")))
-          (when package-build-write-melpa-badge-images
-            (package-build--write-melpa-badge-image
-             name version package-build-archive-dir)))
+        (progn
+          (package-build--checkout rcp)
+          (let ((files (package-build-expand-files-spec rcp t)))
+            (cond
+             ((= (length files) 1)
+              (package-build--build-single-file-package rcp files))
+             ((> (length files) 1)
+              (package-build--build-multi-file-package rcp files))
+             (t (error "Unable to find files matching recipe patterns")))
+            (when package-build-write-melpa-badge-images
+              (package-build--write-melpa-badge-image
+               (oref rcp name) (oref rcp version) package-build-archive-dir))))
       (cond ((cl-typep rcp 'package-git-recipe)
              (package-build--run-process "git" "clean" "-f" "-d" "-x"))
             ((cl-typep rcp 'package-hg-recipe)
@@ -856,19 +856,6 @@ in `package-build-archive-dir'."
           (package-build--write-pkg-readme rcp files)
           (package-build--write-archive-entry desc))
       (delete-directory tmp-dir t nil))))
-
-(cl-defmethod package-build--get-commit-time ((_rcp package-git-recipe) rev)
-  (string-to-number
-   (car (process-lines "git" "log" "-n1" "--first-parent"
-                       "--pretty=format:%cd" "--date=unix" rev))))
-
-(cl-defmethod package-build--get-commit-time ((_rcp package-hg-recipe) rev)
-  (string-to-number
-   (car (split-string
-         (car (process-lines "hg" "log" "--limit" "1"
-                             "--template" "{date|hgdate}\n"
-                             "--rev" rev))
-         " "))))
 
 ;;;###autoload
 (defun package-build-all ()
