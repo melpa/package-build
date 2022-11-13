@@ -191,6 +191,7 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
     (apply #'message format-string args)))
 
 ;;; Version Handling
+;;;; Release
 
 (defun package-build-get-tag-version (rcp)
   (let ((regexp (or (oref rcp version-regexp) package-build-version-regexp))
@@ -213,6 +214,18 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
     (cons (package-build--get-commit rcp tag)
           (package-version-join version))))
 
+(cl-defmethod package-build--get-commit ((rcp package-git-recipe) &optional rev)
+  (let ((default-directory (package-recipe--working-tree rcp)))
+    (car (process-lines "git" "rev-parse" (or rev "HEAD")))))
+
+(cl-defmethod package-build--get-commit ((rcp package-hg-recipe) &optional rev)
+  (let ((default-directory (package-recipe--working-tree rcp)))
+    ;; "--debug" is needed to get the full hash.
+    (car (apply #'process-lines "hg" "--debug" "identify" "--id"
+                (and rev (list "--rev" rev))))))
+
+;;;; Snapshot
+
 (defun package-build-get-timestamp-version (rcp)
   (pcase-let ((`(,hash . ,time) (package-build--get-timestamp rcp)))
     (cons hash
@@ -221,6 +234,38 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
           (concat (format-time-string "%Y%m%d." time t)
                   (format "%d" (string-to-number
                                 (format-time-string "%H%M" time t)))))))
+
+(cl-defmethod package-build--get-timestamp ((rcp package-git-recipe))
+  (pcase-let*
+      ((default-directory (package-recipe--working-tree rcp))
+       (commit (oref rcp commit))
+       (branch (oref rcp branch))
+       (branch (and branch (concat "origin/" branch)))
+       (rev (or commit branch "origin/HEAD"))
+       ;; `package-build-expand-files-spec' expects REV to be checked out.
+       (_ (package-build--checkout-1 rcp rev))
+       (`(,hash ,time)
+        (split-string
+         (car (apply #'process-lines
+                     "git" "log" "-n1" "--first-parent"
+                     "--pretty=format:%H %cd" "--date=unix" rev
+                     "--" (mapcar #'car (package-build-expand-files-spec rcp))))
+         " ")))
+    (cons hash (string-to-number time))))
+
+(cl-defmethod package-build--get-timestamp ((rcp package-hg-recipe))
+  (pcase-let*
+      ((default-directory (package-recipe--working-tree rcp))
+       (rev nil) ; TODO Respect commit and branch properties.
+       (`(,hash ,time ,_timezone)
+        (split-string
+         (car (apply #'process-lines
+                     "hg" "log" "--limit" "1"
+                     "--template" "{node} {date|hgdate}\n"
+                     `(,@(and rev (list "--rev" rev))
+                       ,@(mapcar #'car (package-build-expand-files-spec rcp)))))
+         " ")))
+    (cons hash (string-to-number time))))
 
 ;;; Run Process
 
@@ -307,34 +352,6 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
     (package-build--run-process (package-recipe--working-tree rcp)
                                 nil "git" "reset" "--hard" rev)))
 
-(cl-defmethod package-build--get-timestamp ((rcp package-git-recipe))
-  (pcase-let*
-      ((default-directory (package-recipe--working-tree rcp))
-       (commit (oref rcp commit))
-       (branch (oref rcp branch))
-       (branch (and branch (concat "origin/" branch)))
-       (rev (or commit branch "origin/HEAD"))
-       ;; `package-build-expand-files-spec' expects REV to be checked out.
-       (_ (package-build--checkout-1 rcp rev))
-       (`(,hash ,time)
-        (split-string
-         (car (apply #'process-lines
-                     "git" "log" "-n1" "--first-parent"
-                     "--pretty=format:%H %cd" "--date=unix" rev
-                     "--" (mapcar #'car (package-build-expand-files-spec rcp))))
-         " ")))
-    (cons hash (string-to-number time))))
-
-(cl-defmethod package-build--get-commit-time ((rcp package-git-recipe) rev)
-  (let ((default-directory (package-recipe--working-tree rcp)))
-    (string-to-number
-     (car (process-lines "git" "log" "-n1" "--first-parent"
-                         "--pretty=format:%cd" "--date=unix" rev)))))
-
-(cl-defmethod package-build--get-commit ((rcp package-git-recipe) &optional rev)
-  (let ((default-directory (package-recipe--working-tree rcp)))
-    (car (process-lines "git" "rev-parse" (or rev "HEAD")))))
-
 ;;;; Hg
 
 (cl-defmethod package-build--checkout ((rcp package-hg-recipe))
@@ -363,35 +380,6 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
     (package-build--message "Checking out %s" rev)
     (package-build--run-process (package-recipe--working-tree rcp)
                                 nil "hg" "update" rev)))
-
-(cl-defmethod package-build--get-timestamp ((rcp package-hg-recipe))
-  (pcase-let*
-      ((default-directory (package-recipe--working-tree rcp))
-       (rev nil) ; TODO Respect commit and branch properties.
-       (`(,hash ,time ,_timezone)
-        (split-string
-         (car (apply #'process-lines
-                     "hg" "log" "--limit" "1"
-                     "--template" "{node} {date|hgdate}\n"
-                     `(,@(and rev (list "--rev" rev))
-                       ,@(mapcar #'car (package-build-expand-files-spec rcp)))))
-         " ")))
-    (cons hash (string-to-number time))))
-
-(cl-defmethod package-build--get-commit-time ((rcp package-hg-recipe) rev)
-  (let ((default-directory (package-recipe--working-tree rcp)))
-    (string-to-number
-     (car (split-string
-           (car (process-lines "hg" "log" "--limit" "1"
-                               "--template" "{date|hgdate}\n"
-                               "--rev" rev))
-           " ")))))
-
-(cl-defmethod package-build--get-commit ((rcp package-hg-recipe) &optional rev)
-  (let ((default-directory (package-recipe--working-tree rcp)))
-    ;; "--debug" is needed to get the full hash.
-    (car (apply #'process-lines "hg" "--debug" "identify" "--id"
-                (and rev (list "--rev" rev))))))
 
 ;;; Generate Files
 
@@ -861,6 +849,21 @@ in `package-build-archive-dir'."
           (package-build--write-pkg-readme name files source-dir)
           (package-build--write-archive-entry desc))
       (delete-directory tmp-dir t nil))))
+
+(cl-defmethod package-build--get-commit-time ((rcp package-git-recipe) rev)
+  (let ((default-directory (package-recipe--working-tree rcp)))
+    (string-to-number
+     (car (process-lines "git" "log" "-n1" "--first-parent"
+                         "--pretty=format:%cd" "--date=unix" rev)))))
+
+(cl-defmethod package-build--get-commit-time ((rcp package-hg-recipe) rev)
+  (let ((default-directory (package-recipe--working-tree rcp)))
+    (string-to-number
+     (car (split-string
+           (car (process-lines "hg" "log" "--limit" "1"
+                               "--template" "{date|hgdate}\n"
+                               "--rev" rev))
+           " ")))))
 
 ;;;###autoload
 (defun package-build-all ()
