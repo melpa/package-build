@@ -858,12 +858,13 @@ in `package-build-archive-dir'."
 (defun package-build-all ()
   "Build a package for each of the available recipes."
   (interactive)
-  (let* ((recipes (package-recipe-recipes))
+  (let* ((start (current-time))
+         (recipes (package-recipe-recipes))
          (total (length recipes))
          (success 0)
          invalid failed)
     (dolist (name recipes)
-      (let ((rcp (with-demoted-errors "Build error: %S"
+      (let ((rcp (with-demoted-errors "Recipe error: %S"
                    (package-recipe-lookup name))))
         (if rcp
             (if (with-demoted-errors "Build error: %S"
@@ -871,17 +872,19 @@ in `package-build-archive-dir'."
                 (cl-incf success)
               (push name failed))
           (push name invalid))))
-    (if (not (or invalid failed))
-        (message "Successfully built all %s packages" total)
-      (message "Successfully built %i of %s packages" success total)
-      (when invalid
-        (message "Did not built packages for %i invalid recipes:\n%s"
-                 (length invalid)
-                 (mapconcat (lambda (n) (concat "  " n)) invalid "\n")))
-      (when failed
-        (message "Building %i packages failed:\n%s"
-                 (length failed)
-                 (mapconcat (lambda (n) (concat "  " n)) failed "\n")))))
+    (let ((duration (/ (float-time (time-subtract (current-time) start)) 60)))
+      (if (not (or invalid failed))
+          (message "Successfully built all %s packages (%.0fm)" total duration)
+        (message "Successfully built %i of %s packages (%.0fm)"
+                 success total duration)
+        (when invalid
+          (message "Did not built packages for %i invalid recipes:\n%s"
+                   (length invalid)
+                   (mapconcat (lambda (n) (concat "  " n)) invalid "\n")))
+        (when failed
+          (message "Building %i packages failed:\n%s"
+                   (length failed)
+                   (mapconcat (lambda (n) (concat "  " n)) failed "\n"))))))
   (package-build-cleanup))
 
 (defun package-build-cleanup ()
