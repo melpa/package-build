@@ -165,6 +165,9 @@ disallowed."
   :group 'package-build
   :type '(repeat string))
 
+(defvar package-build-use-git-remote-hg nil
+  "Whether to use `git-remote-hg' remote helper for mercurial repos.")
+
 (defvar package-build--inhibit-fetch nil
   "Whether to inhibit fetching.  Useful for testing purposes.")
 

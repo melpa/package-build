@@ -30,6 +30,7 @@
 (require 'eieio)
 (require 'url-parse)
 
+(defvar package-build-use-git-remote-hg)
 (defvar package-build-recipes-dir)
 (defvar package-build-working-dir)
 
@@ -74,6 +75,8 @@
 
 (defclass package-hg-recipe (package-recipe) ())
 
+(defclass package-git-remote-hg-recipe (package-git-recipe) ())
+
 ;;; Methods
 
 (cl-defmethod package-recipe--working-tree ((rcp package-recipe))
@@ -84,6 +87,9 @@
   (or (oref rcp url)
       (format (oref rcp url-format)
               (oref rcp repo))))
+
+(cl-defmethod package-recipe--upstream-url ((rcp package-git-remote-hg-recipe))
+  (concat "hg::" (oref rcp url)))
 
 (cl-defmethod package-recipe--upstream-protocol ((rcp package-recipe))
   (let ((url (package-recipe--upstream-url rcp)))
@@ -131,6 +137,8 @@ file is invalid, then raise an error."
             (unless (eq key :fetcher)
               (push val args)
               (push key args)))
+          (when (and package-build-use-git-remote-hg (eq fetcher 'hg))
+            (setq fetcher 'git-remote-hg))
           (apply (intern (format "package-%s-recipe" fetcher))
                  name :name name args))
       (error "No such recipe: %s" name))))
