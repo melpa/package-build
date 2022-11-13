@@ -308,7 +308,6 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
         (kill-buffer temp-buffer)))))
 
 ;;; Checkout
-;;;; Git
 
 (cl-defmethod package-build--checkout ((rcp package-git-recipe))
   (let ((dir (package-recipe--working-tree rcp))
@@ -346,14 +345,6 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
       (package-build--checkout-1 rcp rev)
       version)))
 
-(cl-defmethod package-build--checkout-1 ((rcp package-git-recipe) rev)
-  (unless package-build--inhibit-checkout
-    (package-build--message "Checking out %s" rev)
-    (package-build--run-process (package-recipe--working-tree rcp)
-                                nil "git" "reset" "--hard" rev)))
-
-;;;; Hg
-
 (cl-defmethod package-build--checkout ((rcp package-hg-recipe))
   (let ((dir (package-recipe--working-tree rcp))
         (url (package-recipe--upstream-url rcp)))
@@ -374,6 +365,12 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
                  (funcall package-build-get-version-function rcp)))
       (package-build--checkout-1 rcp rev)
       version)))
+
+(cl-defmethod package-build--checkout-1 ((rcp package-git-recipe) rev)
+  (unless package-build--inhibit-checkout
+    (package-build--message "Checking out %s" rev)
+    (package-build--run-process (package-recipe--working-tree rcp)
+                                nil "git" "reset" "--hard" rev)))
 
 (cl-defmethod package-build--checkout-1 ((rcp package-hg-recipe) rev)
   (when (and (not package-build--inhibit-checkout) rev)
