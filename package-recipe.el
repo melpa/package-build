@@ -50,31 +50,6 @@
    (old-names       :initarg :old-names      :initform nil))
   :abstract t)
 
-(cl-defmethod package-recipe--working-tree ((rcp package-recipe))
-  (file-name-as-directory
-   (expand-file-name (oref rcp name) package-build-working-dir)))
-
-(cl-defmethod package-recipe--upstream-url ((rcp package-recipe))
-  (or (oref rcp url)
-      (format (oref rcp url-format)
-              (oref rcp repo))))
-
-(cl-defmethod package-recipe--upstream-protocol ((rcp package-recipe))
-  (let ((url (package-recipe--upstream-url rcp)))
-    (cond ((string-match "\\`\\([a-z]+\\)://" url)
-           (match-string 1 url))
-          ((string-match "\\`[^:/ ]+:" url) "ssh")
-          (t "file"))))
-
-(cl-defmethod package-recipe--fetcher ((rcp package-recipe))
-  (substring (symbol-name (eieio-object-class rcp)) 8 -7))
-
-(defconst package-recipe--forge-fetchers
-  '(github gitlab codeberg sourcehut))
-
-(defconst package-recipe--fetchers
-  (append '(git hg) package-recipe--forge-fetchers))
-
 ;;;; Git
 
 (defclass package-git-recipe (package-recipe) ())
@@ -98,6 +73,35 @@
 ;;;; Mercurial
 
 (defclass package-hg-recipe (package-recipe) ())
+
+;;; Methods
+
+(cl-defmethod package-recipe--working-tree ((rcp package-recipe))
+  (file-name-as-directory
+   (expand-file-name (oref rcp name) package-build-working-dir)))
+
+(cl-defmethod package-recipe--upstream-url ((rcp package-recipe))
+  (or (oref rcp url)
+      (format (oref rcp url-format)
+              (oref rcp repo))))
+
+(cl-defmethod package-recipe--upstream-protocol ((rcp package-recipe))
+  (let ((url (package-recipe--upstream-url rcp)))
+    (cond ((string-match "\\`\\([a-z]+\\)://" url)
+           (match-string 1 url))
+          ((string-match "\\`[^:/ ]+:" url) "ssh")
+          (t "file"))))
+
+(cl-defmethod package-recipe--fetcher ((rcp package-recipe))
+  (substring (symbol-name (eieio-object-class rcp)) 8 -7))
+
+;;; Constants
+
+(defconst package-recipe--forge-fetchers
+  '(github gitlab codeberg sourcehut))
+
+(defconst package-recipe--fetchers
+  (append '(git hg) package-recipe--forge-fetchers))
 
 ;;; Interface
 
