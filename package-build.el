@@ -522,7 +522,23 @@ still be renamed."
 
 ;;; Package Structs
 
-(defun package-build--desc-from-library (rcp files &optional type)
+(defun package-build--desc-from-library (rcp files &optional kind)
+  "Return the package description for RCP.
+
+This function is used for all packages that consist of a single
+file and those packages that consist of multiple files but lack
+a file named \"NAME-pkg.el\" or \"NAME-pkg.el\".
+
+The returned value is a `package-desc' struct (which see).
+The values of the `name' and `version' slots are taken from RCP
+itself.  The value of `kind' is taken from the KIND argument,
+which defaults to `single'; the other valid value being `tar'.
+
+Other information is taken from the file named \"NAME-pkg.el\",
+which should appear in FILES.  As a fallback, \"NAME-pkg.el.in\"
+is also tried.  If neither file exists, then return nil.  If a
+value is not specified in the used file, then fall back to the
+value specified in the file \"NAME.el\"."
   (let* ((name (oref rcp name))
          (version (oref rcp version))
          (commit (oref rcp commit))
@@ -543,7 +559,7 @@ still be renamed."
             (when-let ((require-lines (lm-header-multiline "package-requires")))
               (package--prepare-dependencies
                (package-read-from-string (mapconcat #'identity require-lines " "))))
-            :kind       (or type 'single)
+            :kind       (or kind 'single)
             :url        (lm-homepage)
             :keywords   (lm-keywords-list)
             :maintainer (if (fboundp 'lm-maintainers)
@@ -554,6 +570,17 @@ still be renamed."
             :commit     commit)))))
 
 (defun package-build--desc-from-package (rcp files)
+  "Return the package description for RCP.
+
+This function is used for packages that consist of multiple files.
+
+The returned value is a `package-desc' struct (which see).
+The values of the `name' and `version' slots are taken from RCP
+itself.  The value of `kind' is always `tar'.
+
+Other information is taken from the file named \"NAME.el\",
+which should appear in FILES.  As a fallback, \"NAME.el.in\"
+is also tried.  If neither file exists, then return nil."
   (let* ((name (oref rcp name))
          (version (oref rcp version))
          (commit (oref rcp commit))
