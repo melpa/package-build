@@ -280,11 +280,26 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
       ((commit (oref rcp commit))
        (branch (oref rcp branch))
        (branch (and branch (concat "origin/" branch)))
-       (rev (or commit branch "origin/HEAD")))
-    (package-build--select-commit rcp rev commit)))
+       (rev (or commit branch "origin/HEAD"))
+       (`(,rev-hash ,rev-time) (package-build--select-commit rcp rev commit))
+       (`(,tag-hash ,tag-time) (package-build-get-tag-version rcp)))
+    ;; If the latest commit that touches a relevant file is an ancestor of
+    ;; the latest tagged release and the tag is reachable from origin/HEAD
+    ;; (i.e., it isn't on a separate release branch) then use the tagged
+    ;; release.  Snapshots should not be older than the latest release.
+    (if (and tag-hash
+             (zerop (call-process "git" nil nil nil
+                                  "merge-base" "--is-ancestor"
+                                  rev-hash tag-hash))
+             (zerop (call-process "git" nil nil nil
+                                  "merge-base" "--is-ancestor"
+                                  tag-hash rev)))
+        (list tag-hash tag-time)
+      (list rev-hash rev-time))))
 
 (cl-defmethod package-build--get-timestamp-version ((rcp package-hg-recipe))
   ;; TODO Respect commit and branch properties.
+  ;; TODO Use latest release if appropriate.
   (package-build--select-commit rcp "." nil))
 
 ;;; Run Process
