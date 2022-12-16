@@ -12,7 +12,7 @@
 ;; Homepage: https://github.com/melpa/package-build
 ;; Keywords: maint tools
 
-;; Package-Version: 4.0.0
+;; Package-Version: 4.0.0.50-git
 ;; Package-Requires: ((emacs "25.1"))
 
 ;; SPDX-License-Identifier: GPL-3.0-or-later
