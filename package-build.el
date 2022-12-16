@@ -115,6 +115,26 @@ If nil (the default), then all packages are build."
   :group 'package-build
   :type '(choice (const :tag "build all") function))
 
+(defcustom package-build-build-function nil
+  "Low-level function used to build a package.
+If nil (the default) then the funcion used depends on whether the
+package consists of more than one file or not.  One possible value
+is `package-build--build-multi-file-package', which would force
+building a tarball, even for packages that consist of a single
+file."
+  :group 'package-build
+  :type '(choice (const :tag "default, depending on number of files")
+                 function))
+
+;; NOTE that these hooks are still experimental.  Let me know if these
+;; are potentially useful for you and whether any changes are required
+;; to make them more appropriate for your usecase.
+(defvar package-build-worktree-function #'package-recipe--working-tree)
+(defvar package-build-early-worktree-function #'package-recipe--working-tree)
+(defvar package-build-fetch-function #'package-build--fetch)
+(defvar package-build-checkout-function #'package-build--checkout)
+(defvar package-build-cleanup-function #'package-build--cleanup)
+
 (defcustom package-build-timeout-executable "timeout"
   "Path to a GNU coreutils \"timeout\" command if available.
 This must be a version which supports the \"-k\" option.
@@ -185,7 +205,7 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
 ;;;; Common
 
 (defun package-build--select-version (rcp)
-  (pcase-let* ((default-directory (package-recipe--working-tree rcp))
+  (pcase-let* ((default-directory (package-build--working-tree rcp t))
                (`(,commit ,time ,version)
                 (funcall package-build-get-version-function rcp)))
     (unless version
@@ -202,8 +222,7 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
                      "git" "log" "-n1" "--first-parent"
                      "--pretty=format:%H %cd" "--date=unix" rev
                      (and (not exact)
-                          (cons "--" (mapcar #'car (package-build-expand-files-spec
-                                                    rcp))))))
+                          (cons "--" (package-build--spec-globs rcp)))))
          " ")))
     (list hash (string-to-number time))))
 
@@ -220,8 +239,7 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
                      "hg" "log" "--limit" "1"
                      "--template" "{node} {date|hgdate}\n" "--rev" rev
                      (and (not exact)
-                          (cons "--" (mapcar #'car (package-build-expand-files-spec
-                                                    rcp))))))
+                          (cons "--" (package-build--spec-globs rcp)))))
          " ")))
     (list hash (string-to-number time))))
 
@@ -262,13 +280,26 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
       ((commit (oref rcp commit))
        (branch (oref rcp branch))
        (branch (and branch (concat "origin/" branch)))
-       (rev (or commit branch "origin/HEAD")))
-    ;; `package-build-expand-files-spec' expects REV to be checked out.
-    (package-build--checkout rcp rev)
-    (package-build--select-commit rcp rev commit)))
+       (rev (or commit branch "origin/HEAD"))
+       (`(,rev-hash ,rev-time) (package-build--select-commit rcp rev commit))
+       (`(,tag-hash ,tag-time) (package-build-get-tag-version rcp)))
+    ;; If the latest commit that touches a relevant file is an ancestor of
+    ;; the latest tagged release and the tag is reachable from origin/HEAD
+    ;; (i.e., it isn't on a separate release branch) then use the tagged
+    ;; release.  Snapshots should not be older than the latest release.
+    (if (and tag-hash
+             (zerop (call-process "git" nil nil nil
+                                  "merge-base" "--is-ancestor"
+                                  rev-hash tag-hash))
+             (zerop (call-process "git" nil nil nil
+                                  "merge-base" "--is-ancestor"
+                                  tag-hash rev)))
+        (list tag-hash tag-time)
+      (list rev-hash rev-time))))
 
 (cl-defmethod package-build--get-timestamp-version ((rcp package-hg-recipe))
   ;; TODO Respect commit and branch properties.
+  ;; TODO Use latest release if appropriate.
   (package-build--select-commit rcp "." nil))
 
 ;;; Run Process
@@ -302,10 +333,17 @@ with a timeout so that no command can block the build process."
         (message "%s" (buffer-string))
         (error "Command exited with non-zero exit-code: %d" exit-code)))))
 
+;;; Worktree
+
+(defun package-build--working-tree (rcp &optional early)
+  (if early
+      (funcall package-build-early-worktree-function rcp)
+    (funcall package-build-worktree-function rcp)))
+
 ;;; Fetch
 
 (cl-defmethod package-build--fetch ((rcp package-git-recipe))
-  (let ((dir (package-recipe--working-tree rcp))
+  (let ((dir (package-build--working-tree rcp t))
         (url (package-recipe--upstream-url rcp))
         (protocol (package-recipe--upstream-protocol rcp)))
     (unless (member protocol package-build-allowed-git-protocols)
@@ -339,7 +377,7 @@ with a timeout so that no command can block the build process."
                     (list "--filter=blob:none" "--no-checkout"))))))))
 
 (cl-defmethod package-build--fetch ((rcp package-hg-recipe))
-  (let ((dir (package-recipe--working-tree rcp))
+  (let ((dir (package-build--working-tree rcp t))
         (url (package-recipe--upstream-url rcp)))
     (cond
      ((and (file-exists-p (expand-file-name ".hg" dir))
@@ -359,9 +397,9 @@ with a timeout so that no command can block the build process."
 
 ;;; Checkout
 
-(cl-defmethod package-build--checkout ((rcp package-git-recipe) &optional rev)
+(cl-defmethod package-build--checkout ((rcp package-git-recipe))
   (unless package-build--inhibit-checkout
-    (let ((rev (or rev (oref rcp commit))))
+    (let ((rev (oref rcp commit)))
       (package-build--message "Checking out %s" rev)
       (package-build--run-process "git" "reset" "--hard" rev))))
 
@@ -673,29 +711,29 @@ order and can have the following form:
 
 - :defaults
 
-  If the very first element of the top-level SPEC is `:defaults',
-  then that means to prepend the default file spec to the SPEC
-  specified by the remaining elements.
+  If the first element is `:defaults', then that means to prepend
+  the default files spec to the SPEC specified by the remaining
+  elements.
 
 - GLOB
 
   A string is glob-expanded to match zero or more files.  Matched
   files are copied to the top-level directory.
 
-- (SUBDIRECTORY . SPEC)
+- (SUBDIRECTORY GLOB...)
 
   A list that begins with a string causes the files matched by
   the second and subsequent elements to be copied into the sub-
   directory specified by the first element.
 
-- (:exclude . SPEC)
+- (:exclude GLOB...)
 
   A list that begins with `:exclude' causes files that were
   matched by earlier elements that are also matched by the second
   and subsequent elements of this list to be removed from the
   returned alist.  Files matched by later elements are not
   affected."
-  (let ((default-directory (or repo (package-recipe--working-tree rcp)))
+  (let ((default-directory (or repo (package-build--working-tree rcp)))
         (spec (or spec (oref rcp files))))
     (when (eq (car spec) :defaults)
       (setq spec (append package-build-default-files-spec (cdr spec))))
@@ -712,31 +750,38 @@ order and can have the following form:
                  default-directory (or spec "default spec"))))
       files)))
 
-(defun package-build--expand-files-spec-1 (spec &optional subdir)
-  (let ((files nil))
+(defun package-build--expand-files-spec-1 (spec)
+  "Return a list of all files matching SPEC in `default-directory'.
+SPEC is a full files spec as stored in a recipe object."
+  (let (include exclude)
     (dolist (entry spec)
-      (setq files
-            (cond
-             ((stringp entry)
-              (nconc files
-                     (mapcar (lambda (f)
-                               (cons f
-                                     (concat subdir
-                                             (replace-regexp-in-string
-                                              "\\.el\\.in\\'"  ".el"
-                                              (file-name-nondirectory f)))))
-                             (file-expand-wildcards entry))))
-             ((eq (car entry) :exclude)
-              (cl-nset-difference
-               files
-               (package-build--expand-files-spec-1 (cdr entry))
-               :key #'car :test #'equal))
-             (t
-              (nconc files
-                     (package-build--expand-files-spec-1
-                      (cdr entry)
-                      (concat subdir (car entry) "/")))))))
-    files))
+      (if (eq (car-safe entry) :exclude)
+          (dolist (entry (cdr entry))
+            (push entry exclude))
+        (push entry include)))
+    (cl-set-difference
+     (package-build--expand-files-spec-2 (nreverse include))
+     (package-build--expand-files-spec-2 (nreverse exclude))
+     :test #'equal :key #'car)))
+
+(defun package-build--expand-files-spec-2 (spec &optional subdir)
+  "Return a list of all files matching SPEC in SUBDIR.
+If SUBDIR is nil, use `default-directory'.  SPEC is expected to
+be a partial files spec, consisting of either all include rules
+or all exclude rules (with the `:exclude' keyword removed)."
+  (mapcan (lambda (entry)
+            (if (stringp entry)
+                (mapcar (lambda (f)
+                          (cons f
+                                (concat subdir
+                                        (replace-regexp-in-string
+                                         "\\.el\\.in\\'"  ".el"
+                                         (file-name-nondirectory f)))))
+                        (file-expand-wildcards entry))
+              (package-build--expand-files-spec-2
+               (cdr entry)
+               (concat subdir (car entry) "/"))))
+          spec))
 
 (defun package-build--copy-package-files (files target-dir)
   "Copy FILES from `default-directory' to TARGET-DIR.
@@ -756,6 +801,40 @@ FILES is a list of (SOURCE . DEST) relative filepath pairs."
              (package-build--message
               "  %s %s => %s" (if (equal src dst) " " "!") src dst)
              (copy-directory src* dst*))))))
+
+(defun package-build--spec-globs (rcp)
+  "Return a list of vcs arguments to match the files specified in RCP."
+  ;; See glob(7), gitglossary(7) and "hg help patterns".
+  (cl-flet ((toargs (glob &optional exclude)
+              ;; Given an element like ("dir" "dir/*"), we want to move
+              ;; all children of "dir" to the top-level.  Glob handling
+              ;; of git-log/hg-log only cares about regular file, so if
+              ;; "dir/subdir/file" is modified, then "dir/*" does not
+              ;; match that change.  Use "dir/**" instead, to make them
+              ;; look for changes to files in "dir" and all subdirs.
+              (when (string-suffix-p "/*" glob)
+                (setq glob (concat glob "*")))
+              (cl-etypecase rcp
+                (package-git-recipe
+                 (list (format ":(glob%s)%s" (if exclude ",exclude" "") glob)))
+                (package-hg-recipe
+                 (list (if exclude "--exclude" "--include")
+                       (concat "glob:" glob))))))
+    (mapcan (lambda (entry)
+              (pcase-exhaustive entry
+                ((and glob (pred stringp))
+                 (toargs glob))
+                ((and `(:exclude . ,globs)
+                      (guard (cl-every #'stringp globs)))
+                 (mapcan (lambda (g) (toargs g t)) globs))
+                ((and `(,dir . ,globs)
+                      (guard (stringp dir))
+                      (guard (cl-every #'stringp globs)))
+                 (mapcan #'toargs globs))))
+            (let ((spec (or (oref rcp files) package-build-default-files-spec)))
+              (if (eq (car spec) :defaults)
+                  (append package-build-default-files-spec (cdr spec))
+                spec)))))
 
 ;;; Commands
 
@@ -780,7 +859,7 @@ are subsequently dumped."
            (message "Package: %s" name)
            (message "Fetcher: %s" fetcher)
            (message "Source:  %s\n" url)))
-    (package-build--fetch rcp)
+    (funcall package-build-fetch-function rcp)
     (package-build--select-version rcp)
     (package-build--package rcp)
     (when dump-archive-contents
@@ -794,24 +873,24 @@ are subsequently dumped."
   "Build the package version specified by RCP.
 Return the archive entry for the package and store the package
 in `package-build-archive-dir'."
-  (let ((default-directory (package-recipe--working-tree rcp)))
+  (let ((default-directory (package-build--working-tree rcp)))
     (unwind-protect
         (progn
-          (package-build--checkout rcp)
+          (funcall package-build-checkout-function rcp)
           (let ((files (package-build-expand-files-spec rcp t)))
             (cond
+             ((= (length files) 0)
+              (error "Unable to find files matching recipe patterns"))
+             (package-build-build-function
+              (funcall package-build-build-function))
              ((= (length files) 1)
               (package-build--build-single-file-package rcp files))
-             ((> (length files) 1)
-              (package-build--build-multi-file-package rcp files))
-             (t (error "Unable to find files matching recipe patterns")))
+             (t
+              (package-build--build-multi-file-package rcp files)))
             (when package-build-write-melpa-badge-images
               (package-build--write-melpa-badge-image
                (oref rcp name) (oref rcp version) package-build-archive-dir))))
-      (cond ((cl-typep rcp 'package-git-recipe)
-             (package-build--run-process "git" "clean" "-f" "-d" "-x"))
-            ((cl-typep rcp 'package-hg-recipe)
-             (package-build--run-process "hg" "purge"))))))
+      (funcall package-build-cleanup-function rcp))))
 
 (defun package-build--build-single-file-package (rcp files)
   (let* ((name (oref rcp name))
@@ -856,6 +935,12 @@ in `package-build-archive-dir'."
           (package-build--write-pkg-readme rcp files)
           (package-build--write-archive-entry desc))
       (delete-directory tmp-dir t nil))))
+
+(defun package-build--cleanup (rcp)
+  (cond ((cl-typep rcp 'package-git-recipe)
+         (package-build--run-process "git" "clean" "-f" "-d" "-x"))
+        ((cl-typep rcp 'package-hg-recipe)
+         (package-build--run-process "hg" "purge"))))
 
 ;;;###autoload
 (defun package-build-all ()
