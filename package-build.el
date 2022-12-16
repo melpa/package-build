@@ -216,7 +216,8 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
 
 (cl-defmethod package-build--get-commit ((rcp package-git-recipe) &optional rev)
   (let ((default-directory (package-recipe--working-tree rcp)))
-    (car (process-lines "git" "rev-parse" (or rev "HEAD")))))
+    (car (process-lines "git" "rev-parse"
+                        (if rev (concat rev "^{commit}") "HEAD")))))
 
 (cl-defmethod package-build--get-commit ((rcp package-hg-recipe) &optional rev)
   (let ((default-directory (package-recipe--working-tree rcp)))
