@@ -830,6 +830,7 @@ FILES is a list of (SOURCE . DEST) relative filepath pairs."
                 ((and `(,dir . ,globs)
                       (guard (stringp dir))
                       (guard (cl-every #'stringp globs)))
+                 dir ; Silence byte-compiler of Emacs < 28.1.
                  (mapcan #'toargs globs))))
             (let ((spec (or (oref rcp files) package-build-default-files-spec)))
               (if (eq (car spec) :defaults)
