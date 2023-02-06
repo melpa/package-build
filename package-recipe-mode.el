@@ -72,13 +72,13 @@ Use \\[package-build-current-recipe] to build this recipe, \
   (let ((recipe-file (expand-file-name name package-build-recipes-dir)))
     (when (file-exists-p recipe-file)
       (error "Recipe already exists"))
-    (find-file recipe-file)
-    (insert (pp-to-string `(,(intern name)
-                            :fetcher ,fetcher
-                            ,@(cl-case fetcher
-                                (github (list :repo "USER/REPO"))
-                                (t (list :url "SCM_URL_HERE"))))))
-    (goto-char (point-min))))
+    (with-current-buffer (find-file recipe-file)
+      (save-excursion
+        (insert (format "(%s\n" name)
+                (format " :fetcher %s\n" fetcher)
+                (if (memq fetcher package-recipe--forge-fetchers)
+                    " :repo \"USER/REPO\")\n"
+                  " :url \"https://TODO\")\n"))))))
 
 ;;;###autoload
 (defun package-build-current-recipe ()
