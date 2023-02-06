@@ -95,22 +95,21 @@ Use \\[package-build-current-recipe] to build this recipe, \
         (save-buffer)
       (error "Aborting")))
   (check-parens)
-  (let* ((name (file-name-nondirectory (buffer-file-name)))
-         (symbol (intern name)))
+  (let ((name (file-name-nondirectory (buffer-file-name))))
     (package-build-archive name t)
-    (let ((output-buffer-name "*package-build-result*"))
+    (let ((entry (assq (intern name) (package-build-archive-alist)))
+          (output-buffer-name "*package-build-archive-entry*"))
       (with-output-to-temp-buffer output-buffer-name
         (princ ";; Please check the following package descriptor.\n")
         (princ ";; If the correct package description or dependencies are missing,\n")
         (princ ";; then the source .el file is likely malformed, and should be fixed.\n")
-        (pp (assq symbol (package-build-archive-alist))))
+        (pp entry))
       (with-current-buffer output-buffer-name
-        (emacs-lisp-mode)
-        (view-mode)))
-    (when (y-or-n-p "Install new package? ")
-      (package-install-file
-       (package-build--artifact-file
-        (assq symbol (package-build-archive-alist)))))))
+        (if (fboundp 'lisp-data-mode) (lisp-data-mode) (emacs-lisp-mode))
+        (view-mode))
+      (when (y-or-n-p "Install new package? ")
+        (package-install-file (package-build--artifact-file entry))
+        (pop-to-buffer (get-buffer byte-compile-log-buffer))))))
 
 (provide 'package-recipe-mode)
 ;;; package-recipe-mode.el ends here
