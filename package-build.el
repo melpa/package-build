@@ -669,6 +669,7 @@ is also tried.  If neither file exists, then return nil."
   (with-temp-file
       (expand-file-name (concat (package-desc-full-name desc) ".entry")
                         package-build-archive-dir)
+    (set-buffer-file-coding-system 'utf-8)
     (pp (cons (package-desc-name    desc)
               (vector (package-desc-version desc)
                       (package-desc-reqs    desc)
