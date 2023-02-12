@@ -444,8 +444,7 @@ with a timeout so that no command can block the build process."
   "Return `bsd' or `gnu' depending on type of Tar executable.
 Tests and sets variable `package-build--tar-type' if not already set."
   (or package-build--tar-type
-      (when (and package-build-tar-executable
-                 (file-executable-p package-build-tar-executable))
+      (when package-build-tar-executable
         (setq package-build--tar-type
               (let ((v (shell-command-to-string
                         (format "%s --version" package-build-tar-executable))))
