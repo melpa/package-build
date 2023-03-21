@@ -1049,6 +1049,22 @@ line per entry."
                                   (string< (symbol-name (car a))
                                            (symbol-name (car b))))))
     (with-temp-file
+        (expand-file-name "elpa-packages.eld" package-build-archive-dir)
+      (let ((print-level nil)
+            (print-length nil)
+            elpa-entries)
+         (dolist (entry entries)
+           (let* ((name (car entry))
+                  (recipe (package-recipe-lookup (symbol-name name)))
+                  (url (package-recipe--upstream-url recipe))
+                  (branch (oref recipe :branch))
+                  (recipe (append  `(,name :url ,url) `(,@(and branch `(:branch ,branch))))))
+             (push recipe elpa-entries)))
+         (setq elpa-entries (append `(,(nreverse elpa-entries)) `(:version 1 :default-vc ,(intern "Git"))))
+         (if pretty-print
+             (pp elpa-entries (current-buffer))
+           (insert (format "%S" elpa-entries)))))
+    (with-temp-file
         (or file
             (expand-file-name "archive-contents" package-build-archive-dir))
       (let ((print-level nil)
