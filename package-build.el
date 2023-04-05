@@ -1029,10 +1029,8 @@ If PRETTY-PRINT is non-nil, then pretty-print instead of using one
 line per entry."
   (let (entries)
     (dolist (file (sort (directory-files package-build-archive-dir t ".*\\.entry$")
-                        ;; Sort more recently-build packages first
-                        (lambda (f1 f2)
-                          (let ((default-directory package-build-archive-dir))
-                            (file-newer-than-file-p f1 f2)))))
+                        ;; Sort more recently build packages first.
+                        #'file-newer-than-file-p))
       (let* ((entry (with-temp-buffer
                       (insert-file-contents file)
                       (read (current-buffer))))
@@ -1047,9 +1045,8 @@ line per entry."
           (if newer-entry
               (package-build--remove-archive-files entry)
             (push entry entries)))))
-    (setq entries (sort entries (lambda (a b)
-                                  (string< (symbol-name (car a))
-                                           (symbol-name (car b))))))
+    (setq entries (cl-sort entries #'string<
+                           :key (lambda (e) (symbol-name (car e)))))
     (with-temp-file
         (or file
             (expand-file-name "archive-contents" package-build-archive-dir))
