@@ -1023,12 +1023,17 @@ packages for which that returns non-nil are build."
 (defun package-build-dump-archive-contents (&optional file pretty-print)
   "Update and return the archive contents.
 
-If non-nil, then store the archive contents in FILE instead of in
-the \"archive-contents\" file inside `package-build-archive-dir'.
-If PRETTY-PRINT is non-nil, then pretty-print instead of using one
-line per entry."
+Update files \"archive-contents\" and \"elpa-packages.eld\" in
+`package-build-archive-dir'.  If optional FILE is non-nil,
+use that to store the archive contents and place the second
+file next to it.
+
+If optional PRETTY-PRINT is non-nil, then pretty-print
+\"archive-contents\" instead of using one line per entry.
+\"elpa-packages.eld\" always uses one line per entry."
   (let ((default-directory package-build-archive-dir)
-        (entries nil))
+        (entries nil)
+        (vc-pkgs nil))
     (dolist (file (sort (directory-files default-directory t ".*\\.entry\\'")
                         ;; Sort more recently build packages first.
                         #'file-newer-than-file-p))
@@ -1048,7 +1053,24 @@ line per entry."
           ;; commit histories were changed.
           (package-build--remove-archive-files entry))
          (t
-          (push entry entries)))))
+          (push entry entries)
+          ;; [Non]GNU ELPA recipes are not compatible with Melpa recipes.
+          ;; See around occurrences of "pkg-spec" in "package-vc.el";
+          ;; section "Specifications (elpa-packages)" in "README" of the
+          ;; "elpa-admin" branch in "emacs/elpa.git" repository; and also
+          ;; `elpaa--supported-keywords' and `elpaa--publish-package-spec'.
+          (let ((recipe (package-recipe-lookup name)))
+            (push
+             `(,symbol
+               :url ,(package-recipe--upstream-url recipe)
+               ,@(and (cl-typep recipe 'package-hg-recipe)
+                      (list :vc-backend 'Hg))
+               ,@(when-let* ((branch (oref recipe branch)))
+                   (list :branch branch))
+               ,@(when-let* ((maintainer
+                              (cdr (assq :maintainer (aref (cdr entry) 4)))))
+                   (list :maintainer maintainer)))
+             vc-pkgs))))))
     (setq entries (cl-sort entries #'string<
                            :key (lambda (e) (symbol-name (car e)))))
     (with-temp-file (or file (expand-file-name "archive-contents"))
@@ -1061,7 +1083,18 @@ line per entry."
             (newline)
             (insert " ")
             (prin1 entry (current-buffer)))
-          (insert ")"))))
+          (insert ")\n"))))
+    (with-temp-file (expand-file-name "elpa-packages.eld"
+                                      (and file (file-name-nondirectory file)))
+      (let ((print-level nil)
+            (print-length nil))
+        (insert "((")
+        (prin1 (car vc-pkgs) (current-buffer))
+        (dolist (entry (cdr vc-pkgs))
+          (newline)
+          (insert "  ")
+          (prin1 entry (current-buffer)))
+        (insert ")\n :version 1 :default-vc 'Git)\n")))
     entries))
 
 (defun package-build--remove-archive-files (archive-entry)
