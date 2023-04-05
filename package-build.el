@@ -1028,7 +1028,7 @@ the \"archive-contents\" file inside `package-build-archive-dir'.
 If PRETTY-PRINT is non-nil, then pretty-print instead of using one
 line per entry."
   (let (entries)
-    (dolist (file (sort (directory-files package-build-archive-dir t ".*\\.entry$")
+    (dolist (file (sort (directory-files package-build-archive-dir t ".*\\.entry\\'")
                         ;; Sort more recently build packages first.
                         #'file-newer-than-file-p))
       (let* ((entry (with-temp-buffer
