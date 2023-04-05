@@ -1003,7 +1003,7 @@ packages for which that returns non-nil are build."
           (message "Building %i packages failed:\n%s"
                    (length failed)
                    (mapconcat (lambda (n) (concat "  " n)) (nreverse failed) "\n"))))))
-  (package-build-cleanup))
+  (package-build-dump-archive-contents))
 
 (defun package-build-cleanup ()
   "Remove previously built packages that no longer have recipes."
