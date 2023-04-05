@@ -1027,8 +1027,9 @@ If non-nil, then store the archive contents in FILE instead of in
 the \"archive-contents\" file inside `package-build-archive-dir'.
 If PRETTY-PRINT is non-nil, then pretty-print instead of using one
 line per entry."
-  (let (entries)
-    (dolist (file (sort (directory-files package-build-archive-dir t ".*\\.entry\\'")
+  (let ((default-directory package-build-archive-dir)
+        (entries nil))
+    (dolist (file (sort (directory-files default-directory t ".*\\.entry\\'")
                         ;; Sort more recently build packages first.
                         #'file-newer-than-file-p))
       (let* ((entry (with-temp-buffer
@@ -1037,19 +1038,20 @@ line per entry."
              (symbol (car entry))
              (name (symbol-name symbol))
              (outdated (eq (caar entries) symbol)))
-        (if (not (file-exists-p (expand-file-name name package-build-recipes-dir)))
-            (package-build--remove-archive-files entry)
-          ;; Prefer the more-recently-built package, which may not
-          ;; necessarily have the highest version number, e.g. if
+        (cond
+         ((not (file-exists-p (expand-file-name name package-build-recipes-dir)))
+          ;; Recipe corresponding to this entry no longer exists.
+          (package-build--remove-archive-files entry))
+         (outdated
+          ;; Prefer the more recently built package, which may not
+          ;; necessarily have the highest version number, e.g., if
           ;; commit histories were changed.
-          (if outdated
-              (package-build--remove-archive-files entry)
-            (push entry entries)))))
+          (package-build--remove-archive-files entry))
+         (t
+          (push entry entries)))))
     (setq entries (cl-sort entries #'string<
                            :key (lambda (e) (symbol-name (car e)))))
-    (with-temp-file
-        (or file
-            (expand-file-name "archive-contents" package-build-archive-dir))
+    (with-temp-file (or file (expand-file-name "archive-contents"))
       (let ((print-level nil)
             (print-length nil))
         (if pretty-print
