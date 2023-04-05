@@ -1034,15 +1034,15 @@ line per entry."
       (let* ((entry (with-temp-buffer
                       (insert-file-contents file)
                       (read (current-buffer))))
-             (name (car entry))
-             (newer-entry (assq name entries)))
-        (if (not (file-exists-p (expand-file-name (symbol-name name)
-                                                  package-build-recipes-dir)))
+             (symbol (car entry))
+             (name (symbol-name symbol))
+             (outdated (eq (caar entries) symbol)))
+        (if (not (file-exists-p (expand-file-name name package-build-recipes-dir)))
             (package-build--remove-archive-files entry)
           ;; Prefer the more-recently-built package, which may not
           ;; necessarily have the highest version number, e.g. if
           ;; commit histories were changed.
-          (if newer-entry
+          (if outdated
               (package-build--remove-archive-files entry)
             (push entry entries)))))
     (setq entries (cl-sort entries #'string<
