@@ -362,7 +362,7 @@ with a timeout so that no command can block the build process."
       (unless package-build--inhibit-fetch
         (let ((default-directory dir))
           (package-build--message "Updating %s" dir)
-          (package-build--run-process "git" "fetch" "-f" "--all" "--tags")
+          (package-build--run-process "git" "fetch" "-f" "--tags" "origin")
           ;; We might later checkout "origin/HEAD". Sadly "git fetch"
           ;; cannot be told to keep it up-to-date, so we have to make
           ;; a second request.
