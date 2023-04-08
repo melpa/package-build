@@ -1094,7 +1094,7 @@ If optional PRETTY-PRINT is non-nil, then pretty-print
           (newline)
           (insert "  ")
           (prin1 entry (current-buffer)))
-        (insert ")\n :version 1 :default-vc 'Git)\n")))
+        (insert ")\n :version 1 :default-vc Git)\n")))
     entries))
 
 (defun package-build--remove-archive-files (archive-entry)
