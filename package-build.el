@@ -263,9 +263,7 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
   (let ((regexp (or (oref rcp version-regexp) package-build-version-regexp))
         (tag nil)
         (version '(0)))
-    (dolist (n (cl-etypecase rcp
-                 (package-git-recipe (process-lines "git" "tag" "--list"))
-                 (package-hg-recipe  (process-lines "hg" "tags" "--quiet"))))
+    (dolist (n (package-build--list-tags rcp))
       (let ((v (ignore-errors
                  (version-to-list (and (string-match regexp n)
                                        (match-string 1 n))))))
@@ -277,6 +275,12 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
     (and tag
          (pcase-let ((`(,hash ,time) (package-build--select-commit rcp tag t)))
            (list hash time (package-version-join version))))))
+
+(cl-defmethod package-build--list-tags ((_rcp package-git-recipe))
+  (process-lines "git" "tag" "--list"))
+
+(cl-defmethod package-build--list-tags ((_rcp package-hg-recipe))
+  (process-lines "hg" "tags" "--quiet"))
 
 ;;;; Snapshot
 
