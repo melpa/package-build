@@ -105,7 +105,9 @@ choosen by the function, TIME is its commit date, and VERSION is
 the version string choosen for COMMIT."
   :group 'package-build
   :set-after '(package-build-stable)
-  :type 'function)
+  :type '(radio (function-item package-build-get-tag-version)
+                (function-item package-build-get-timestamp-version)
+                function))
 
 (defcustom package-build-predicate-function nil
   "Predicate used by `package-build-all' to determine which packages to build.
@@ -260,6 +262,8 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
 ;;;; Release
 
 (defun package-build-get-tag-version (rcp)
+  "Determine version corresponding to largest version tag for RCP.
+Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING)."
   (let ((regexp (or (oref rcp version-regexp) package-build-version-regexp))
         (tag nil)
         (version '(0)))
@@ -282,9 +286,12 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
 (cl-defmethod package-build--list-tags ((_rcp package-hg-recipe))
   (process-lines "hg" "tags" "--quiet"))
 
-;;;; Snapshot
+;;;; Timestamp
 
 (defun package-build-get-timestamp-version (rcp)
+  "Determine timestamp version corresponding to latest relevant commit for RCP.
+Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING), where
+VERSION-STRING has the format \"%Y%m%d.%H%M\"."
   (pcase-let ((`(,hash ,time) (package-build--get-timestamp-version rcp)))
     (list hash time
           ;; We remove zero-padding of the HH portion, as
