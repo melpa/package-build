@@ -175,9 +175,19 @@ These batches can, for example, be used on GitHub pages."
   :group 'package-build
   :type 'boolean)
 
-(defcustom package-build-version-regexp "^[rRvV]?\\(.*\\)$"
-  "Default pattern for matching valid version-strings within repository tags.
-The string in the capture group should be parsed as valid by `version-to-list'."
+(defcustom package-build-version-regexp "\\`[rRvV]?\\(?1:.+\\)\\'"
+  "Regexp used to match valid version-strings.
+
+The string matched by the first capture group must be valid
+according to `version-to-list'.  The optional part before the
+capture group should match prefixes commonly used when naming
+version tags.  It is not part of the version string as such
+and thus not passed to `version-to-list'.  Individual package
+recipes can override this using the `:version-regexp' property.
+
+To match only releases but no pre-releases, and to support only
+\".\" as separator, use \
+\"\\\\`[rRvV]?\\\\([0-9]+\\\\(\\\\.[0-9]+\\\\)\\\\)\\\\'\"."
   :group 'package-build
   :type 'string)
 
