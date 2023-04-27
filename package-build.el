@@ -613,10 +613,17 @@ value specified in the file \"NAME.el\"."
          (version (oref rcp version))
          (commit (oref rcp commit))
          (file (concat name ".el"))
-         (file (or (car (rassoc file files)) file)))
+         (file (or (car (rassoc file files)) file))
+         (maintainers nil))
     (and (file-exists-p file)
          (with-temp-buffer
            (insert-file-contents file)
+           (setq maintainers
+                 (if (fboundp 'lm-maintainers)
+                     (lm-maintainers)
+                   (with-no-warnings
+                     (when-let ((maintainer (lm-maintainer)))
+                       (list maintainer)))))
            (package-desc-from-define
             name version
             (or (save-excursion
@@ -632,12 +639,15 @@ value specified in the file \"NAME.el\"."
             :kind       (or kind 'single)
             :url        (lm-homepage)
             :keywords   (lm-keywords-list)
-            :maintainer (if (fboundp 'lm-maintainers)
-                            (car (lm-maintainers))
-                          (with-no-warnings
-                            (lm-maintainer)))
-            :authors    (lm-authors)
-            :commit     commit)))))
+            ;; Since 4e6f98cd505, if there are multiple maintainers,
+            ;; `package-buffer-info' stores them all in `:maintainer'.
+            ;; That is not backward compatible, so we use `:maintainers'
+            ;; instead.  I am working on getting this fixed in `package'
+            ;; as well.
+            :maintainer  (car maintainers)
+            :maintainers maintainers
+            :authors     (lm-authors)
+            :commit      commit)))))
 
 (defun package-build--desc-from-package (rcp files)
   "Return the package description for RCP.
@@ -1170,6 +1180,7 @@ a package."
           :type type
           :props props)))
 
+;; TODO handle multiple maintainers
 (defun package-build--archive-alist-for-json ()
   "Return the archive alist in a form suitable for JSON encoding."
   (cl-flet ((format-person
