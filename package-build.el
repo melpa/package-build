@@ -1207,10 +1207,17 @@ a package."
                        (let* ((info (cdr entry))
                               (extra (aref info 4))
                               (maintainer (assq :maintainer extra))
+                              (maintainers (assq :maintainers extra))
                               (authors (assq :authors extra)))
                          (when maintainer
                            (setcdr maintainer
                                    (format-person (cdr maintainer))))
+                         (when maintainers
+                           (if (cl-every #'listp (cdr maintainers))
+                               (setcdr maintainers
+                                       (mapcar #'format-person
+                                               (cdr maintainers)))
+                             (assq-delete-all :maintainers extra)))
                          (when authors
                            (if (cl-every #'listp (cdr authors))
                                (setcdr authors
