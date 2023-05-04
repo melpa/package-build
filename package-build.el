@@ -1191,7 +1191,6 @@ a package."
           :type type
           :props props)))
 
-;; TODO handle multiple maintainers
 (defun package-build--archive-alist-for-json ()
   "Return the archive alist in a form suitable for JSON encoding."
   (cl-flet ((format-person
