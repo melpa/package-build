@@ -173,7 +173,7 @@ Can be `gnu' or `bsd'; nil means the type is not decided yet.")
 
 (defcustom package-build-write-melpa-badge-images nil
   "When non-nil, write MELPA badge images alongside packages.
-These batches can, for example, be used on GitHub pages."
+These badges can, for example, be used on GitHub pages."
   :group 'package-build
   :type 'boolean)
 

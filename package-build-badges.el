@@ -1,4 +1,4 @@
-;;; package-build-badges.el --- Create batches for packages  -*- lexical-binding:t; coding:utf-8 -*-
+;;; package-build-badges.el --- Create badges for packages  -*- lexical-binding:t; coding:utf-8 -*-
 
 ;; Copyright (C) 2011-2023 Donald Ephraim Curtis
 ;; Copyright (C) 2012-2023 Steve Purcell
@@ -27,7 +27,7 @@
 
 ;;; Commentary:
 
-;; Create batches for packages.
+;; Create badges for packages.
 ;; The code in this file was lifted from `elpa-admin'.
 
 ;;; Code:
