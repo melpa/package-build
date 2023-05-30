@@ -647,7 +647,15 @@ value specified in the file \"NAME.el\"."
             (when-let ((require-lines (lm-header-multiline "package-requires")))
               (package--prepare-dependencies
                (package-read-from-string (mapconcat #'identity require-lines " "))))
+            ;; `:kind' and `:archive' are handled separately.
             :kind       (or kind 'single)
+            ;; The other keyword arguments are appended to the alist
+            ;; stored in the `extras' slot.  Make sure `:commit', which
+            ;; always exists and never has to be removed, comes first in
+            ;; the end result, so we can post-process the returned data
+            ;; by side-effect, e.g., to remove somewhat broken maintainer
+            ;; information, that cannot easily be encoded as json (see
+            ;; `package-build--archive-alist-for-json').
             :url        (lm-homepage)
             :keywords   (lm-keywords-list)
             ;; Since 4e6f98cd505, if there are multiple maintainers,
@@ -1216,12 +1224,14 @@ a package."
                                (setcdr maintainers
                                        (mapcar #'format-person
                                                (cdr maintainers)))
-                             (assq-delete-all :maintainers extra)))
+                             (setq maintainers ; silence >= 30 compiler
+                                   (assq-delete-all :maintainers extra))))
                          (when authors
                            (if (cl-every #'listp (cdr authors))
                                (setcdr authors
                                        (mapcar #'format-person (cdr authors)))
-                             (assq-delete-all :authors extra)))
+                             (setq authors ; silence >= 30 compiler
+                                   (assq-delete-all :authors extra))))
                          (package-build--pkg-info-for-json info))))
                (package-build-archive-alist))))
 
