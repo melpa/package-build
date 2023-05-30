@@ -658,11 +658,8 @@ value specified in the file \"NAME.el\"."
             ;; `package-build--archive-alist-for-json').
             :url        (lm-homepage)
             :keywords   (lm-keywords-list)
-            ;; Since 4e6f98cd505, if there are multiple maintainers,
-            ;; `package-buffer-info' stores them all in `:maintainer'.
-            ;; That is not backward compatible, so we use `:maintainers'
-            ;; instead.  I am working on getting this fixed in `package'
-            ;; as well.
+            ;; Newer `package.el' versions support both `:maintainers' and
+            ;; `:maintainer', while older versions only support the latter.
             :maintainer  (car maintainers)
             :maintainers maintainers
             :authors     (lm-authors)
