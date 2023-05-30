@@ -639,14 +639,14 @@ value specified in the file \"NAME.el\"."
             name version
             (or (save-excursion
                   (goto-char (point-min))
-                  (and (re-search-forward
-                        "^;;; [^ ]*\\.el ---[ \t]*\\(.*?\\)[ \t]*\\(-\\*-.*-\\*-[ \t]*\\)?$"
-                        nil t)
+                  (and (re-search-forward "\
+^;;; [^ ]*\\.el ---[ \t]*\\(.*?\\)[ \t]*\\(-\\*-.*-\\*-[ \t]*\\)?$" nil t)
                        (match-string-no-properties 1)))
                 "No description available.")
             (when-let ((require-lines (lm-header-multiline "package-requires")))
               (package--prepare-dependencies
-               (package-read-from-string (mapconcat #'identity require-lines " "))))
+               (package-read-from-string
+                (mapconcat #'identity require-lines " "))))
             ;; `:kind' and `:archive' are handled separately.
             :kind       (or kind 'single)
             ;; The other keyword arguments are appended to the alist
