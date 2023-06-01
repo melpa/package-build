@@ -177,6 +177,17 @@ These badges can, for example, be used on GitHub pages."
   :group 'package-build
   :type 'boolean)
 
+(defcustom package-build-badge-data
+  (if package-build-stable
+      (list "melpa stable" "#3e999f")
+    (list "melpa" "#922793"))
+  "Data used when generating badge images.
+The default value is set based on `package-build-stable'.
+`package-build-write-melpa-badge-images' controls whether
+images are generated."
+  :group 'package-build
+  :type '(list (string :tag "Archive name") color))
+
 (defcustom package-build-version-regexp "\\`[rRvV]?\\(?1:.+\\)\\'"
   "Regexp used to match valid version-strings.
 

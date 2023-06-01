@@ -33,15 +33,16 @@
 ;;; Code:
 
 (defvar package-build-stable)
+(defvar package-build-badge-data)
 
 (defun package-build--write-melpa-badge-image ( name version target-dir
                                                 &optional archive color)
   "Make badge svg file.
 This is essentially a copy of `elpaa--make-badge'."
   (let* ((file (expand-file-name (concat name "-badge.svg") target-dir))
-         (left (or archive (if package-build-stable "melpa stable" "melpa")))
+         (left (or archive (car package-build-badge-data)))
          (right (url-hexify-string version))
-         (color (or color (if package-build-stable "#3e999f" "#922793")))
+         (color (or color (cadr package-build-badge-data)))
          (lw (package-build-badge--string-width left))
          (rw (package-build-badge--string-width right))
          (pad (package-build-badge--string-width "x"))
