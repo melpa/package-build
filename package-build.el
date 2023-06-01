@@ -171,8 +171,11 @@ similar, which will provide the GNU timeout program as
   "Type of `package-build-tar-executable'.
 Can be `gnu' or `bsd'; nil means the type is not decided yet.")
 
-(defcustom package-build-write-melpa-badge-images nil
-  "When non-nil, write MELPA badge images alongside packages.
+(define-obsolete-variable-alias 'package-build-write-badge-images
+  'package-build-write-badge-images "Package-Build 5.0.0")
+
+(defcustom package-build-write-badge-images nil
+  "When non-nil, write badge images alongside packages.
 These badges can, for example, be used on GitHub pages."
   :group 'package-build
   :type 'boolean)
@@ -183,8 +186,8 @@ These badges can, for example, be used on GitHub pages."
     (list "melpa" "#922793"))
   "Data used when generating badge images.
 The default value is set based on `package-build-stable'.
-`package-build-write-melpa-badge-images' controls whether
-images are generated."
+`package-build-write-badge-images' controls whether images
+are generated."
   :group 'package-build
   :type '(list (string :tag "Archive name") color))
 
@@ -955,8 +958,8 @@ in `package-build-archive-dir'."
               (package-build--build-single-file-package rcp files))
              (t
               (package-build--build-multi-file-package rcp files)))
-            (when package-build-write-melpa-badge-images
-              (package-build--write-melpa-badge-image
+            (when package-build-write-badge-images
+              (package-build--write-badge-image
                (oref rcp name) (oref rcp version) package-build-archive-dir))))
       (funcall package-build-cleanup-function rcp))))
 
