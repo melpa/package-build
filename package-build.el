@@ -93,8 +93,8 @@
 
 (defcustom package-build-get-version-function
   (if package-build-stable
-      'package-build-get-tag-version
-    'package-build-get-timestamp-version)
+      'package-build-tag-version
+    'package-build-timestamp-version)
   "The function used to determine the commit and version of a package.
 
 The default depends on the value of option `package-build-stable'.
@@ -105,8 +105,8 @@ choosen by the function, TIME is its commit date, and VERSION is
 the version string choosen for COMMIT."
   :group 'package-build
   :set-after '(package-build-stable)
-  :type '(radio (function-item package-build-get-tag-version)
-                (function-item package-build-get-timestamp-version)
+  :type '(radio (function-item package-build-tag-version)
+                (function-item package-build-timestamp-version)
                 function))
 
 (defcustom package-build-predicate-function nil
@@ -275,7 +275,7 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
 
 ;;;; Release
 
-(defun package-build-get-tag-version (rcp)
+(defun package-build-tag-version (rcp)
   "Determine version corresponding to largest version tag for RCP.
 Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING)."
   (let ((regexp (or (oref rcp version-regexp) package-build-version-regexp))
@@ -300,9 +300,12 @@ Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING)."
 (cl-defmethod package-build--list-tags ((_rcp package-hg-recipe))
   (process-lines "hg" "tags" "--quiet"))
 
+(define-obsolete-function-alias 'package-build-get-tag-version
+  'package-build-tag-version "Package-Build 5.0.0")
+
 ;;;; Timestamp
 
-(defun package-build-get-timestamp-version (rcp)
+(defun package-build-timestamp-version (rcp)
   "Determine timestamp version corresponding to latest relevant commit for RCP.
 Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING), where
 VERSION-STRING has the format \"%Y%m%d.%H%M\"."
@@ -321,7 +324,7 @@ VERSION-STRING has the format \"%Y%m%d.%H%M\"."
        (branch (and branch (concat "origin/" branch)))
        (rev (or commit branch "origin/HEAD"))
        (`(,rev-hash ,rev-time) (package-build--select-commit rcp rev commit))
-       (`(,tag-hash ,tag-time) (package-build-get-tag-version rcp)))
+       (`(,tag-hash ,tag-time) (package-build-tag-version rcp)))
     ;; If the latest commit that touches a relevant file is an ancestor of
     ;; the latest tagged release and the tag is reachable from origin/HEAD
     ;; (i.e., it isn't on a separate release branch) then use the tagged
@@ -342,6 +345,9 @@ VERSION-STRING has the format \"%Y%m%d.%H%M\"."
          (rev (format "sort(ancestors(%s), -rev)"
                       (or commit (format "max(branch(%s))" branch)))))
     (package-build--select-commit rcp rev nil)))
+
+(define-obsolete-function-alias 'package-build-get-snapshot-version
+  'package-build-snapshot-version "Package-Build 5.0.0")
 
 ;;; Run Process
 
@@ -414,7 +420,7 @@ with a timeout so that no command can block the build process."
                ;; that is known not to require a checkout and history.
                ;; See #52.
                (and (eq package-build-get-version-function
-                        #'package-build-get-tag-version)
+                        #'package-build-tag-version)
                     (list "--filter=blob:none" "--no-checkout"))))))))
 
 (cl-defmethod package-build--fetch ((rcp package-hg-recipe))
