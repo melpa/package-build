@@ -309,7 +309,7 @@ Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING)."
   "Determine timestamp version corresponding to latest relevant commit for RCP.
 Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING), where
 VERSION-STRING has the format \"%Y%m%d.%H%M\"."
-  (pcase-let ((`(,hash ,time) (package-build--get-timestamp-version rcp)))
+  (pcase-let ((`(,hash ,time) (package-build--timestamp-version rcp)))
     (list hash time
           ;; We remove zero-padding of the HH portion, as
           ;; that is lost when stored in archive-contents.
@@ -317,7 +317,7 @@ VERSION-STRING has the format \"%Y%m%d.%H%M\"."
                   (format "%d" (string-to-number
                                 (format-time-string "%H%M" time t)))))))
 
-(cl-defmethod package-build--get-timestamp-version ((rcp package-git-recipe))
+(cl-defmethod package-build--timestamp-version ((rcp package-git-recipe))
   (pcase-let*
       ((commit (oref rcp commit))
        (branch (oref rcp branch))
@@ -339,7 +339,7 @@ VERSION-STRING has the format \"%Y%m%d.%H%M\"."
         (list tag-hash tag-time)
       (list rev-hash rev-time))))
 
-(cl-defmethod package-build--get-timestamp-version ((rcp package-hg-recipe))
+(cl-defmethod package-build--timestamp-version ((rcp package-hg-recipe))
   (let* ((commit (oref rcp commit))
          (branch (or (oref rcp branch) "default"))
          (rev (format "sort(ancestors(%s), -rev)"
