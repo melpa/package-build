@@ -117,15 +117,16 @@ If nil (the default), then all packages are build."
   :group 'package-build
   :type '(choice (const :tag "build all") function))
 
-(defcustom package-build-build-function nil
+(defcustom package-build-build-function
+  #'package-build--build-multi-file-package
   "Low-level function used to build a package.
-If nil (the default) then the funcion used depends on whether the
-package consists of more than one file or not.  One possible value
-is `package-build--build-multi-file-package', which would force
-building a tarball, even for packages that consist of a single
-file."
+By default a tarball is used for all packages, including those
+consisting of a single file.  It this is nil, then single-file
+packages are distributed without using tarballs."
   :group 'package-build
-  :type '(choice (const :tag "default, depending on number of files")
+  :type '(choice (const :tag "use tarball for all packages"
+                        package-build--build-multi-file-package)
+                 (const :tag "only use tarball for multi-file packages" nil)
                  function))
 
 ;; NOTE that these hooks are still experimental.  Let me know if these
