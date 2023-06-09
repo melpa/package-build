@@ -191,19 +191,22 @@ are generated."
   :group 'package-build
   :type '(list (string :tag "Archive name") color))
 
-(defcustom package-build-version-regexp "\\`[rRvV]?\\(?1:.+\\)\\'"
+(defcustom package-build-version-regexp
+  "\\`[rRvV]?\\(?1:[0-9]+\\(\\.[0-9]+\\)*\\)\\'"
   "Regexp used to match valid version-strings.
 
-The string matched by the first capture group must be valid
-according to `version-to-list'.  The optional part before the
-capture group should match prefixes commonly used when naming
-version tags.  It is not part of the version string as such
-and thus not passed to `version-to-list'.  Individual package
-recipes can override this using the `:version-regexp' property.
+The first capture is used to extract the actual version string.
+Strings matched by that group must be valid according to
+`version-to-list', but the used regexp can be more strict.  The
+default value supports only releases but no pre-releases.  It
+also intentionally ignores cedrtain unfortunate version strings
+such as \"1A\" or \".5\", and only supports \".\" as separator.
 
-To match only releases but no pre-releases, and to support only
-\".\" as separator, use \
-\"\\\\`[rRvV]?\\\\([0-9]+\\\\(\\\\.[0-9]+\\\\)\\\\)\\\\'\"."
+The part before the first capture group should match prefixes
+commonly used in version tags.
+
+Note that this variable can be overriden in a package's recipe,
+using the `:version-regexp' slot."
   :group 'package-build
   :type 'string)
 
