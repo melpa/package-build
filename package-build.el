@@ -252,7 +252,7 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
       ((`(,hash ,time)
         (split-string
          (car (apply #'process-lines
-                     "git" "log" "-n1" "--first-parent"
+                     "git" "log" "-n1" "--first-parent" "--no-show-signature"
                      "--pretty=format:%H %cd" "--date=unix" rev
                      (and (not exact)
                           (cons "--" (package-build--spec-globs rcp)))))
