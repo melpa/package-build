@@ -416,6 +416,7 @@ with a timeout so that no command can block the build process."
       (when (file-exists-p dir)
         (delete-directory dir t))
       (package-build--message "Cloning %s to %s" url dir)
+      (make-directory package-build-working-dir t)
       (let ((default-directory package-build-working-dir))
         (apply #'package-build--run-process "git" "clone" url dir
                ;; This can dramatically reduce the size of large repos.
@@ -442,6 +443,7 @@ with a timeout so that no command can block the build process."
       (when (file-exists-p dir)
         (delete-directory dir t))
       (package-build--message "Cloning %s to %s" url dir)
+      (make-directory package-build-working-dir t)
       (let ((default-directory package-build-working-dir))
         (package-build--run-process "hg" "clone" url dir))))))
 
