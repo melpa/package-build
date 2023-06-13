@@ -87,27 +87,60 @@
   :type 'boolean)
 
 (defcustom package-build-stable nil
-  "When non-nil, then try to build packages from versions-tagged code."
+  "Whether to build release or snapshot packages.
+
+If nil, snapshot packages are build, otherwise release packages
+are build.  `package-build-snapshot-version-functions' and/or
+`package-build-release-version-functions' are used to determine
+the appropriate version for each package and how the version
+string is formatted."
   :group 'package-build
   :type 'boolean)
 
-(defcustom package-build-get-version-function
-  (if package-build-stable
-      'package-build-tag-version
-    'package-build-timestamp-version)
-  "The function used to determine the commit and version of a package.
+(make-obsolete-variable 'package-build-get-version-function
+                        'package-build-stable
+                        "Package-Build 5.0.0")
+(defvar package-build-get-version-function nil
+  "This variable is obsolete and its value should be nil.
+If this is non-nil, then it overrides
+`package-build-release-version-functions' and
+`package-build-snapshot-version-functions'.")
 
-The default depends on the value of option `package-build-stable'.
+(defcustom package-build-release-version-functions
+  (list #'package-build-tag-version)
+  "Functions used to determine the current release of a package.
 
-This function is called with one argument, the recipe object,
-and must return (COMMIT TIME VERSION), where COMMIT is the commit
-choosen by the function, TIME is its commit date, and VERSION is
-the version string choosen for COMMIT."
+Each function is called in order, with the recipe object as
+argument, until one returns non-nil.  The returned value must
+have the form (COMMIT TIME VERSION), where COMMIT is the commit
+chosen by the function, TIME is its committer date, and VERSION
+is the version string chosen for COMMIT.
+
+If obsolete `package-build-get-version-function' is non-nil,
+then that overrides the value set here."
   :group 'package-build
-  :set-after '(package-build-stable)
-  :type '(radio (function-item package-build-tag-version)
-                (function-item package-build-timestamp-version)
-                function))
+  :type 'hook
+  :options (list #'package-build-tag-version))
+
+(defcustom package-build-snapshot-version-functions
+  (list #'package-build-timestamp-version)
+  "Function used to determine the current snapshot of a package.
+
+Each function is called in order, with the recipe object as
+argument, until one returns non-nil.  The returned value must
+have the form (COMMIT TIME VERSION), where COMMIT is the commit
+chosen by the function, TIME is its committer date, and VERSION
+is the version string chosen for COMMIT.
+
+Some of the functions that return snapshot versions, internally
+use `package-build-release-version-functions' to determine the
+current release, which they use as part of the returned VERSION.
+
+If obsolete `package-build-get-version-function' is non-nil,
+then that overrides the value set here."
+  :group 'package-build
+  :type 'hook
+  :options (list #'package-build-timestamp-version))
 
 (defcustom package-build-predicate-function nil
   "Predicate used by `package-build-all' to determine which packages to build.
@@ -242,9 +275,23 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
 ;;;; Common
 
 (defun package-build--select-version (rcp)
-  (pcase-let* ((default-directory (package-build--working-tree rcp t))
-               (`(,commit ,time ,version)
-                (funcall package-build-get-version-function rcp)))
+  (pcase-let*
+      ((default-directory (package-build--working-tree rcp t))
+       (`(,commit ,time ,version)
+        (cond
+         ((with-no-warnings package-build-get-version-function)
+          (display-warning 'package-build "\
+Variable `package-build-get-version-function' is obsolete.
+Instead set `package-build-release-version-functions'
+and/or `package-build-snapshot-version-functions', and
+set `package-build-stable' to control whether releases
+or snapshots are build.")
+          (with-no-warnings (funcall package-build-get-version-function rcp)))
+         (package-build-stable
+          (run-hook-with-args-until-success
+           'package-build-release-version-functions rcp))
+         ((run-hook-with-args-until-success
+           'package-build-snapshot-version-functions rcp)))))
     (unless version
       (error "Cannot detect version for %s" (oref rcp name)))
     (oset rcp commit commit)
@@ -280,7 +327,7 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
          " ")))
     (list hash (string-to-number time))))
 
-;;;; Release
+;;;; Tag
 
 (defun package-build-tag-version (rcp)
   "Determine version corresponding to largest version tag for RCP.
@@ -422,14 +469,7 @@ with a timeout so that no command can block the build process."
       (package-build--message "Cloning %s to %s" url dir)
       (make-directory package-build-working-dir t)
       (let ((default-directory package-build-working-dir))
-        (apply #'package-build--run-process "git" "clone" url dir
-               ;; This can dramatically reduce the size of large repos.
-               ;; But we can only do this when using a version function
-               ;; that is known not to require a checkout and history.
-               ;; See #52.
-               (and (eq package-build-get-version-function
-                        #'package-build-tag-version)
-                    (list "--filter=blob:none" "--no-checkout"))))))))
+        (package-build--run-process "git" "clone" url dir))))))
 
 (cl-defmethod package-build--fetch ((rcp package-hg-recipe))
   (let ((dir (package-build--working-tree rcp t))
