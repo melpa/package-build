@@ -142,7 +142,8 @@ If obsolete `package-build-get-version-function' is non-nil,
 then that overrides the value set here."
   :group 'package-build
   :type 'hook
-  :options (list #'package-build-release+timestamp-version
+  :options (list #'package-build-release+count-version
+                 #'package-build-release+timestamp-version
                  #'package-build-timestamp-version))
 
 (defcustom package-build-predicate-function nil
@@ -550,6 +551,132 @@ Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING)."
       ;; make sense for the development channel to lag behind the latest
       ;; release.
       (list rcommit rtime (package-version-join rversion))))))
+
+;;;; Release+Count
+
+(defun package-build-release+count-version (rcp &optional single-count)
+  "Determine version string in the \"RELEASE.0.COUNT\" format for RCP.
+
+*Experimental* This function is still subject to change.
+
+Use `package-build-release-version-functions' to determine
+RELEASE.  COUNT is the number of commits since RELEASE until the
+last relevant commit.  If RELEASE is the same as for the last
+snapshot but COUNT is not larger than for that snapshot because
+history was rewritten, then use \"RELEASE.0.OLDCOUNT.NEWCOUNT\".
+
+Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING).
+\n(fn RCP)"
+  (pcase-let*
+      ;; Get the commit but ignore the associated timestamp.
+      ((`(,scommit ,stime ,_) (package-build-timestamp-version rcp))
+       (`(,rcommit ,rtime ,version)
+        (run-hook-with-args-until-success
+         'package-build-release-version-functions rcp))
+       (version (and rcommit (version-to-list version)))
+       (merge-base (and rcommit
+                        (package-build--merge-base rcp scommit rcommit)))
+       (ahead (package-build--commit-count rcp scommit rcommit)))
+    (cond
+     ((or (when (not rcommit)
+            ;; No appropriate release detected.
+            (setq version (list 0 0))
+            t)
+          (when (not merge-base)
+            ;; As a result of butchered history rewriting, version tags
+            ;; share no history at all with what is currently reachable
+            ;; from the tip.  Completely ignore these unreachable tags and
+            ;; behave as if no version tags existed at all.  Unfortunately
+            ;; that means that users, who have installed a snapshot based
+            ;; on a now abandoned tag, are stuck on that snapshot until
+            ;; upstream creates a new version tag.
+            (setq version (list 0 0))
+            t)
+          ;; Snapshot commit is newer than latest release (or there is no
+          ;; release).
+          (> ahead 0))
+      (list scommit stime
+            (package-version-join
+             (append version
+                     (list 0)
+                     ;; (This argument *could* be used by a wrapper.)
+                     (if single-count
+                         ahead ; Pretend time-travel doesn't happen.
+                       (package-build--ensure-count-increase
+                        rcp (copy-sequence version) ahead))))))
+     (t
+      ;; The latest commit, which touched a relevant file, is either the
+      ;; latest release itself, or a commit before that.  Distribute the
+      ;; same commit/release as on the stable channel; as it would not
+      ;; make sense for the development channel to lag behind the latest
+      ;; release.
+      (list rcommit rtime (package-version-join version))))))
+
+(defun package-build--ensure-count-increase (rcp version ahead)
+  (if-let ((previous (cdr (assq (intern (oref rcp name))
+                                (package-build-archive-alist)))))
+      ;; Because upstream may have rewritten history, we cannot be certain
+      ;; that appending the new count of commits would result in a version
+      ;; string that is greater than the version string used for the
+      ;; previous snapshot.
+      (let ((count (list ahead))
+            (pversion (aref previous 0))
+            (pcount nil))
+        (when (and
+               ;; If there is no zero part, then we know that the previous
+               ;; snapshot exactly matched a tagged release (in which case
+               ;; we do not append zero and the count).
+               (memq 0 pversion)
+               ;; Likewise if there is a tag that exactly matches the
+               ;; previous (non-)snapshot, then there is no old count
+               ;; which we would have to compare with the new count.
+               (not (member (mapconcat #'number-to-string pversion ".")
+                            (package-build--list-tags rcp))))
+          ;; The previous snapshot does not exactly match a tagged
+          ;; version.  We must split the version string into its tag
+          ;; and count parts.  The last zero part is the boundary.
+          (let ((split (cl-position 0 pversion :from-end t))
+                (i 0)
+                (tagged nil))
+            (while (< i split)
+              (push (pop pversion) tagged)
+              (cl-incf i))
+            (setq pcount (cdr pversion))
+            (setq pversion (nreverse tagged)))
+          ;; Determine whether we can reset the count or increase it, or
+          ;; whether we have to preserve the old count due to rewritten
+          ;; history in order to ensure that the new snapshot version is
+          ;; greater than the previous snapshot.
+          ;; If the previous and current snapshot commits do not follow
+          ;; the same tag, then their respective counts of commits since
+          ;; their respective tag have no relation to each other and we
+          ;; can simply reset the count, determined above.
+          (when (equal version pversion)
+            ;; If the new count is smaller than the old, then we keep the
+            ;; old count and append the new count as a separate version
+            ;; part.
+            ;;
+            ;; We may have had to do that for previous snapshots, possibly
+            ;; even for multiple consecutive snapshots.  Beginning at the
+            ;; end, scrape of all counts that are smaller than the current
+            ;; count, but leave the others intact.
+            (setq pcount (nreverse pcount))
+            (while (and pcount (> ahead (car pcount)))
+              (pop pcount))
+            (when pcount
+              ;; This snapshot is based on the same tag as the previous
+              ;; snapshot and, due to history rewritting, the count did
+              ;; not increase.
+              (setq count (nreverse (cons (car count) pcount))))))
+        count)
+    (list ahead)))
+
+(cl-defmethod package-build--merge-base ((_rcp package-git-recipe) a b)
+  (ignore-errors (car (process-lines "git" "merge-base" a b))))
+
+(cl-defmethod package-build--merge-base ((_rcp package-hg-recipe) a b)
+  (car (process-lines "hg" "log" "--template" "{node}\\n" "--rev"
+                      (format "ancestor(%s, %s)" a b))))
 
 (cl-defmethod package-build--commit-count ((_rcp package-git-recipe) rev since)
   (string-to-number
