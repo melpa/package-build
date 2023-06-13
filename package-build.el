@@ -121,7 +121,8 @@ then that overrides the value set here."
   :group 'package-build
   :type 'hook
   :options (list #'package-build-tag-version
-                 #'package-build-header-version))
+                 #'package-build-header-version
+                 #'package-build-pkg-version))
 
 (defcustom package-build-snapshot-version-functions
   (list #'package-build-timestamp-version)
@@ -417,6 +418,58 @@ Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING)."
                 "log" "--first-parent"
                 "--template" "commit: {node} {date|hgdate}\n"
                 )) ; TODO What is the equivalent of Git's "-L"?
+
+;;;; NAME-pkg
+
+(defun package-build-pkg-version (rcp)
+  "Return version specified in the \"NAME-pkg.el\" file.
+Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING)."
+  (when-let ((file (package-build--pkgfile rcp)))
+    (let ((regexp (or (oref rcp version-regexp) package-build-version-regexp))
+          commit date version)
+      (catch 'before-latest
+        (pcase-dolist (`(,c ,d) (package-build--pkgfile-commits rcp file))
+          (with-temp-buffer
+            (save-excursion
+              (package-build--insert-pkgfile rcp c file))
+            (when-let* ((n (ignore-errors (nth 2 (read (current-buffer)))))
+                        (v (ignore-errors (version-to-list
+                                           (and (string-match regexp n)
+                                                (match-string 1 n))))))
+              (when (and version (not (equal v version)))
+                (throw 'before-latest nil))
+              (setq commit c)
+              (setq date d)
+              (setq version v)))))
+      (and version
+           (list commit
+                 (string-to-number date)
+                 (package-version-join version))))))
+
+(defun package-build--pkgfile (rcp)
+  (package-build--match-library rcp (concat (oref rcp name) "-pkg.el")))
+
+(cl-defmethod package-build--pkgfile-commits
+  ((_rcp package-git-recipe) file)
+  (mapcar (lambda (line) (split-string line " "))
+          (process-lines "git" "log" "--first-parent"
+                         "--pretty=format:%H %cd" "--date=unix"
+                         "--" file)))
+
+(cl-defmethod package-build--pkgfile-commits
+  ((_rcp package-hg-recipe) file)
+  (mapcar (lambda (line) (seq-take (split-string line " ") 2))
+          (process-lines "hg" "log"
+                         "--template" "{node} {date|hgdate}\n"
+                         "--" file)))
+
+(cl-defmethod package-build--insert-pkgfile
+  ((_rcp package-git-recipe) commit file)
+  (call-process "git" nil t nil "show" (concat commit ":" file)))
+
+(cl-defmethod package-build--insert-pkgfile
+  ((_rcp package-hg-recipe) commit file)
+  (call-process "hg" nil t nil "cat" "-r" commit file))
 
 ;;;; Timestamp
 
