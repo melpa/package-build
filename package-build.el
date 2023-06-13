@@ -120,7 +120,8 @@ If obsolete `package-build-get-version-function' is non-nil,
 then that overrides the value set here."
   :group 'package-build
   :type 'hook
-  :options (list #'package-build-tag-version))
+  :options (list #'package-build-tag-version
+                 #'package-build-header-version))
 
 (defcustom package-build-snapshot-version-functions
   (list #'package-build-timestamp-version)
@@ -349,6 +350,73 @@ Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING)."
 
 (define-obsolete-function-alias 'package-build-get-tag-version
   'package-build-tag-version "Package-Build 5.0.0")
+
+;;;; Header
+
+(defun package-build-header-version (rcp)
+  "Return version specified in the header of the main library.
+
+Walk the history of the main library until a commit is found
+which changes the `Package-Version' or `Version' header in the
+main library to a version that qualifies as a release, ignoring
+any pre-releases.
+
+Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING)."
+  (when-let ((lib (package-build--main-library rcp)))
+    (with-temp-buffer
+      (let (commit date version)
+        (save-excursion
+          (package-build--insert-version-header-log
+           rcp (file-relative-name lib)))
+        (while (and (not version)
+                    (re-search-forward "^commit \\([^ ]+\\) \\(.+\\)" nil t))
+          (setq commit (match-string 1))
+          (setq date (match-string 2))
+          (let ((end (save-excursion (re-search-forward "^$" nil t))))
+            (when (re-search-forward
+                   "^\\+;;* *\\(Package-\\)?Version: *\\(.+\\)" end t)
+              (let ((ver (match-string 2)))
+                (when (and (not (equal ver "0"))
+                           (string-match
+                            "\\`\\([0-9]+\\)\\(\\.[0-9]+\\)*\\'" ver))
+                  (setq version ver))))
+            (when end
+              (goto-char end))))
+        (when version
+          (list commit
+                (string-to-number date)
+                (package-version-join (version-to-list version))))))))
+
+(defun package-build--main-library (rcp)
+  (package-build--match-library rcp))
+
+(defun package-build--match-library (rcp &optional filename)
+  (let ((libs (package-build--list-libraries rcp))
+        (filename (or filename (concat (oref rcp name) ".el"))))
+    (cond
+     ((car (member (concat "lisp/" filename) libs)))
+     ((car (member filename libs)))
+     ((cl-find filename libs :test #'equal :key #'file-name-nondirectory)))))
+
+(cl-defmethod package-build--list-libraries ((_rcp package-git-recipe))
+  (process-lines "git" "ls-files" "*.el"))
+
+(cl-defmethod package-build--list-libraries ((_rcp package-hg-recipe))
+  (process-lines "hg" "files" "--include" "**/*.el"))
+
+(cl-defmethod package-build--insert-version-header-log
+  ((_rcp package-git-recipe) lib)
+  (call-process "git" nil t nil
+                "log" "--first-parent"
+                "--pretty=format:commit %H %cd" "--date=unix"
+                "-L" (format "/^;;* *\\(Package-\\)\\?Version:/,+1:%s" lib)))
+
+(cl-defmethod package-build--insert-version-header-log
+  ((_rcp package-hg-recipe) _lib)
+  (call-process "hg" nil t nil
+                "log" "--first-parent"
+                "--template" "commit: {node} {date|hgdate}\n"
+                )) ; TODO What is the equivalent of Git's "-L"?
 
 ;;;; Timestamp
 
