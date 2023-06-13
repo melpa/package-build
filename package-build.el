@@ -206,22 +206,15 @@ similar, which will provide the GNU timeout program as
 Can be `gnu' or `bsd'; nil means the type is not decided yet.")
 
 (define-obsolete-variable-alias 'package-build-write-melpa-badge-images
-  'package-build-write-badge-images "Package-Build 5.0.0")
+  'package-build-badge-data "Package-Build 5.0.0")
 
-(defcustom package-build-write-badge-images nil
-  "When non-nil, write badge images alongside packages.
-These badges can, for example, be used on GitHub pages."
-  :group 'package-build
-  :type 'boolean)
+(defcustom package-build-badge-data nil
+  "Text and color used in badge images, if any.
 
-(defcustom package-build-badge-data
-  (if package-build-stable
-      (list "melpa stable" "#3e999f")
-    (list "melpa" "#922793"))
-  "Data used when generating badge images.
-The default value is set based on `package-build-stable'.
-`package-build-write-badge-images' controls whether images
-are generated."
+If nil (the default), then no badge images are generated,
+otherwise this has the form (NAME COLOR).  MELPA sets the value
+in its top-level Makefile, to different values, depending on the
+channel that is being build."
   :group 'package-build
   :type '(list (string :tag "Archive name") color))
 
@@ -1014,7 +1007,7 @@ in `package-build-archive-dir'."
               (package-build--build-single-file-package rcp files))
              (t
               (package-build--build-multi-file-package rcp files)))
-            (when package-build-write-badge-images
+            (when package-build-badge-data
               (package-build--write-badge-image
                (oref rcp name) (oref rcp version) package-build-archive-dir))))
       (funcall package-build-cleanup-function rcp))))
