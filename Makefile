@@ -1,25 +1,11 @@
 -include config.mk
-
-PKG = package-build
-
-ELS   = package-recipe.el
-ELS  += package-build-badges.el
-ELS  += $(PKG).el
-ELS  += package-recipe-mode.el
-ELCS  = $(ELS:.el=.elc)
-
-DEPS  =
-
-EMACS      ?= emacs
-EMACS_ARGS ?=
-
-LOAD_PATH  ?= $(addprefix -L ../,$(DEPS))
-LOAD_PATH  += -L .
+include default.mk
 
 all: lisp
 
 help:
-	$(info make [all|lisp]   - generate byte-code and autoloads)
+	$(info make all          - generate byte-code and autoloads)
+	$(info make lisp         - generate byte-code and autoloads)
 	$(info make clean        - remove generated files)
 	@printf "\n"
 
