@@ -142,7 +142,8 @@ If obsolete `package-build-get-version-function' is non-nil,
 then that overrides the value set here."
   :group 'package-build
   :type 'hook
-  :options (list #'package-build-timestamp-version))
+  :options (list #'package-build-release+timestamp-version
+                 #'package-build-timestamp-version))
 
 (defcustom package-build-predicate-function nil
   "Predicate used by `package-build-all' to determine which packages to build.
@@ -516,6 +517,51 @@ VERSION-STRING has the format \"%Y%m%d.%H%M\"."
 
 (define-obsolete-function-alias 'package-build-get-snapshot-version
   'package-build-snapshot-version "Package-Build 5.0.0")
+
+;;;; Release+Timestamp
+
+(defun package-build-release+timestamp-version (rcp)
+  "Determine version string in the \"RELEASE.0.TIMESTAMP\" format for RCP.
+
+*Experimental* This function is still subject to change.
+
+Use `package-build-release-version-functions' to determine
+RELEASE.  TIMESTAMP is the COMMITTER-DATE for the identified
+last relevant commit, using the format \"%Y%m%d.%H%M\".
+
+Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING)."
+  (pcase-let*
+      ((`(,scommit ,stime ,sversion) (package-build-timestamp-version rcp))
+       (`(,rcommit ,rtime ,rversion)
+        (run-hook-with-args-until-success
+         'package-build-release-version-functions rcp))
+       (ahead (package-build--commit-count rcp scommit rcommit)))
+    (cond
+     ((> ahead 0)
+      (list scommit stime
+            (package-version-join
+             (nconc (if rversion (version-to-list rversion) (list 0 0))
+                    (list 0)
+                    (version-to-list sversion)))))
+     (t
+      ;; The latest commit, which touched a relevant file, is either the
+      ;; latest release itself, or a commit before that.  Distribute the
+      ;; same commit/release as on the stable channel; as it would not
+      ;; make sense for the development channel to lag behind the latest
+      ;; release.
+      (list rcommit rtime (package-version-join rversion))))))
+
+(cl-defmethod package-build--commit-count ((_rcp package-git-recipe) rev since)
+  (string-to-number
+   (car (if since
+            (process-lines "git" "rev-list" "--count" rev (concat "^" since))
+          (process-lines "git" "rev-list" "--count" rev)))))
+
+(cl-defmethod package-build--commit-count ((_rcp package-hg-recipe) rev since)
+  (length (process-lines "hg" "log" "--template" "{rev}\\n" "--rev"
+                         (if since
+                             (format "only(%s, %s)" rev since)
+                           (format "ancestors(%s)" rev)))))
 
 ;;; Run Process
 
