@@ -1266,7 +1266,9 @@ are subsequently dumped."
          (repo (oref rcp repo))
          (fetcher (package-recipe--fetcher rcp)))
     (cond ((not noninteractive)
-           (message " • Building package %s (from %s)..." name
+           (message " • %s package %s (from %s)..."
+                    (if package-build--inhibit-build "Fetching" "Building")
+                    name
                     (if repo (format "%s:%s" fetcher repo) url)))
           (package-build-verbose
            (message "Package: %s" name)
@@ -1278,7 +1280,9 @@ are subsequently dumped."
       (package-build--package rcp)
       (when dump-archive-contents
         (package-build-dump-archive-contents)))
-    (message "Built %s in %.3fs, finished at %s" name
+    (message "%s %s in %.3fs, finished at %s"
+             (if package-build--inhibit-build "Fetched" "Built")
+             name
              (float-time (time-since start-time))
              (format-time-string "%FT%T%z" nil t))))
 
