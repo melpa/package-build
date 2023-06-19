@@ -435,9 +435,13 @@ Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING)."
             (save-excursion
               (package-build--insert-pkgfile rcp c file))
             (when-let* ((n (ignore-errors (nth 2 (read (current-buffer)))))
-                        (v (ignore-errors (version-to-list
-                                           (and (string-match regexp n)
-                                                (match-string 1 n))))))
+                        (v (ignore-errors
+                             (version-to-list
+                              (and (string-match regexp n)
+                                   ;; Use match-group 0, not 1, because in
+                                   ;; this file a version string without a
+                                   ;; prefix is expected.
+                                   (match-string 0 n))))))
               (when (and version (not (equal v version)))
                 (throw 'before-latest nil))
               (setq commit c)
