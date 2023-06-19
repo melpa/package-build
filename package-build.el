@@ -694,6 +694,33 @@ Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING).
                              (format "only(%s, %s)" rev since)
                            (format "ancestors(%s)" rev)))))
 
+;;;; Fallback-Count
+
+(defun package-build-fallback-count-version (rcp)
+  "Determine version string in the \"0.0.0.COUNT\" format for RCP.
+
+*Experimental* This function is still subject to change.
+
+This function implements a fallback that can be used on the
+release channel, for packages that don't do releases.  It should
+be the last element of `package-build-release-version-functions',
+and at the same time `package-build-snapshot-version-functions'
+should contain only `package-build-release+count-version'.
+
+The result of such a configuration is that, for packages that
+don't do releases, the release and snapshot channels provide
+the same \"0.0.0.COUNT\" snapshot.  That way, all packages are
+available on the release channel, which makes that channel more
+attractive to users, which might encourage maintainers to release
+more often.  In other words, this might help overcome the release
+channel's chicken and egg problem."
+  (let ((package-build-release-version-functions
+         (list (lambda (rcp)
+                 (pcase-let ((`(,scommit ,stime ,_)
+                              (package-build-timestamp-version rcp)))
+                   (list scommit stime (list 0 0)))))))
+    (package-build-release+count-version rcp)))
+
 ;;; Run Process
 
 (defun package-build--run-process (command &rest args)
