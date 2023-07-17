@@ -236,7 +236,7 @@ such as \"1A\" or \".5\", and only supports \".\" as separator.
 The part before the first capture group should match prefixes
 commonly used in version tags.
 
-Note that this variable can be overriden in a package's recipe,
+Note that this variable can be overridden in a package's recipe,
 using the `:version-regexp' slot."
   :group 'package-build
   :type 'string)
@@ -669,7 +669,7 @@ Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING).
               (pop pcount))
             (when pcount
               ;; This snapshot is based on the same tag as the previous
-              ;; snapshot and, due to history rewritting, the count did
+              ;; snapshot and, due to history rewriting, the count did
               ;; not increase.
               (setq count (nreverse (cons (car count) pcount))))))
         count)
@@ -854,7 +854,7 @@ that is put in the tarball."
        (get-buffer-create "*package-build-checkout*") nil
        "-cf" tar dir
        ;; Arguments that are need to strip metadata that
-       ;; prevent a reproducable tarball as described at
+       ;; prevent a reproducible tarball as described at
        ;; https://reproducible-builds.org/docs/archives.
        "--sort=name"
        (format "--mtime=@%d" time)
