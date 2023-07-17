@@ -152,7 +152,8 @@ file is invalid, then raise an error."
 (defun package-recipe-validate-all ()
   "Validate all recipes."
   (interactive)
-  (dolist (name (package-recipe-recipes))
+  (dolist-with-progress-reporter (name (package-recipe-recipes))
+      "Validating recipes..."
     (condition-case err
         (package-recipe-lookup name)
       (error (message "Invalid recipe for %s: %S" name (cdr err))))))
