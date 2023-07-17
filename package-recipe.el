@@ -148,6 +148,7 @@ file is invalid, then raise an error."
 
 ;;; Validation
 
+;;;###autoload
 (defun package-recipe-validate-all ()
   "Validate all recipes."
   (interactive)
