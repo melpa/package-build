@@ -200,15 +200,15 @@ file is invalid, then raise an error."
         ;; All other elements have to be strings or lists of strings.
         ;; A list whose first element is `:exclude' is also valid.
         (dolist (entry spec)
-          (unless (or (and (stringp entry)
-                           (not (equal entry "*")))
-                      (and (listp entry)
-                           (or (eq (car entry) :exclude)
-                               (stringp (car entry)))
-                           (seq-every-p (lambda (e)
-                                          (and (stringp e)
-                                               (not (equal e "*"))))
-                                        (cdr entry))))
+          (unless (cond ((stringp entry)
+                         (not (equal entry "*")))
+                        ((listp entry)
+                         (and (or (eq (car entry) :exclude)
+                                  (stringp (car entry)))
+                              (seq-every-p (lambda (glob)
+                                             (and (stringp glob)
+                                                  (not (equal glob "*"))))
+                                           (cdr entry)))))
             (error "Invalid files spec entry %S" entry))))
       ;; Silence byte compiler of Emacs 28.  It appears that uses
       ;; inside cl-assert sometimes, but not always, do not count.
