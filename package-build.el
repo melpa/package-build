@@ -1387,7 +1387,7 @@ in `package-build-archive-dir'."
   (cond ((cl-typep rcp 'package-git-recipe)
          (package-build--run-process "git" "clean" "-f" "-d" "-x"))
         ((cl-typep rcp 'package-hg-recipe)
-         (package-build--run-process "hg" "purge"))))
+         (package-build--run-process "hg" "purge" "--all" "--interactive"))))
 
 ;;;###autoload
 (defun package-build-all ()
