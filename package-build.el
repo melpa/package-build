@@ -1371,7 +1371,18 @@ are subsequently dumped."
       (when version
         (package-build--package rcp)
         (when dump-archive-contents
-          (package-build-dump-archive-contents))))
+          (package-build-dump-archive-contents)))
+      (if (not version)
+          (message " ✗ Cannot determine version!")
+        (message " ✓ Success:")
+        (pcase-dolist (`(,file . ,attrs)
+                       (directory-files-and-attributes
+                        package-build-archive-dir nil
+                        (format "\\`%s-[0-9]+" name)))
+          (message "  %s  %s"
+                   (format-time-string
+                    "%FT%T%z" (file-attribute-modification-time attrs) t)
+                   file))))
     (message "%s %s in %.3fs, finished at %s"
              (if version "Built" "Fetched")
              name
