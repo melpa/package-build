@@ -97,6 +97,19 @@ string is formatted."
   :group 'package-build
   :type 'boolean)
 
+(defcustom package-build-all-publishable (not package-build-stable)
+  "Whether even packages that lack a release can be published.
+
+This option is used to determine whether failure to come up with
+a version string should be considered an error or not.
+
+Currently this defaults to (not package-build-stable), but the
+default is likely to be changed to just `t' in the future.  See
+also the commit that added this option."
+  :group 'package-build
+  :type 'boolean
+  :set-after '(package-build-stable))
+
 (make-obsolete-variable 'package-build-get-version-function
                         'package-build-stable
                         "Package-Build 5.0.0")
@@ -289,11 +302,12 @@ or snapshots are build.")
            'package-build-release-version-functions rcp))
          ((run-hook-with-args-until-success
            'package-build-snapshot-version-functions rcp)))))
-    (unless version
-      (error "Cannot detect version for %s" (oref rcp name)))
-    (oset rcp commit commit)
-    (oset rcp time time)
-    (oset rcp version version)))
+    (if (not version)
+        (funcall (if package-build-all-publishable #'error #'message)
+                 "Cannot determine version for %s" (oref rcp name))
+      (oset rcp commit commit)
+      (oset rcp time time)
+      (oset rcp version version))))
 
 (cl-defmethod package-build--select-commit ((rcp package-git-recipe) rev exact)
   (pcase-let*
@@ -1293,7 +1307,8 @@ are subsequently dumped."
          (rcp (package-recipe-lookup name))
          (url (package-recipe--upstream-url rcp))
          (repo (oref rcp repo))
-         (fetcher (package-recipe--fetcher rcp)))
+         (fetcher (package-recipe--fetcher rcp))
+         (version nil))
     (cond ((not noninteractive)
            (message " • %s package %s (from %s)..."
                     (if package-build--inhibit-build "Fetching" "Building")
@@ -1306,11 +1321,13 @@ are subsequently dumped."
     (funcall package-build-fetch-function rcp)
     (unless package-build--inhibit-build
       (package-build--select-version rcp)
-      (package-build--package rcp)
-      (when dump-archive-contents
-        (package-build-dump-archive-contents)))
+      (setq version (oref rcp version))
+      (when version
+        (package-build--package rcp)
+        (when dump-archive-contents
+          (package-build-dump-archive-contents))))
     (message "%s %s in %.3fs, finished at %s"
-             (if package-build--inhibit-build "Fetched" "Built")
+             (if version "Built" "Fetched")
              name
              (float-time (time-since start-time))
              (format-time-string "%FT%T%z" nil t))))
