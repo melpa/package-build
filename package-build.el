@@ -410,7 +410,7 @@ Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING)."
 (cl-defmethod package-build--insert-version-header-log
   ((_rcp package-git-recipe) lib)
   (call-process "git" nil t nil
-                "log" "--first-parent"
+                "log" "--first-parent" "--no-renames"
                 "--pretty=format:commit %H %cd" "--date=unix"
                 "-L" (format "/^;;* *\\(Package-\\)\\?Version:/,+1:%s" lib)))
 
