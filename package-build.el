@@ -385,10 +385,10 @@ Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING)."
                   (setq version ver))))
             (when end
               (goto-char end))))
-        (when version
-          (list commit
-                (string-to-number date)
-                (package-version-join (version-to-list version))))))))
+        (and version
+             (list commit
+                   (string-to-number date)
+                   (package-version-join (version-to-list version))))))))
 
 (defun package-build--main-library (rcp)
   (package-build--match-library rcp))
