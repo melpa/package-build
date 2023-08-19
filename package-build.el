@@ -711,14 +711,12 @@ The result of such a configuration is that, for packages that
 don't do releases, the release and snapshot channels provide
 the same \"0.0.0.COUNT\" snapshot.  That way, all packages are
 available on the release channel, which makes that channel more
-attractive to users, which might encourage maintainers to release
-more often.  In other words, this might help overcome the release
-channel's chicken and egg problem."
-  (let ((package-build-release-version-functions
-         (list (lambda (rcp)
-                 (pcase-let ((`(,scommit ,stime ,_)
-                              (package-build-timestamp-version rcp)))
-                   (list scommit stime (list 0 0)))))))
+attractive to users, which might encourage some maintainers to
+release more often, or if they have never done a release before,
+to finally get around to that initial release.  In other words,
+this might help overcome the release channel's chicken and egg
+problem."
+  (let ((package-build-release-version-functions nil))
     (package-build-release+count-version rcp)))
 
 ;;; Run Process
