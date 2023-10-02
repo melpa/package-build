@@ -1590,6 +1590,7 @@ If optional PRETTY-PRINT is non-nil, then pretty-print
             (insert " ")
             (prin1 entry (current-buffer)))
           (insert ")\n"))))
+    (setq vc-pkgs (cl-sort vc-pkgs #'string< :key #'car))
     (with-temp-file (expand-file-name "elpa-packages.eld"
                                       (and file (file-name-nondirectory file)))
       (let ((print-level nil)
