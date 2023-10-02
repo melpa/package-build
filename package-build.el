@@ -1578,8 +1578,7 @@ If optional PRETTY-PRINT is non-nil, then pretty-print
                ,@(when-let* ((branch (oref recipe branch)))
                    (list :branch branch)))
              vc-pkgs))))))
-    (setq entries (cl-sort entries #'string<
-                           :key (lambda (e) (symbol-name (car e)))))
+    (setq entries (cl-sort entries #'string< :key #'car))
     (with-temp-file (or file (expand-file-name "archive-contents"))
       (let ((print-level nil)
             (print-length nil))
