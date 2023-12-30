@@ -1085,12 +1085,15 @@ value specified in the file \"NAME.el\"."
 ^;;; [^ ]*\\.el ---[ \t]*\\(.*?\\)[ \t]*\\(-\\*-.*-\\*-[ \t]*\\)?$" nil t)
                        (match-string-no-properties 1)))
                 "No description available.")
-            (if (fboundp 'lm-package-requires)
-                (lm-package-requires)
-              (when-let ((require-lines (lm-header-multiline "package-requires")))
+            (cond
+             ((fboundp 'lm-package-requires)
+              (lm-package-requires))
+             ((fboundp 'package--prepare-dependencies)
+              (and-let* ((require-lines
+                          (lm-header-multiline "package-requires")))
                 (package--prepare-dependencies
                  (package-read-from-string
-                  (mapconcat #'identity require-lines " ")))))
+                  (mapconcat #'identity require-lines " "))))))
             ;; `:kind' and `:archive' are handled separately.
             :kind       (or kind 'single)
             ;; The other keyword arguments are appended to the alist
