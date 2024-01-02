@@ -13,7 +13,7 @@
 ;; Keywords: maint tools
 
 ;; Package-Version: 4.0.0.50-git
-;; Package-Requires: ((emacs "27.1"))
+;; Package-Requires: ((emacs "26.1") (compat "27.1"))
 
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -42,6 +42,7 @@
 ;;; Code:
 
 (require 'cl-lib)
+(require 'compat nil t)
 (require 'pcase)
 (require 'subr-x)
 

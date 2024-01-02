@@ -3,6 +3,10 @@ include default.mk
 
 .PHONY: test
 
+# https://github.com/emacscollective/workflows/blob/main/bin/install-deps
+# expects this to find this in this file.
+DEPS  = compat
+
 all: lisp
 
 help:
