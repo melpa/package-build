@@ -1575,7 +1575,8 @@ If optional PRETTY-PRINT is non-nil, then pretty-print
           ;; section "Specifications (elpa-packages)" in "README" of the
           ;; "elpa-admin" branch in "emacs/elpa.git" repository; and also
           ;; `elpaa--supported-keywords' and `elpaa--publish-package-spec'.
-          (let ((recipe (package-recipe-lookup name)))
+          (and-let* ((recipe (with-demoted-errors "Recipe error: %S"
+                               (package-recipe-lookup name))))
             (push `(,symbol
                     :url ,(package-recipe--upstream-url recipe)
                     ,@(and (cl-typep recipe 'package-hg-recipe)
