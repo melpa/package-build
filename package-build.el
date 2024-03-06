@@ -1652,7 +1652,7 @@ a package."
      (json-encode
       (cl-mapcan
        (lambda (name)
-         (ignore-errors ; Silently ignore corrupted recipes.
+         (with-demoted-errors "Recipe error: %S"
            (and (package-recipe-lookup name)
                 (with-temp-buffer
                   (insert-file-contents
