@@ -1576,14 +1576,13 @@ If optional PRETTY-PRINT is non-nil, then pretty-print
           ;; "elpa-admin" branch in "emacs/elpa.git" repository; and also
           ;; `elpaa--supported-keywords' and `elpaa--publish-package-spec'.
           (let ((recipe (package-recipe-lookup name)))
-            (push
-             `(,symbol
-               :url ,(package-recipe--upstream-url recipe)
-               ,@(and (cl-typep recipe 'package-hg-recipe)
-                      (list :vc-backend 'Hg))
-               ,@(and-let* ((branch (oref recipe branch)))
-                   (list :branch branch)))
-             vc-pkgs))))))
+            (push `(,symbol
+                    :url ,(package-recipe--upstream-url recipe)
+                    ,@(and (cl-typep recipe 'package-hg-recipe)
+                           (list :vc-backend 'Hg))
+                    ,@(and-let* ((branch (oref recipe branch)))
+                        (list :branch branch)))
+                  vc-pkgs))))))
     (setq entries (cl-sort entries #'string< :key #'car))
     (with-temp-file (or file (expand-file-name "archive-contents"))
       (let ((print-level nil)
