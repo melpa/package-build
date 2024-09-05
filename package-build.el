@@ -189,6 +189,12 @@ packages are distributed without using tarballs."
 (defvar package-build-checkout-function #'package-build--checkout)
 (defvar package-build-cleanup-function #'package-build--cleanup)
 
+(defcustom package-build-run-recipe-org-exports nil
+  "Whether to export the files listed in the `:org-exports' recipe slot.
+Note that Melpa leaves this disabled."
+  :group 'package-build
+  :type 'boolean)
+
 (defcustom package-build-timeout-executable "timeout"
   "Path to a GNU coreutils \"timeout\" command if available.
 This must be a version which supports the \"-k\" option.
@@ -1024,16 +1030,35 @@ that is put in the tarball."
 
 (defun package-build--generate-info-files (rcp files target-dir)
   "Create an info file for each texinfo file listed in FILES.
+
 Also create the info dir file.  Remove each original texinfo
 file.  The source and destination file paths are expanded in
-`default-directory' and TARGET-DIR respectively."
+`default-directory' and TARGET-DIR respectively.
+
+If an org file appears in FILES and in RCP's `info-manuals' slot
+as well, then export it to texinfo and then the result to info."
   (pcase-dolist (`(,src . ,tmp) files)
     (let ((extension (file-name-extension tmp)))
-      (when (member extension '("info" "texi" "texinfo"))
-        (let* ((src (expand-file-name src))
+      (when (member extension '("info" "texi" "texinfo" "org"))
+        (let* ((explicit (and package-build-run-recipe-org-exports
+                              (member src (oref rcp org-exports))))
+               (src (expand-file-name src))
                (tmp (expand-file-name tmp target-dir))
+               (org  src)
                (texi src)
                (info tmp))
+          (when (equal extension "org")
+            (if (not explicit)
+                (setq info nil)
+              (delete-file tmp)
+              (setq texi (concat (file-name-sans-extension org) ".texi"))
+              (package-build--message "Generating %s" texi)
+              (with-demoted-errors "Error: %S"
+                (package-build--call-sandboxed
+                 rcp "emacs" "-Q" "--batch" "-l" "ox-texinfo"
+                 org "--funcall" "org-texinfo-export-to-texinfo"))
+              (when (file-exists-p texi)
+                (setq extension "texi"))))
           (when (member extension '("texi" "texinfo"))
             (delete-file tmp)
             (setq info (concat (file-name-sans-extension tmp) ".info"))
@@ -1046,10 +1071,11 @@ file.  The source and destination file paths are expanded in
                 (let ((default-directory (file-name-directory texi)))
                   (package-build--call-process
                    rcp "makeinfo" "--no-split" texi "-o" info)))))
-          (with-demoted-errors "Error: %S"
-            (let ((default-directory target-dir))
-              (package-build--call-process
-               rcp "install-info" "--dir=dir" info))))))))
+          (when info
+            (with-demoted-errors "Error: %S"
+              (let ((default-directory target-dir))
+                (package-build--call-process
+                 rcp "install-info" "--dir=dir" info)))))))))
 
 ;;; Patch Libraries
 
