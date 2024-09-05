@@ -265,6 +265,22 @@ disallowed."
 (defvar package-build-use-git-remote-hg nil
   "Whether to use `git-remote-hg' remote helper for mercurial repos.")
 
+(defvar package-build--use-sandbox (eq system-type 'gnu/linux)
+  "Whether to run untrusted code using the \"bubblewrap\" sandbox.
+\"bubblewrap\" is only available on Linux, where the sandbox is
+enabled by default, to avoid accidentially not using it.")
+
+(defvar package-build--sandbox-readonly-binds
+  '("/bin" "/lib" "/lib64" "/usr"    ;fhs
+    "/etc/alternatives" "/etc/emacs" ;+debian
+    "/gnu"))                         ;+guix
+
+(defvar package-build--sandbox-args
+  '("--unshare-all"
+    "--dev" "/dev"
+    "--proc" "/proc"
+    "--tmpfs" "/tmp"))
+
 (defvar package-build--inhibit-fetch nil
   "Whether to inhibit fetching.  Useful for testing purposes.")
 
@@ -801,6 +817,29 @@ for logging purposes."
           (message "%s" summary)
           (message "%s" (buffer-string))
           (package-build--error package "%s" summary))))))
+
+(defun package-build--call-sandboxed (package command &rest args)
+  "Like `package-build--call-process' but maybe use a sandbox.
+Use a sandbox if `package-build--use-sandbox' is non-nil."
+  (cond
+   (package-build--use-sandbox
+    (let* ((rcp (if (cl-typep package 'package-recipe)
+                    package
+                  (package-recipe-lookup package)))
+           (dir (package-recipe--working-tree rcp)))
+      (unless (file-in-directory-p default-directory dir)
+        (package-build--error rcp "Attempt to use sandbox outside of %s" dir)))
+    (apply #'package-build--call-process package "bwrap"
+           `(,@package-build--sandbox-args
+             ,@(list "--bind" default-directory default-directory)
+             ,@(mapcan (lambda (dir)
+                         (setq dir (expand-file-name dir))
+                         (and (file-exists-p dir)
+                              (list "--ro-bind" dir dir)))
+                       (append package-build--sandbox-readonly-binds
+                               (list ".git" ".hg")))
+             ,command ,@args)))
+   ((apply #'package-build--call-process package command args))))
 
 (defun package-build--run-process (command &rest args)
   "Like `package-build--call-process', but lacks the PACKAGE argument."
