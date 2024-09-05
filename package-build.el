@@ -195,6 +195,12 @@ Note that Melpa leaves this disabled."
   :group 'package-build
   :type 'boolean)
 
+(defcustom package-build-run-recipe-make-targets nil
+  "Whether to run the make targets from the `:make-targets' recipe slot.
+Note that Melpa leaves this disabled."
+  :group 'package-build
+  :type 'boolean)
+
 (defcustom package-build-timeout-executable "timeout"
   "Path to a GNU coreutils \"timeout\" command if available.
 This must be a version which supports the \"-k\" option.
@@ -1472,6 +1478,10 @@ in `package-build-archive-dir'."
     (unwind-protect
         (progn
           (funcall package-build-checkout-function rcp)
+          (when-let ((package-build-run-recipe-make-targets)
+                     (targets (oref rcp make-targets)))
+            (package-build--message "Running make %s" (string-join targets " "))
+            (apply #'package-build--call-sandboxed rcp "make" targets))
           (let ((files (package-build-expand-files-spec rcp t)))
             (cond
              ((= (length files) 0)
