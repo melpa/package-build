@@ -52,6 +52,7 @@
    (time                                     :initform nil)
    (version                                  :initform nil)
    (version-regexp  :initarg :version-regexp :initform nil)
+   (shell-command   :initarg :shell-command  :initform nil)
    (make-targets    :initarg :make-targets   :initform nil)
    (org-exports     :initarg :org-exports    :initform nil)
    (old-names       :initarg :old-names      :initform nil))
@@ -171,7 +172,8 @@ file is invalid, then raise an error."
                name ident)
     (cl-assert plist)
     (let* ((symbol-keys '(:fetcher))
-           (string-keys '(:url :repo :commit :branch :version-regexp))
+           (string-keys '( :url :repo :commit :branch
+                           :version-regexp :shell-command))
            (list-keys '(:files :make-targets :org-exports :old-names))
            (all-keys (append symbol-keys string-keys list-keys)))
       (dolist (thing plist)

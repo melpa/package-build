@@ -195,6 +195,12 @@ Note that Melpa leaves this disabled."
   :group 'package-build
   :type 'boolean)
 
+(defcustom package-build-run-recipe-shell-command nil
+  "Whether to run the shell command from the `:shell-command' recipe slot.
+Note that Melpa leaves this disabled."
+  :group 'package-build
+  :type 'boolean)
+
 (defcustom package-build-run-recipe-make-targets nil
   "Whether to run the make targets from the `:make-targets' recipe slot.
 Note that Melpa leaves this disabled."
@@ -1478,6 +1484,11 @@ in `package-build-archive-dir'."
     (unwind-protect
         (progn
           (funcall package-build-checkout-function rcp)
+          (when-let* ((package-build-run-recipe-shell-command)
+                      (command (oref rcp shell-command)))
+            (package-build--message "Running %s" command)
+            (package-build--call-sandboxed
+             rcp shell-file-name shell-command-switch command))
           (when-let ((package-build-run-recipe-make-targets)
                      (targets (oref rcp make-targets)))
             (package-build--message "Running make %s" (string-join targets " "))
