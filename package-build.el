@@ -1320,6 +1320,13 @@ order and can have the following form:
   returned alist.  Files matched by later elements are not
   affected.
 
+- (:inputs GLOB...)
+
+  A list that begins with `:inputs' specifies files, which are not
+  to be included in the package, but when modified still trigger a
+  new package version.  I.e., this function ignores this element,
+  but `package-build--spec-globs' does not.
+
 - (:rename SRC DEST)
 
   A list that begins with `:rename' causes the file SRC to be
@@ -1350,6 +1357,7 @@ SPEC is a full files spec as stored in a recipe object."
   (let (include exclude)
     (dolist (entry spec)
       (pcase (car-safe entry)
+        (:inputs)
         (:exclude
          (dolist (entry (cdr entry))
            (push entry exclude)))
@@ -1422,6 +1430,9 @@ FILES is a list of (SOURCE . DEST) relative filepath pairs."
                 ((and `(:exclude . ,globs)
                       (guard (cl-every #'stringp globs)))
                  (mapcan (lambda (g) (toargs g t)) globs))
+                ((and `(:inputs . ,globs)
+                      (guard (cl-every #'stringp globs)))
+                 (mapcan #'toargs globs))
                 ((and `(,dir . ,globs)
                       (guard (stringp dir))
                       (guard (cl-every #'stringp globs)))
