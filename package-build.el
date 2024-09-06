@@ -1318,7 +1318,14 @@ order and can have the following form:
   matched by earlier elements that are also matched by the second
   and subsequent elements of this list to be removed from the
   returned alist.  Files matched by later elements are not
-  affected."
+  affected.
+
+- (:rename SRC DEST)
+
+  A list that begins with `:rename' causes the file SRC to be
+  renamed and/or moved to DEST.  SRC and DEST are relative file
+  names (as opposed to globs) and both may contain directory
+  parts.  SRC must exist.  Avoid using this, if at all possible."
   (let ((default-directory (or repo (package-build--working-tree rcp)))
         (spec (or spec (oref rcp files)))
         (name (oref rcp name)))
@@ -1342,10 +1349,12 @@ order and can have the following form:
 SPEC is a full files spec as stored in a recipe object."
   (let (include exclude)
     (dolist (entry spec)
-      (if (eq (car-safe entry) :exclude)
-          (dolist (entry (cdr entry))
-            (push entry exclude))
-        (push entry include)))
+      (pcase (car-safe entry)
+        (:exclude
+         (dolist (entry (cdr entry))
+           (push entry exclude)))
+        (:rename (push entry include))
+        (_ (push entry include))))
     (cl-set-difference
      (package-build--expand-files-spec-2 (nreverse include))
      (package-build--expand-files-spec-2 (nreverse exclude))
@@ -1357,17 +1366,16 @@ If SUBDIR is nil, use `default-directory'.  SPEC is expected to
 be a partial files spec, consisting of either all include rules
 or all exclude rules (with the `:exclude' keyword removed)."
   (mapcan (lambda (entry)
-            (if (stringp entry)
-                (mapcar (lambda (f)
-                          (cons f
-                                (concat subdir
-                                        (replace-regexp-in-string
-                                         "\\.el\\.in\\'"  ".el"
-                                         (file-name-nondirectory f)))))
-                        (file-expand-wildcards entry))
-              (package-build--expand-files-spec-2
+            (cond
+             ((stringp entry)
+              (mapcar (lambda (f)
+                        (cons f (concat subdir (file-name-nondirectory f))))
+                      (file-expand-wildcards entry)))
+             ((eq (car-safe entry) :rename)
+              (list (cons (nth 1 entry) (nth 2 entry))))
+             ((package-build--expand-files-spec-2
                (cdr entry)
-               (concat subdir (car entry) "/"))))
+               (concat subdir (car entry) "/")))))
           spec))
 
 (defun package-build--copy-package-files (files target-dir)
