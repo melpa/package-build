@@ -201,14 +201,15 @@ file is invalid, then raise an error."
         (when (eq (car spec) :defaults)
           (setq spec (cdr spec)))
         ;; All other elements have to be strings or lists of strings.
-        ;; Lists whose first element is `:exclude' or `:inputs' are
-        ;; also valid.
+        ;; Lists whose first element is `:exclude', `:inputs' or
+        ;; `:rename' are also valid.
         (dolist (entry spec)
           (unless (cond ((stringp entry)
                          (not (equal entry "*")))
                         ((listp entry)
                          (and-let* ((globs (cdr entry)))
-                           (and (or (memq (car entry) '(:exclude :inputs))
+                           (and (or (memq (car entry)
+                                          '(:exclude :inputs :rename))
                                     (stringp (car entry)))
                                 (seq-every-p (lambda (glob)
                                                (and (stringp glob)
