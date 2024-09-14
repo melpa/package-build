@@ -1435,6 +1435,7 @@ FILES is a list of (SOURCE . DEST) relative filepath pairs."
                  (mapcan #'toargs globs))
                 ((and `(:rename ,src ,dest)
                       (guard (and (stringp src) (stringp dest))))
+                 dest ; Silence byte-compiler of Emacs < 28.1.
                  (toargs src))
                 ((and `(,dir . ,globs)
                       (guard (stringp dir))
