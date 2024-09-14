@@ -568,8 +568,7 @@ VERSION-STRING has the format \"%Y%m%d.%H%M\"."
 
 (cl-defmethod package-build--timestamp-version ((rcp package-git-recipe))
   (pcase-let*
-      ((commit (oref rcp commit))
-       (branch (oref rcp branch))
+      (((eieio commit branch) rcp)
        (branch (and branch (concat "origin/" branch)))
        (rev (or commit branch "origin/HEAD"))
        (`(,rev-hash ,rev-time) (package-build--select-commit rcp rev commit))
@@ -589,10 +588,11 @@ VERSION-STRING has the format \"%Y%m%d.%H%M\"."
       (list rev-hash rev-time))))
 
 (cl-defmethod package-build--timestamp-version ((rcp package-hg-recipe))
-  (let* ((commit (oref rcp commit))
-         (branch (or (oref rcp branch) "default"))
-         (rev (format "sort(ancestors(%s), -rev)"
-                      (or commit (format "max(branch(%s))" branch)))))
+  (pcase-let* (((eieio commit branch) rcp)
+               (rev (format "sort(ancestors(%s), -rev)"
+                            (or commit
+                                (format "max(branch(%s))"
+                                        (or branch "default"))))))
     (package-build--select-commit rcp rev nil)))
 
 (define-obsolete-function-alias 'package-build-get-snapshot-version
@@ -979,12 +979,10 @@ Tests and sets variable `package-build--tar-type' if not already set."
   "Create a tar file containing the package version specified by RCP.
 DIRECTORY is a temporary directory that contains the directory
 that is put in the tarball."
-  (let* ((name (oref rcp name))
-         (version (oref rcp version))
-         (time (oref rcp time))
-         (tar (expand-file-name (concat name "-" version ".tar")
-                                package-build-archive-dir))
-         (dir (concat name "-" version)))
+  (pcase-let* (((eieio name version time) rcp)
+               (tar (expand-file-name (concat name "-" version ".tar")
+                                      package-build-archive-dir))
+               (dir (concat name "-" version)))
     (when (and (eq system-type 'windows-nt)
                (eq (package-build--tar-type) 'gnu))
       (setq tar (replace-regexp-in-string "^\\([a-z]\\):" "/\\1" tar)))
@@ -1140,12 +1138,10 @@ which should appear in FILES.  As a fallback, \"NAME-pkg.el.in\"
 is also tried.  If neither file exists, then return nil.  If a
 value is not specified in the used file, then fall back to the
 value specified in the file \"NAME.el\"."
-  (let* ((name (oref rcp name))
-         (version (oref rcp version))
-         (commit (oref rcp commit))
-         (file (concat name ".el"))
-         (file (or (car (rassoc file files)) file))
-         (maintainers nil))
+  (pcase-let* (((eieio name version commit) rcp)
+               (file (concat name ".el"))
+               (file (or (car (rassoc file files)) file))
+               (maintainers nil))
     (and (file-exists-p file)
          (with-temp-buffer
            (insert-file-contents file)
@@ -1205,12 +1201,10 @@ itself.  The value of `kind' is always `tar'.
 Other information is taken from the file named \"NAME.el\",
 which should appear in FILES.  As a fallback, \"NAME.el.in\"
 is also tried.  If neither file exists, then return nil."
-  (let* ((name (oref rcp name))
-         (version (oref rcp version))
-         (commit (oref rcp commit))
-         (file (concat name "-pkg.el"))
-         (file (or (car (rassoc file files))
-                   file)))
+  (pcase-let* (((eieio name version commit) rcp)
+               (file (concat name "-pkg.el"))
+               (file (or (car (rassoc file files))
+                         file)))
     (and (or (file-exists-p file)
              (file-exists-p (setq file (concat file ".in"))))
          (let ((form (with-temp-buffer
@@ -1533,14 +1527,12 @@ in `package-build-archive-dir'."
       (funcall package-build-cleanup-function rcp))))
 
 (defun package-build--build-single-file-package (rcp files)
-  (let* ((name (oref rcp name))
-         (version (oref rcp version))
-         (commit (oref rcp commit))
-         (file (caar files))
-         (source (expand-file-name file))
-         (target (expand-file-name (concat name "-" version ".el")
-                                   package-build-archive-dir))
-         (desc (package-build--desc-from-library rcp files)))
+  (pcase-let* (((eieio name version commit) rcp)
+               (file (caar files))
+               (source (expand-file-name file))
+               (target (expand-file-name (concat name "-" version ".el")
+                                         package-build-archive-dir))
+               (desc (package-build--desc-from-library rcp files)))
     (unless (member (downcase (file-name-nondirectory file))
                     (list (downcase (concat name ".el"))
                           (downcase (concat name ".el.in"))))
@@ -1560,9 +1552,8 @@ in `package-build-archive-dir'."
     (package-build--write-archive-entry desc)))
 
 (defun package-build--build-multi-file-package (rcp files)
-  (let* ((name (oref rcp name))
-         (version (oref rcp version))
-         (tmp-dir (file-name-as-directory (make-temp-file name t))))
+  (pcase-let* (((eieio name version) rcp)
+               (tmp-dir (file-name-as-directory (make-temp-file name t))))
     (unwind-protect
         (let* ((target (expand-file-name (concat name "-" version) tmp-dir))
                (desc (or (package-build--desc-from-package rcp files)
