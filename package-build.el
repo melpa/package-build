@@ -1268,7 +1268,7 @@ is also tried.  If neither file exists, then return nil."
      ".dir-locals.el" "lisp/.dir-locals.el"
      "test.el" "tests.el" "*-test.el" "*-tests.el"
      "lisp/test.el" "lisp/tests.el" "lisp/*-test.el" "lisp/*-tests.el"))
-  "Default value for :files attribute in recipes.")
+  "Default value for `:files' attribute in recipes.")
 
 (defun package-build-expand-files-spec (rcp &optional assert repo spec)
   "Return an alist of files of package RCP to be included in tarball.
