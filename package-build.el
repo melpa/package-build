@@ -292,15 +292,15 @@ enabled by default, to avoid accidentially not using it.")
     "--tmpfs" "/tmp"))
 
 (defvar package-build--inhibit-fetch nil
-  "Whether to inhibit fetching.  Useful for testing purposes.
+  "Whether to inhibit fetching.
 If `strict', also inhibit the initial clone, and deleting and
 re-cloning an existing clone after the upstream has changed.")
 
 (defvar package-build--inhibit-checkout nil
-  "Whether to inhibit checkout.  Useful for testing purposes.")
+  "Whether to inhibit checkout.")
 
 (defvar package-build--inhibit-build nil
-  "Whether to inhibit building.  Useful for testing purposes.")
+  "Whether to inhibit building.")
 
 ;;; Generic Utilities
 
