@@ -44,6 +44,7 @@
 
 (require 'cl-lib)
 (require 'compat nil t)
+(require 'format-spec)
 (require 'pcase)
 (require 'subr-x)
 
@@ -247,18 +248,21 @@ channel that is being build."
   :type '(list (string :tag "Archive name") color))
 
 (defcustom package-build-version-regexp
-  "\\`[rRvV]?\\(?1:[0-9]+\\(\\.[0-9]+\\)*\\)\\'"
+  "\\`\\(?:\\|[vVrR]\\|\\(?:release\\|%p\\)[-/]v?\\)?\
+\\(?1:[0-9]+\\(\\.[0-9]+\\)*\\)\\'"
   "Regexp used to match valid version-strings.
 
-The first capture is used to extract the actual version string.
-Strings matched by that group must be valid according to
-`version-to-list', but the used regexp can be more strict.  The
-default value supports only releases but no pre-releases.  It
-also intentionally ignores cedrtain unfortunate version strings
+The first capture group is used to extract the actual version
+string.  Strings matched by that group must be valid according
+to `version-to-list', but the used regexp can be more strict.
+The default value supports only releases but no pre-releases.
+It also intentionally ignores certain unfortunate version strings
 such as \"1A\" or \".5\", and only supports \".\" as separator.
 
 The part before the first capture group should match prefixes
-commonly used in version tags.
+commonly used in version tags.  To support tags that contain
+the name package of the package (e.g., \"foobar-0.1.3\"), the
+name of the package is substituted for \"%p\".
 
 Note that this variable can be overridden in a package's recipe,
 using the `:version-regexp' slot."
@@ -342,6 +346,15 @@ being run for a particular package."
 ;;; Version Handling
 ;;;; Common
 
+(defun package-build--version-regexp (rcp)
+  "Return the version regexp for RCP."
+  (if-let* ((re (oref rcp version-regexp))
+            (re (format-spec re '((?v . "\\(?1:[0-9]+\\(\\.[0-9]+\\)*\\)")))))
+      (progn (unless (string-prefix-p "\\`" re) (setq re (concat "\\`" re)))
+             (unless (string-suffix-p "\\'" re) (setq re (concat re "\\'")))
+             re)
+    (format-spec package-build-version-regexp `((?p . ,(oref rcp name))))))
+
 (defun package-build--select-version (rcp)
   (pcase-let*
       ((default-directory (package-recipe--working-tree rcp))
@@ -401,7 +414,7 @@ or snapshots are build.")
 (defun package-build-tag-version (rcp)
   "Determine version corresponding to largest version tag for RCP.
 Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING)."
-  (let ((regexp (or (oref rcp version-regexp) package-build-version-regexp))
+  (let ((regexp (package-build--version-regexp rcp))
         (tag nil)
         (version '(0)))
     (dolist (n (package-build--list-tags rcp))
@@ -499,7 +512,7 @@ Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING)."
   "Return version specified in the \"NAME-pkg.el\" file.
 Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING)."
   (and-let* ((file (package-build--pkgfile rcp)))
-    (let ((regexp (or (oref rcp version-regexp) package-build-version-regexp))
+    (let ((regexp (package-build--version-regexp rcp))
           commit date version)
       (catch 'before-latest
         (pcase-dolist (`(,c ,d) (package-build--pkgfile-commits rcp file))
