@@ -299,8 +299,11 @@ re-cloning an existing clone after the upstream has changed.")
 (defvar package-build--inhibit-checkout nil
   "Whether to inhibit checkout.")
 
+(defvar package-build--inhibit-update nil
+  "Whether to inhibit updating metadata and packages.")
+
 (defvar package-build--inhibit-build nil
-  "Whether to inhibit building.")
+  "Whether to inhibit building packages (while still update metadata).")
 
 ;;; Generic Utilities
 
@@ -1455,7 +1458,7 @@ are subsequently dumped."
          (version nil))
     (cond ((not noninteractive)
            (message " • %s package %s (from %s)..."
-                    (if package-build--inhibit-build "Fetching" "Building")
+                    (if package-build--inhibit-update "Fetching" "Building")
                     name
                     (if repo (format "%s:%s" fetcher repo) url)))
           (package-build-verbose
@@ -1463,7 +1466,7 @@ are subsequently dumped."
            (message "Fetcher: %s" fetcher)
            (message "Source:  %s\n" url)))
     (package-build--fetch rcp)
-    (unless package-build--inhibit-build
+    (unless package-build--inhibit-update
       (package-build--select-version rcp)
       (setq version (oref rcp version))
       (when version
@@ -1533,17 +1536,18 @@ in `package-build-archive-dir'."
                           (downcase (concat name ".el.in"))))
       (package-build--error name
         "Single file %s does not match package name %s" file name))
-    (copy-file source target t)
-    (let ((enable-local-variables nil)
-          (make-backup-files nil)
-          (before-save-hook nil))
-      (with-current-buffer (find-file target)
-        (package-build--update-or-insert-header "Package-Commit" commit)
-        (package-build--update-or-insert-header "Package-Version" version)
-        (package-build--ensure-ends-here-line source)
-        (write-file target nil)
-        (kill-buffer)))
-    (package-build--write-pkg-readme rcp files)
+    (unless package-build--inhibit-build
+      (copy-file source target t)
+      (let ((enable-local-variables nil)
+            (make-backup-files nil)
+            (before-save-hook nil))
+        (with-current-buffer (find-file target)
+          (package-build--update-or-insert-header "Package-Commit" commit)
+          (package-build--update-or-insert-header "Package-Version" version)
+          (package-build--ensure-ends-here-line source)
+          (write-file target nil)
+          (kill-buffer)))
+      (package-build--write-pkg-readme rcp files))
     (package-build--write-archive-entry desc)))
 
 (defun package-build--build-multi-file-package (rcp files)
@@ -1556,11 +1560,12 @@ in `package-build-archive-dir'."
                          (package-build--error name
                            "%s[-pkg].el matching package name is missing"
                            name))))
-          (package-build--copy-package-files files target)
-          (package-build--write-pkg-file desc target)
-          (package-build--generate-info-files rcp files target)
-          (package-build--create-tar rcp tmp-dir)
-          (package-build--write-pkg-readme rcp files)
+          (unless package-build--inhibit-build
+            (package-build--copy-package-files files target)
+            (package-build--write-pkg-file desc target)
+            (package-build--generate-info-files rcp files target)
+            (package-build--create-tar rcp tmp-dir)
+            (package-build--write-pkg-readme rcp files))
           (package-build--write-archive-entry desc))
       (delete-directory tmp-dir t nil))))
 
