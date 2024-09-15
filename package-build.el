@@ -9,6 +9,7 @@
 ;;     Steve Purcell <steve@sanityinc.com>
 ;;     Jonas Bernoulli <emacs.package-build@jonas.bernoulli.dev>
 ;;     Phil Hagelberg <technomancy@gmail.com>
+;; Maintainer: Jonas Bernoulli <emacs.package-build@jonas.bernoulli.dev>
 ;; Homepage: https://github.com/melpa/package-build
 ;; Keywords: maint tools
 
