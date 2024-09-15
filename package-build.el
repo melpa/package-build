@@ -1143,12 +1143,12 @@ value specified in the file \"NAME.el\"."
                        (list maintainer)))))
            (package-desc-from-define
             name version
-            (or (save-excursion
-                  (goto-char (point-min))
-                  (and (re-search-forward "\
+            (package-build--normalize-summary
+             (save-excursion
+               (goto-char (point-min))
+               (and (re-search-forward "\
 ^;;; [^ ]*\\.el ---[ \t]*\\(.*?\\)[ \t]*\\(-\\*-.*-\\*-[ \t]*\\)?$" nil t)
-                       (match-string-no-properties 1)))
-                "No description available.")
+                    (match-string-no-properties 1))))
             (cond
              ((fboundp 'lm-package-requires)
               (lm-package-requires))
@@ -1207,15 +1207,11 @@ is also tried.  If neither file exists, then return nil."
                 (deps (eval deps))
                 (alt-desc (package-build--desc-from-library rcp files))
                 (alt (and alt-desc (package-desc-extras alt-desc))))
-             (when (string-match "[\r\n]" summary)
-               (package-build--error name
-                 "Illegal multi-line package description in %s" file))
              (package-desc-from-define
               name version
-              (if (string-empty-p summary)
-                  (or (and alt-desc (package-desc-summary alt-desc))
-                      "No description available.")
-                summary)
+              (package-build--normalize-summary
+               summary
+               (and alt-desc (package-desc-summary alt-desc)))
               (mapcar (pcase-lambda (`(,pkg ,ver))
                         (unless (symbolp pkg)
                           (package-build--error name
@@ -1233,6 +1229,15 @@ is also tried.  If neither file exists, then return nil."
               :authors    (or (alist-get :authors extra)
                               (alist-get :authors alt))
               :commit     commit))))))
+
+(defun package-build--normalize-summary (summary &optional fallback)
+  (if (or (not summary) (string-empty-p summary))
+      (or fallback "[No description available]")
+    (setq summary (car (split-string summary "[\n\r]+" t "[\s\t]+")))
+    (when (string-suffix-p "." summary)
+      (setq summary (substring summary 0 -1)))
+    (concat (capitalize (substring summary 0 1))
+            (substring summary 1))))
 
 (defun package-build--write-archive-entry (desc)
   (with-temp-file
