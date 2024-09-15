@@ -1045,47 +1045,43 @@ Also create the info dir file.  Remove each original texinfo
 file.  The source and destination file paths are expanded in
 `default-directory' and TARGET-DIR respectively.
 
-If an org file appears in FILES and in RCP's `info-manuals' slot
+If an org file appears in FILES and in RCP's `org-exports' slot
 as well, then export it to texinfo and then the result to info."
-  (pcase-dolist (`(,src . ,tmp) files)
-    (let ((extension (file-name-extension tmp)))
-      (when (member extension '("info" "texi" "texinfo" "org"))
-        (let* ((explicit (and package-build-run-recipe-org-exports
-                              (member src (oref rcp org-exports))))
-               (src (expand-file-name src))
-               (tmp (expand-file-name tmp target-dir))
-               (org  src)
-               (texi src)
-               (info tmp))
-          (when (equal extension "org")
-            (if (not explicit)
-                (setq info nil)
-              (delete-file tmp)
-              (setq texi (concat (file-name-sans-extension org) ".texi"))
-              (package-build--message "Generating %s" texi)
-              (with-demoted-errors "Error: %S"
-                (package-build--call-sandboxed
-                 rcp "emacs" "-Q" "--batch" "-l" "ox-texinfo"
-                 org "--funcall" "org-texinfo-export-to-texinfo"))
-              (when (file-exists-p texi)
-                (setq extension "texi"))))
-          (when (member extension '("texi" "texinfo"))
-            (delete-file tmp)
-            (setq info (concat (file-name-sans-extension tmp) ".info"))
-            (unless (file-exists-p info)
-              (package-build--message "Generating %s" info)
-              ;; If the info file is located in a subdirectory
-              ;; and contains relative includes, then it is
-              ;; necessary to run makeinfo in the subdirectory.
-              (with-demoted-errors "Error: %S"
-                (let ((default-directory (file-name-directory texi)))
-                  (package-build--call-process
-                   rcp "makeinfo" "--no-split" texi "-o" info)))))
-          (when info
-            (with-demoted-errors "Error: %S"
-              (let ((default-directory target-dir))
-                (package-build--call-process
-                 rcp "install-info" "--dir=dir" info)))))))))
+  (pcase-dolist (`(,src . ,_) files)
+    (let* ((ext  (file-name-extension src))
+           (org  (and (equal ext "org")
+                      package-build-run-recipe-org-exports
+                      (member src (oref rcp org-exports))
+                      src))
+           (texi (and (member ext '("texi" "texinfo")) src))
+           (info (and (equal ext "info") src)))
+      (when org
+        (let ((default-directory (file-name-directory (expand-file-name org)))
+              (next (file-name-with-extension org ".texi"))
+              (org (file-name-nondirectory org)))
+          (delete-file (expand-file-name org target-dir))
+          (package-build--message "Generating %s" (file-name-nondirectory next))
+          (with-demoted-errors "Error: %S"
+            (package-build--call-sandboxed
+             rcp "emacs" "-Q" "--batch" "-l" "ox-texinfo"
+             org "--funcall" "org-texinfo-export-to-texinfo")
+            (setq texi next))))
+      (when texi
+        (let* ((default-directory (file-name-directory (expand-file-name texi)))
+               (texi (file-name-nondirectory texi))
+               (next (file-name-with-extension texi ".info")))
+          (delete-file (expand-file-name texi target-dir))
+          (package-build--message "Generating %s" next)
+          (setq next (expand-file-name next target-dir))
+          (with-demoted-errors "Error: %S"
+            (package-build--call-process
+             rcp "makeinfo" "--no-split" texi "-o" next)
+            (setq info next))))
+      (when info
+        (let ((default-directory target-dir))
+          (with-demoted-errors "Error: %S"
+            (package-build--call-process
+             rcp "install-info" "--dir=dir" info)))))))
 
 ;;; Patch Libraries
 
