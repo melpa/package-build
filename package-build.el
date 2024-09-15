@@ -180,15 +180,6 @@ packages are distributed without using tarballs."
                  (const :tag "only use tarball for multi-file packages" nil)
                  function))
 
-;; NOTE that these hooks are still experimental.  Let me know if these
-;; are potentially useful for you and whether any changes are required
-;; to make them more appropriate for your usecase.
-(defvar package-build-worktree-function #'package-recipe--working-tree)
-(defvar package-build-early-worktree-function #'package-recipe--working-tree)
-(defvar package-build-fetch-function #'package-build--fetch)
-(defvar package-build-checkout-function #'package-build--checkout)
-(defvar package-build-cleanup-function #'package-build--cleanup)
-
 (defcustom package-build-run-recipe-org-exports nil
   "Whether to export the files listed in the `:org-exports' recipe slot.
 Note that Melpa leaves this disabled."
@@ -300,7 +291,9 @@ enabled by default, to avoid accidentially not using it.")
     "--tmpfs" "/tmp"))
 
 (defvar package-build--inhibit-fetch nil
-  "Whether to inhibit fetching.  Useful for testing purposes.")
+  "Whether to inhibit fetching.  Useful for testing purposes.
+If `strict', also inhibit the initial clone, and deleting and
+re-cloning an existing clone after the upstream has changed.")
 
 (defvar package-build--inhibit-checkout nil
   "Whether to inhibit checkout.  Useful for testing purposes.")
@@ -347,7 +340,7 @@ being run for a particular package."
 
 (defun package-build--select-version (rcp)
   (pcase-let*
-      ((default-directory (package-build--working-tree rcp t))
+      ((default-directory (package-recipe--working-tree rcp))
        (`(,commit ,time ,version)
         (cond
          ((with-no-warnings package-build-get-version-function)
@@ -864,23 +857,17 @@ Use a sandbox if `package-build--use-sandbox' is non-nil."
   (apply #'package-build--call-process nil command args))
 (make-obsolete 'package-build--run-process 'package-build--call-process "5.0.0")
 
-;;; Worktree
-
-(defun package-build--working-tree (rcp &optional early)
-  (if early
-      (funcall package-build-early-worktree-function rcp)
-    (funcall package-build-worktree-function rcp)))
-
 ;;; Fetch
 
 (cl-defmethod package-build--fetch ((rcp package-git-recipe))
-  (let ((dir (package-build--working-tree rcp t))
+  (let ((dir (package-recipe--working-tree rcp))
         (url (package-recipe--upstream-url rcp))
         (protocol (package-recipe--upstream-protocol rcp)))
-    (unless (member protocol package-build-allowed-git-protocols)
+    (cond
+     ((eq package-build--inhibit-fetch 'strict))
+     ((not (member protocol package-build-allowed-git-protocols))
       (package-build--error rcp
         "Fetching using the %s protocol is not allowed" protocol))
-    (cond
      ((and (file-exists-p (expand-file-name ".git" dir))
            (let ((default-directory dir))
              (string= (car (process-lines "git" "config" "remote.origin.url"))
@@ -903,9 +890,10 @@ Use a sandbox if `package-build--use-sandbox' is non-nil."
         (package-build--call-process rcp "git" "clone" url dir))))))
 
 (cl-defmethod package-build--fetch ((rcp package-hg-recipe))
-  (let ((dir (package-build--working-tree rcp t))
+  (let ((dir (package-recipe--working-tree rcp))
         (url (package-recipe--upstream-url rcp)))
     (cond
+     ((eq package-build--inhibit-fetch 'strict))
      ((and (file-exists-p (expand-file-name ".hg" dir))
            (let ((default-directory dir))
              (string= (car (process-lines "hg" "paths" "default")) url)))
@@ -1328,7 +1316,7 @@ order and can have the following form:
   renamed and/or moved to DEST.  SRC and DEST are relative file
   names (as opposed to globs) and both may contain directory
   parts.  SRC must exist.  Avoid using this, if at all possible."
-  (let ((default-directory (or repo (package-build--working-tree rcp)))
+  (let ((default-directory (or repo (package-recipe--working-tree rcp)))
         (spec (or spec (oref rcp files)))
         (name (oref rcp name)))
     (when (eq (car spec) :defaults)
@@ -1468,7 +1456,7 @@ are subsequently dumped."
            (message "Package: %s" name)
            (message "Fetcher: %s" fetcher)
            (message "Source:  %s\n" url)))
-    (funcall package-build-fetch-function rcp)
+    (package-build--fetch rcp)
     (unless package-build--inhibit-build
       (package-build--select-version rcp)
       (setq version (oref rcp version))
@@ -1498,10 +1486,10 @@ are subsequently dumped."
   "Build the package version specified by RCP.
 Return the archive entry for the package and store the package
 in `package-build-archive-dir'."
-  (let ((default-directory (package-build--working-tree rcp)))
+  (let ((default-directory (package-recipe--working-tree rcp)))
     (unwind-protect
         (progn
-          (funcall package-build-checkout-function rcp)
+          (package-build--checkout rcp)
           (when-let* ((package-build-run-recipe-shell-command)
                       (command (oref rcp shell-command)))
             (package-build--message "Running %s" command)
@@ -1525,7 +1513,7 @@ in `package-build-archive-dir'."
             (when package-build-badge-data
               (package-build--write-badge-image
                (oref rcp name) (oref rcp version) package-build-archive-dir))))
-      (funcall package-build-cleanup-function rcp))))
+      (package-build--cleanup rcp))))
 
 (defun package-build--build-single-file-package (rcp files)
   (pcase-let* (((eieio name version commit) rcp)

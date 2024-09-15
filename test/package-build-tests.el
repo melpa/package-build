@@ -26,8 +26,8 @@
 (defmacro package-build-test-package (&rest body)
   (declare (indent 0) (debug t))
   `(let* ((package-build-verbose nil)
-          (package-build-fetch-function #'ignore)
-          (package-build-checkout-function #'ignore)
+          (package-build--inhibit-fetch 'strict)
+          (package-build--inhibit-checkout t)
           (package-build-stable nil)
           (package-build-snapshot-version-functions
            (list #'package-build-release+count-version))
