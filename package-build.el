@@ -1046,18 +1046,23 @@ file.  The source and destination file paths are expanded in
 `default-directory' and TARGET-DIR respectively.
 
 If an org file appears in FILES and in RCP's `org-exports' slot
-as well, then export it to texinfo and then the result to info."
+as well, then export it to texinfo and then the result to info.
+If the org file sets `export_file_name', then the corresponding
+entry in `org-exports' must have the form (ORG TEXI), where TEXI
+is the same as the value of `export_file_name'."
   (pcase-dolist (`(,src . ,_) files)
     (let* ((ext  (file-name-extension src))
+           (orgs (oref rcp org-exports))
            (org  (and (equal ext "org")
                       package-build-run-recipe-org-exports
-                      (member src (oref rcp org-exports))
+                      (or (member src orgs) (assoc src orgs))
                       src))
            (texi (and (member ext '("texi" "texinfo")) src))
            (info (and (equal ext "info") src)))
       (when org
         (let ((default-directory (file-name-directory (expand-file-name org)))
-              (next (file-name-with-extension org ".texi"))
+              (next (or (cadr (assoc src orgs))
+                        (file-name-with-extension org ".texi")))
               (org (file-name-nondirectory org)))
           (delete-file (expand-file-name org target-dir))
           (package-build--message "Generating %s" (file-name-nondirectory next))
