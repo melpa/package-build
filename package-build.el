@@ -996,7 +996,7 @@ that is put in the tarball."
        package-build-tar-executable nil
        (get-buffer-create "*package-build-checkout*") nil
        "-cf" tar dir
-       ;; Arguments that are need to strip metadata that
+       ;; Arguments that are needed to strip metadata that
        ;; prevent a reproducible tarball as described at
        ;; https://reproducible-builds.org/docs/archives.
        "--sort=name"
