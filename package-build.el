@@ -949,20 +949,12 @@ Use a sandbox if `package-build--use-sandbox' is non-nil."
       (pp `(define-package ,(symbol-name name)
              ,(package-version-join (package-desc-version desc))
              ,(package-desc-summary desc)
-             ',(mapcar (pcase-lambda (`(,pkg ,ver))
+             ,(macroexp-quote
+               (mapcar (pcase-lambda (`(,pkg ,ver))
                          (list pkg (package-version-join ver)))
-                       (package-desc-reqs desc))
+                       (package-desc-reqs desc)))
              ,@(cl-mapcan (pcase-lambda (`(,key . ,val))
-                            (when (or (symbolp val) (listp val))
-                              ;; We must quote lists and symbols,
-                              ;; because Emacs 24.3 and earlier evaluate
-                              ;; the package information, which would
-                              ;; break for unquoted symbols or lists.
-                              ;; While this library does not support
-                              ;; such old Emacsen, the packages that
-                              ;; we produce should remain compatible.
-                              (setq val (list 'quote val)))
-                            (list key val))
+                            (list key (macroexp-quote val)))
                           (package-desc-extras desc)))
           (current-buffer))
       (princ ";; Local Variables:\n;; no-byte-compile: t\n;; End:\n"
