@@ -154,13 +154,18 @@ file is invalid, then raise an error."
 
 ;;;###autoload
 (defun package-recipe-validate-all ()
-  "Validate all recipes."
+  "Validate all package recipes.
+Return a boolean indicating whether all recipes are valid and show
+a message for each invalid recipe."
   (interactive)
-  (dolist-with-progress-reporter (name (package-recipe-recipes))
-      "Validating recipes..."
-    (condition-case err
-        (package-recipe-lookup name)
-      (error (message "Invalid recipe for %s: %S" name (cdr err))))))
+  (let ((all-valid t))
+    (dolist-with-progress-reporter (name (package-recipe-recipes))
+        "Validating recipes..."
+      (condition-case err
+          (package-recipe-lookup name)
+        (error (message "Invalid recipe for %s: %S" name (cdr err))
+               (setq all-valid nil))))
+    all-valid))
 
 (defun package-recipe--validate (recipe name)
   "Perform some basic checks on the raw RECIPE for the package named NAME."
