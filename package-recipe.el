@@ -42,7 +42,6 @@
 (defclass package-recipe ()
   ((url-format      :allocation :class       :initform nil)
    (repopage-format :allocation :class       :initform nil)
-   (stable-p        :allocation :class       :initform nil)
    (name            :initarg :name           :initform nil)
    (url             :initarg :url            :initform nil)
    (repo            :initarg :repo           :initform nil)
