@@ -63,15 +63,15 @@
 (defclass package-git-recipe (package-recipe) ())
 
 (defclass package-github-recipe (package-git-recipe)
-  ((url-format      :initform "https://github.com/%s.git")
+  ((url-format      :initform "https://github.com/%s")
    (repopage-format :initform "https://github.com/%s")))
 
 (defclass package-gitlab-recipe (package-git-recipe)
-  ((url-format      :initform "https://gitlab.com/%s.git")
+  ((url-format      :initform "https://gitlab.com/%s")
    (repopage-format :initform "https://gitlab.com/%s")))
 
 (defclass package-codeberg-recipe (package-git-recipe)
-  ((url-format      :initform "https://codeberg.org/%s.git")
+  ((url-format      :initform "https://codeberg.org/%s")
    (repopage-format :initform "https://codeberg.org/%s")))
 
 (defclass package-sourcehut-recipe (package-git-recipe)
