@@ -878,7 +878,7 @@ Use a sandbox if `package-build--use-sandbox' is non-nil."
 
 (cl-defmethod package-build--fetch ((rcp package-git-recipe))
   (let ((dir (package-recipe--working-tree rcp))
-        (url (package-recipe--upstream-url rcp))
+        (url (oref rcp url))
         (protocol (package-recipe--upstream-protocol rcp)))
     (cond
      ((eq package-build--inhibit-fetch 'strict))
@@ -908,7 +908,7 @@ Use a sandbox if `package-build--use-sandbox' is non-nil."
 
 (cl-defmethod package-build--fetch ((rcp package-hg-recipe))
   (let ((dir (package-recipe--working-tree rcp))
-        (url (package-recipe--upstream-url rcp)))
+        (url (oref rcp url)))
     (cond
      ((eq package-build--inhibit-fetch 'strict))
      ((and (file-exists-p (expand-file-name ".hg" dir))
@@ -1458,7 +1458,7 @@ are subsequently dumped."
     (make-directory package-build-archive-dir))
   (let* ((start-time (current-time))
          (rcp (package-recipe-lookup name))
-         (url (package-recipe--upstream-url rcp))
+         (url (oref rcp url))
          (repo (oref rcp repo))
          (fetcher (package-recipe--fetcher rcp))
          (version nil))
@@ -1687,7 +1687,7 @@ If optional PRETTY-PRINT is non-nil, then pretty-print
           (and-let* ((recipe (with-demoted-errors "Recipe error: %S"
                                (package-recipe-lookup name))))
             (push `(,symbol
-                    :url ,(package-recipe--upstream-url recipe)
+                    :url ,(oref recipe url)
                     ,@(and (cl-typep recipe 'package-hg-recipe)
                            (list :vc-backend 'Hg))
                     ,@(and-let* ((branch (oref recipe branch)))
