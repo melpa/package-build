@@ -1612,23 +1612,23 @@ in `package-build-archive-dir'."
 
 (defun package-build--build-multi-file-package (rcp files)
   (pcase-let* (((eieio name version) rcp)
-               (tmp-dir (file-name-as-directory (make-temp-file name t))))
+               (tmpdir (file-name-as-directory (make-temp-file name t))))
     (unless (or (rassoc (concat name ".el") files)
                 (rassoc (concat name "-pkg.el") files))
       (package-build--error name
         "%s[-pkg].el matching package name is missing" name))
     (unwind-protect
-        (let* ((target (expand-file-name (concat name "-" version) tmp-dir))
+        (let* ((target (expand-file-name (concat name "-" version) tmpdir))
                (desc (or (package-build--desc-from-package rcp files)
                          (package-build--desc-from-library rcp files 'tar))))
           (unless package-build--inhibit-build
             (package-build--copy-package-files files target)
             (package-build--write-pkg-file desc target)
             (package-build--generate-info-files rcp files target)
-            (package-build--create-tar rcp tmp-dir)
+            (package-build--create-tar rcp tmpdir)
             (package-build--write-pkg-readme rcp files))
           (package-build--write-archive-entry desc))
-      (delete-directory tmp-dir t nil))))
+      (delete-directory tmpdir t nil))))
 
 (defun package-build--cleanup (rcp)
   (cond ((cl-typep rcp 'package-git-recipe)
