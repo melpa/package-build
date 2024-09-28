@@ -976,6 +976,19 @@ Use a sandbox if `package-build--use-sandbox' is non-nil."
 
 ;;; Generate Files
 
+(defun package-build--write-archive-entry (desc)
+  (with-temp-file
+      (expand-file-name (concat (package-desc-full-name desc) ".entry")
+                        package-build-archive-dir)
+    (set-buffer-file-coding-system 'utf-8)
+    (pp (cons (package-desc-name    desc)
+              (vector (package-desc-version desc)
+                      (package-desc-reqs    desc)
+                      (package-desc-summary desc)
+                      (package-desc-kind    desc)
+                      (package-desc-extras  desc)))
+        (current-buffer))))
+
 (defun package-build--write-pkg-file (desc dir)
   (let* ((name (package-desc-name desc))
          (dependencies (package-desc-reqs desc)))
@@ -1170,7 +1183,7 @@ still be renamed."
         (goto-char (point-max))
         (insert ?\n trailer ?\n)))))
 
-;;; Package Structs
+;;; Extract Metadata
 
 (defun package-build--desc-from-library (rcp files &optional kind)
   "Return the package description for RCP.
@@ -1298,19 +1311,6 @@ which should appear in FILES.  If it doesn't, return nil."
       (setq summary (substring summary 0 -1)))
     (concat (capitalize (substring summary 0 1))
             (substring summary 1))))
-
-(defun package-build--write-archive-entry (desc)
-  (with-temp-file
-      (expand-file-name (concat (package-desc-full-name desc) ".entry")
-                        package-build-archive-dir)
-    (set-buffer-file-coding-system 'utf-8)
-    (pp (cons (package-desc-name    desc)
-              (vector (package-desc-version desc)
-                      (package-desc-reqs    desc)
-                      (package-desc-summary desc)
-                      (package-desc-kind    desc)
-                      (package-desc-extras  desc)))
-        (current-buffer))))
 
 ;;; Files Spec
 
