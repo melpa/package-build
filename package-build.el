@@ -1613,13 +1613,14 @@ in `package-build-archive-dir'."
 (defun package-build--build-multi-file-package (rcp files)
   (pcase-let* (((eieio name version) rcp)
                (tmp-dir (file-name-as-directory (make-temp-file name t))))
+    (unless (or (rassoc (concat name ".el") files)
+                (rassoc (concat name "-pkg.el") files))
+      (package-build--error name
+        "%s[-pkg].el matching package name is missing" name))
     (unwind-protect
         (let* ((target (expand-file-name (concat name "-" version) tmp-dir))
                (desc (or (package-build--desc-from-package rcp files)
-                         (package-build--desc-from-library rcp files 'tar)
-                         (package-build--error name
-                           "%s[-pkg].el matching package name is missing"
-                           name))))
+                         (package-build--desc-from-library rcp files 'tar))))
           (unless package-build--inhibit-build
             (package-build--copy-package-files files target)
             (package-build--write-pkg-file desc target)
