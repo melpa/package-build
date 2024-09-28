@@ -1133,8 +1133,7 @@ itself.  The value of `kind' is taken from the KIND argument,
 which defaults to `single'; the other valid value being `tar'.
 
 Other information is taken from the file named \"NAME-pkg.el\",
-which should appear in FILES.  As a fallback, \"NAME-pkg.el.in\"
-is also tried.  If neither file exists, then return nil.  If a
+which should appear in FILES.  If it doesn't, return nil.  If a
 value is not specified in the used file, then fall back to the
 value specified in the file \"NAME.el\"."
   (pcase-let* (((eieio name version commit) rcp)
@@ -1198,14 +1197,12 @@ The values of the `name' and `version' slots are taken from RCP
 itself.  The value of `kind' is always `tar'.
 
 Other information is taken from the file named \"NAME.el\",
-which should appear in FILES.  As a fallback, \"NAME.el.in\"
-is also tried.  If neither file exists, then return nil."
+which should appear in FILES.  If it doesn't, return nil."
   (pcase-let* (((eieio name version commit) rcp)
                (file (concat name "-pkg.el"))
                (file (or (car (rassoc file files))
                          file)))
-    (and (or (file-exists-p file)
-             (file-exists-p (setq file (concat file ".in"))))
+    (and (file-exists-p file)
          (let ((form (with-temp-buffer
                        (insert-file-contents file)
                        (read (current-buffer)))))
@@ -1537,9 +1534,8 @@ in `package-build-archive-dir'."
                (target (expand-file-name (concat name "-" version ".el")
                                          package-build-archive-dir))
                (desc (package-build--desc-from-library rcp files)))
-    (unless (member (file-name-nondirectory file)
-                    (list (concat name ".el")
-                          (concat name ".el.in")))
+    (unless (equal (file-name-sans-extension (file-name-nondirectory file))
+                   name)
       (package-build--error name
         "Single file %s does not match package name %s" file name))
     (unless package-build--inhibit-build
