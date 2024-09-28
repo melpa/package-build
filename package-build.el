@@ -976,28 +976,41 @@ Use a sandbox if `package-build--use-sandbox' is non-nil."
 
 ;;; Generate Files
 
-(defun package-build--write-archive-entry (desc)
-  (with-temp-file
-      (expand-file-name (concat (package-desc-full-name desc) ".entry")
-                        package-build-archive-dir)
-    (set-buffer-file-coding-system 'utf-8)
-    (pp (cons (package-desc-name    desc)
-              (vector (package-desc-version desc)
-                      (package-desc-reqs    desc)
-                      (package-desc-summary desc)
-                      (package-desc-kind    desc)
-                      (package-desc-extras  desc)))
-        (current-buffer))))
+(defvar package-build--extras
+  '((:url url)
+    (:commit commit)
+    (:revdesc revdesc)
+    (:keywords keywords)
+    (:authors authors)
+    (:maintainers maintainers)))
 
-(defun package-build--write-pkg-file (desc dir)
-  (let* ((name (package-desc-name desc))
-         (dependencies (package-desc-reqs desc)))
+(defun package-build--write-archive-entry (rcp)
+  (with-slots (name version dependencies summary) rcp
+    (with-temp-file (expand-file-name (format "%s-%s.entry" name version)
+                                      package-build-archive-dir)
+      (set-buffer-file-coding-system 'utf-8)
+      (pp (cons (intern name)
+                (vector (version-to-list version)
+                        (mapcar (pcase-lambda (`(,sym ,val))
+                                  (list sym (version-to-list val)))
+                                dependencies)
+                        summary
+                        (if (oref rcp tarballp) 'tar 'single)
+                        (nconc (mapcan (pcase-lambda (`(,key ,slot))
+                                         (and-let* ((val (eieio-oref rcp slot)))
+                                           (list (cons key val))))
+                                       package-build--extras)
+                               (and-let* ((v (oref rcp maintainers)))
+                                 `((:maintainer ,(car v)))))))
+          (current-buffer)))))
+
+(defun package-build--write-pkg-file (rcp dir)
+  (pcase-let (((eieio name version summary dependencies) rcp))
     (with-temp-file (expand-file-name (format "%s-pkg.el" name) dir)
       (insert
        ";; -*- mode: lisp-data; no-byte-compile: t; lexical-binding: nil -*-\n")
-      (insert (format "(define-package \"%s\" \"%s\"\n" name
-                      (package-version-join (package-desc-version desc))))
-      (insert (format "  \"%s.\"\n" (package-desc-summary desc)))
+      (insert (format "(define-package \"%s\" \"%s\"\n" name version))
+      (insert (format "  \"%s.\"\n" summary))
       (if dependencies
           (let ((format (format "(%%-%ds \"%%s\")"
                                 (apply #'max 0
@@ -1006,22 +1019,23 @@ Use a sandbox if `package-build--use-sandbox' is non-nil."
                                         dependencies)))))
             (insert "  '("
                     (mapconcat (pcase-lambda (`(,pkg ,ver))
-                                 (format format pkg (package-version-join ver)))
+                                 (format format pkg ver))
                                dependencies "\n    ")
                     ")\n"))
         (insert "  ()\n"))
-      (pcase-dolist (`(,key . ,val) (package-desc-extras desc))
-        (cond
-         ((not val))
-         ((memq key '(:authors :maintainers))
-          (let ((sep (concat
-                      "\n"
-                      (make-string (+ 5 (length (symbol-name key))) ?\s))))
-            (insert (format "  %s '(" key)
-                    (mapconcat #'prin1-to-string val sep)
-                    ")\n")))
-         ((insert (format "  %s %s\n" key
-                          (prin1-to-string (macroexp-quote val)))))))
+      (pcase-dolist (`(,key ,slot) package-build--extras)
+        (let ((val (eieio-oref rcp slot)))
+          (cond
+           ((not val))
+           ((memq key '(:authors :maintainers))
+            (let ((sep (concat
+                        "\n"
+                        (make-string (+ 5 (length (symbol-name key))) ?\s))))
+              (insert (format "  %s '(" key)
+                      (mapconcat #'prin1-to-string val sep)
+                      ")\n")))
+           ((insert (format "  %s %s\n" key
+                            (prin1-to-string (macroexp-quote val))))))))
       (delete-char -1)
       (insert ")\n"))))
 
@@ -1185,127 +1199,80 @@ still be renamed."
 
 ;;; Extract Metadata
 
-(defun package-build--desc-from-library (rcp files &optional kind)
-  "Return the package description for RCP.
-
-This function is used for all packages that consist of a single
-file and those packages that consist of multiple files but lack
-a file named \"NAME-pkg.el\" or \"NAME-pkg.el\".
-
-The returned value is a `package-desc' struct (which see).
-The values of the `name' and `version' slots are taken from RCP
-itself.  The value of `kind' is taken from the KIND argument,
-which defaults to `single'; the other valid value being `tar'.
-
-Other information is taken from the file named \"NAME-pkg.el\",
-which should appear in FILES.  If it doesn't, return nil.  If a
-value is not specified in the used file, then fall back to the
-value specified in the file \"NAME.el\"."
-  (pcase-let* (((eieio name version commit revdesc) rcp)
-               (file (concat name ".el"))
-               (file (or (car (rassoc file files)) file))
-               (maintainers nil))
-    (and (file-exists-p file)
-         (with-temp-buffer
-           (insert-file-contents file)
-           (setq maintainers
-                 (if (fboundp 'lm-maintainers)
-                     (lm-maintainers)
-                   (with-no-warnings
-                     (and-let* ((maintainer (lm-maintainer)))
-                       (list maintainer)))))
-           (package-desc-from-define
-            name version
-            (package-build--normalize-summary
-             (save-excursion
-               (goto-char (point-min))
-               (and (re-search-forward "\
-^;;; [^ ]*\\.el ---[ \t]*\\(.*?\\)[ \t]*\\(-\\*-.*-\\*-[ \t]*\\)?$" nil t)
-                    (match-string-no-properties 1))))
-            (cond
-             ((fboundp 'lm-package-requires)
-              (lm-package-requires))
-             ((fboundp 'package--prepare-dependencies)
-              (and-let* ((require-lines
-                          (lm-header-multiline "package-requires")))
-                (package--prepare-dependencies
-                 (package-read-from-string
-                  (string-join require-lines " "))))))
-            ;; `:kind' and `:archive' are handled separately.
-            :kind       (or kind 'single)
-            ;; The other keyword arguments are appended to the alist
-            ;; stored in the `extras' slot.  Make sure `:commit', which
-            ;; always exists and never has to be removed, comes first in
-            ;; the end result, so we can post-process the returned data
-            ;; by side-effect, e.g., to remove somewhat broken maintainer
-            ;; information, that cannot easily be encoded as json (see
-            ;; `package-build--archive-alist-for-json').
-            :url        (if (fboundp 'lm-website)
-                            (lm-website)
-                          (with-no-warnings
-                            (lm-homepage)))
-            :keywords   (lm-keywords-list)
-            ;; Newer `package.el' versions support both `:maintainers' and
-            ;; `:maintainer', while older versions only support the latter.
-            :maintainer  (car maintainers)
-            :maintainers maintainers
-            :authors     (lm-authors)
-            :revdesc     revdesc
-            :commit      commit)))))
-
-(defun package-build--desc-from-package (rcp files)
-  "Return the package description for RCP.
-
-This function is used for packages that consist of multiple files.
-
-The returned value is a `package-desc' struct (which see).
-The values of the `name' and `version' slots are taken from RCP
-itself.  The value of `kind' is always `tar'.
-
-Other information is taken from the file named \"NAME.el\",
-which should appear in FILES.  If it doesn't, return nil."
-  (pcase-let* (((eieio name version commit revdesc) rcp)
-               (file (concat name "-pkg.el"))
-               (file (or (car (rassoc file files))
-                         file)))
-    (and (file-exists-p file)
-         (let ((form (with-temp-buffer
-                       (insert-file-contents file)
-                       (read (current-buffer)))))
-           (unless (eq (car form) 'define-package)
-             (package-build--error name "No define-package found in %s" file))
-           (pcase-let*
-               ((`(,_ ,_ ,_ ,summary ,deps . ,extra) form)
-                (deps (eval deps))
-                (alt-desc (package-build--desc-from-library rcp files))
-                (alt (and alt-desc (package-desc-extras alt-desc))))
-             (package-desc-from-define
-              name version
+(defun package-build--extract-from-library (rcp files)
+  "Store information from the main-library from FILES in RCP."
+  (let* ((name (oref rcp name))
+         (file (concat name ".el"))
+         (file (or (car (rassoc file files)) file)))
+    (when (file-exists-p file)
+      (with-temp-buffer
+        (insert-file-contents file)
+        (oset rcp summary
               (package-build--normalize-summary
-               summary
-               (and alt-desc (package-desc-summary alt-desc)))
-              (mapcar (pcase-lambda (`(,pkg ,ver))
-                        (unless (symbolp pkg)
-                          (package-build--error name
-                            "Invalid package name in dependency: %S" pkg))
-                        (list pkg ver))
-                      deps)
-              :kind       'tar
-              :url        (or (alist-get :url extra)
-                              (alist-get :homepage extra)
-                              (alist-get :url alt))
-              :keywords   (or (alist-get :keywords extra)
-                              (alist-get :keywords alt))
-              :maintainer (or (alist-get :maintainer extra)
-                              (alist-get :maintainer alt))
-              :authors    (or (alist-get :authors extra)
-                              (alist-get :authors alt))
-              :revdesc    revdesc
-              :commit     commit))))))
+               (save-excursion
+                 (goto-char (point-min))
+                 (and (re-search-forward "\
+^;;; [^ ]*\\.el ---[ \t]*\\(.*?\\)[ \t]*\\(-\\*-.*-\\*-[ \t]*\\)?$" nil t)
+                      (match-string-no-properties 1)))))
+        (oset rcp dependencies
+              (cond
+               ((fboundp 'lm-package-requires)
+                (lm-package-requires))
+               ((fboundp 'package--prepare-dependencies)
+                (and-let* ((require-lines
+                            (lm-header-multiline "package-requires")))
+                  (package--prepare-dependencies
+                   (package-read-from-string
+                    (string-join require-lines " ")))))))
+        (oset rcp webpage
+              (if (fboundp 'lm-website)
+                  (lm-website)
+                (with-no-warnings
+                  (lm-homepage))))
+        (oset rcp keywords (lm-keywords-list))
+        (oset rcp maintainers
+              (if (fboundp 'lm-maintainers)
+                  (lm-maintainers)
+                (with-no-warnings
+                  (and-let* ((maintainer (lm-maintainer)))
+                    (list maintainer)))))
+        (oset rcp authors (lm-authors))))))
 
-(defun package-build--normalize-summary (summary &optional fallback)
+(defun package-build--extract-from-package (rcp files)
+  "Store information from the \"*-pkg.el\" file from FILES in RCP."
+  (let* ((name (oref rcp name))
+         (file (concat name "-pkg.el"))
+         (file (or (car (rassoc file files)) file)))
+    (when (or (file-exists-p file)
+              (file-exists-p (setq file (concat file ".in"))))
+      (let ((form (with-temp-buffer
+                    (insert-file-contents file)
+                    (read (current-buffer)))))
+        (unless (eq (car-safe form) 'define-package)
+          (package-build--error name "No define-package found in %s" file))
+        (pcase-let* ((`(,_ ,_ ,_ ,summary ,deps . ,plist) form))
+          (when summary
+            (oset rcp summary (package-build--normalize-summary summary)))
+          (oset rcp dependencies
+                (mapcar (pcase-lambda (`(,pkg ,ver))
+                          (unless (symbolp pkg)
+                            (package-build--error name
+                              "Invalid package name in dependency: %S" pkg))
+                          (list pkg ver))
+                        (eval deps)))
+          (when-let ((v (or (alist-get :url plist)
+                            (alist-get :homepage plist))))
+            (oset rcp webpage v))
+          (when-let ((v (alist-get :keywords plist)))
+            (oset rcp keywords v))
+          (when-let ((v (alist-get :maintainers plist)))
+            (oset rcp maintainers v))
+          (when-let ((v (alist-get :authors plist)))
+            (oset rcp authors v)))))))
+
+(defun package-build--normalize-summary (summary)
   (if (or (not summary) (string-empty-p summary))
-      (or fallback "[No description available]")
+      "[No description available]"
     (setq summary (car (split-string summary "[\n\r]+" t "[\s\t]+")))
     (when (string-suffix-p "." summary)
       (setq summary (substring summary 0 -1)))
@@ -1586,16 +1553,17 @@ in `package-build-archive-dir'."
       (package-build--cleanup rcp))))
 
 (defun package-build--build-single-file-package (rcp files)
+  (oset rcp tarballp nil)
   (pcase-let* (((eieio name version commit revdesc) rcp)
                (file (caar files))
                (source (expand-file-name file))
                (target (expand-file-name (concat name "-" version ".el")
-                                         package-build-archive-dir))
-               (desc (package-build--desc-from-library rcp files)))
+                                         package-build-archive-dir)))
     (unless (equal (file-name-sans-extension (file-name-nondirectory file))
                    name)
       (package-build--error name
         "Single file %s does not match package name %s" file name))
+    (package-build--extract-from-library rcp files)
     (unless package-build--inhibit-build
       (copy-file source target t)
       (let ((enable-local-variables nil)
@@ -1608,27 +1576,28 @@ in `package-build-archive-dir'."
           (write-file target nil)
           (kill-buffer)))
       (package-build--write-pkg-readme rcp files))
-    (package-build--write-archive-entry desc)))
+    (package-build--write-archive-entry rcp)))
 
 (defun package-build--build-multi-file-package (rcp files)
   (pcase-let* (((eieio name version) rcp)
-               (tmpdir (file-name-as-directory (make-temp-file name t))))
+               (tmpdir (file-name-as-directory (make-temp-file name t)))
+               (target (expand-file-name (concat name "-" version) tmpdir)))
     (unless (or (rassoc (concat name ".el") files)
                 (rassoc (concat name "-pkg.el") files))
       (package-build--error name
         "%s[-pkg].el matching package name is missing" name))
-    (unwind-protect
-        (let* ((target (expand-file-name (concat name "-" version) tmpdir))
-               (desc (or (package-build--desc-from-package rcp files)
-                         (package-build--desc-from-library rcp files 'tar))))
-          (unless package-build--inhibit-build
+    (package-build--extract-from-library rcp files)
+    (package-build--extract-from-package rcp files)
+    (unless package-build--inhibit-build
+      (unwind-protect
+          (progn
             (package-build--copy-package-files files target)
-            (package-build--write-pkg-file desc target)
+            (package-build--write-pkg-file rcp target)
             (package-build--generate-info-files rcp files target)
             (package-build--create-tar rcp tmpdir)
             (package-build--write-pkg-readme rcp files))
-          (package-build--write-archive-entry desc))
-      (delete-directory tmpdir t nil))))
+        (delete-directory tmpdir t nil)))
+    (package-build--write-archive-entry rcp)))
 
 (defun package-build--cleanup (rcp)
   (cond ((cl-typep rcp 'package-git-recipe)
