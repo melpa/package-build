@@ -1537,9 +1537,9 @@ in `package-build-archive-dir'."
                (target (expand-file-name (concat name "-" version ".el")
                                          package-build-archive-dir))
                (desc (package-build--desc-from-library rcp files)))
-    (unless (member (downcase (file-name-nondirectory file))
-                    (list (downcase (concat name ".el"))
-                          (downcase (concat name ".el.in"))))
+    (unless (member (file-name-nondirectory file)
+                    (list (concat name ".el")
+                          (concat name ".el.in")))
       (package-build--error name
         "Single file %s does not match package name %s" file name))
     (unless package-build--inhibit-build
