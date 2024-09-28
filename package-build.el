@@ -422,12 +422,15 @@ Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING)."
                  (version-to-list (and (string-match regexp n)
                                        (match-string 1 n))))))
         (when (and v (version-list-<= version v))
-          (if (cl-typep rcp 'package-git-recipe)
-              (setq tag (concat "refs/tags/" n))
-            (setq tag n))
+          (setq tag n)
           (setq version v))))
     (and tag
-         (pcase-let ((`(,hash ,time) (package-build--select-commit rcp tag t)))
+         (pcase-let ((`(,hash ,time)
+                      (package-build--select-commit
+                       rcp (if (cl-typep rcp 'package-git-recipe)
+                               (concat "refs/tags/" tag)
+                             tag)
+                       t)))
            (list hash time (package-version-join version))))))
 
 (cl-defmethod package-build--list-tags ((_rcp package-git-recipe))
