@@ -944,21 +944,39 @@ Use a sandbox if `package-build--use-sandbox' is non-nil."
 ;;; Generate Files
 
 (defun package-build--write-pkg-file (desc dir)
-  (let ((name (package-desc-name desc)))
+  (let* ((name (package-desc-name desc))
+         (dependencies (package-desc-reqs desc)))
     (with-temp-file (expand-file-name (format "%s-pkg.el" name) dir)
-      (pp `(define-package ,(symbol-name name)
-             ,(package-version-join (package-desc-version desc))
-             ,(package-desc-summary desc)
-             ,(macroexp-quote
-               (mapcar (pcase-lambda (`(,pkg ,ver))
-                         (list pkg (package-version-join ver)))
-                       (package-desc-reqs desc)))
-             ,@(cl-mapcan (pcase-lambda (`(,key . ,val))
-                            (list key (macroexp-quote val)))
-                          (package-desc-extras desc)))
-          (current-buffer))
-      (princ ";; Local Variables:\n;; no-byte-compile: t\n;; End:\n"
-             (current-buffer)))))
+      (insert ";; -*- no-byte-compile: t -*-\n")
+      (insert (format "(define-package \"%s\" \"%s\"\n" name
+                      (package-version-join (package-desc-version desc))))
+      (insert (format "  \"%s.\"\n" (package-desc-summary desc)))
+      (if dependencies
+          (let ((format (format "(%%-%ds \"%%s\")"
+                                (apply #'max 0
+                                       (mapcar
+                                        (lambda (d) (length (symbol-name (car d))))
+                                        dependencies)))))
+            (insert "  '("
+                    (mapconcat (pcase-lambda (`(,pkg ,ver))
+                                 (format format pkg (package-version-join ver)))
+                               dependencies "\n    ")
+                    ")\n"))
+        (insert "  ()\n"))
+      (pcase-dolist (`(,key . ,val) (package-desc-extras desc))
+        (cond
+         ((not val))
+         ((memq key '(:authors :maintainers))
+          (let ((sep (concat
+                      "\n"
+                      (make-string (+ 5 (length (symbol-name key))) ?\s))))
+            (insert (format "  %s '(" key)
+                    (mapconcat #'prin1-to-string val sep)
+                    ")\n")))
+         ((insert (format "  %s %s\n" key
+                          (prin1-to-string (macroexp-quote val)))))))
+      (delete-char -1)
+      (insert ")\n"))))
 
 (defun package-build--tar-type ()
   "Return `bsd' or `gnu' depending on type of Tar executable.
