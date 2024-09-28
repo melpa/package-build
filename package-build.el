@@ -1177,37 +1177,48 @@ is the same as the value of `export_file_name'."
             (package-build--call-process
              rcp "install-info" "--dir=dir" info)))))))
 
-;;; Patch Libraries
-
-(defun package-build--update-or-insert-header (name value)
-  "Ensure current buffer has NAME header with the given VALUE.
-Any existing header will be preserved and given the \"X-Original-\" prefix.
-If VALUE is nil, the new header will not be inserted, but any original will
-still be renamed."
-  (goto-char (point-min))
-  (cond
-   ((let ((case-fold-search t))
-      (re-search-forward (format "^;+* *%s *: *" (regexp-quote name)) nil t))
-    (move-beginning-of-line nil)
-    (search-forward "V" nil t)
-    (backward-char)
-    (insert "X-Original-")
-    (move-beginning-of-line nil))
-   (t
-    ;; Put the new header in a sensible place if we can.
-    (re-search-forward
-     "^;+* *\\(Version\\|Package-Requires\\|Keywords\\|URL\\) *:" nil t)
-    (forward-line)))
-  (insert (format ";; %s: %s\n" name value)))
-
-(defun package-build--ensure-ends-here-line (file)
-  "Add the \"FILE ends here\" trailing line if it is missing."
-  (save-excursion
-    (goto-char (point-min))
-    (let ((trailer (format ";;; %s ends here" (file-name-nondirectory file))))
-      (unless (re-search-forward (format "^%s" (regexp-quote trailer)) nil t)
-        (goto-char (point-max))
-        (insert ?\n trailer ?\n)))))
+(defun package-build--set-version-headers (rcp file-or-dir)
+  (pcase-let (((eieio name version revdesc) rcp)
+              (single (file-regular-p file-or-dir)))
+    (dolist (file (if single
+                      (list file-or-dir)
+                    (directory-files file-or-dir t "\\.el\\'")))
+      (with-temp-buffer
+        (insert-file-contents file)
+        (let ((end (lm-code-start))
+              (pos nil))
+          (dolist (header '("Package-Version" "Version" "Package-Revision"))
+            (goto-char (point-min))
+            (when (re-search-forward (format "^;;+ +%s:.+" header) end t)
+              (unless pos
+                (setq pos (copy-marker (match-beginning 0))))
+              (delete-region (match-beginning 0) (1+ (line-end-position)))))
+          (when (or single
+                    (equal (file-name-nondirectory file) (concat name ".el")))
+            (unless pos
+              (cl-dolist (header '("Package-Requires" "SPDX-License-Identifier"
+                                   "License" "URL" "Homepage" "Keywords"))
+                (goto-char (point-min))
+                (when (re-search-forward (format "^;;+ +%s:.+" header) end t)
+                  (setq pos (copy-marker (match-beginning 0)))
+                  (cl-return-from nil))))
+            (unless pos
+              (cl-dolist (header '("Commentary" "Code"))
+                (goto-char (point-min))
+                (when (re-search-forward (format "^;;; %s:$" header) end t)
+                  (goto-char (match-beginning 0))
+                  (insert "\n")
+                  (setq pos (copy-marker (match-beginning 0)))
+                  (cl-return-from nil))))
+            (when pos
+              (goto-char pos)
+              (insert (format ";; Package-Version: %s\n" version))
+              (insert (format ";; Package-Revision: %s\n" revdesc))))
+          (when (and single
+                     (not (search-forward (format ";;; %s.el ends here" name))))
+            (goto-char (point-max))
+            (insert (format "\n;;; %s.el ends here\n" name)))
+          (write-region nil nil file))))))
 
 ;;; Extract Metadata
 
@@ -1576,6 +1587,7 @@ in `package-build-archive-dir'."
       (unwind-protect
           (progn
             (package-build--copy-package-files files target)
+            (package-build--set-version-headers rcp target)
             (package-build--write-pkg-file rcp target)
             (package-build--generate-info-files rcp files target)
             (package-build--create-tar rcp tmpdir)
@@ -1585,7 +1597,7 @@ in `package-build-archive-dir'."
 
 (defun package-build--build-single-file-package (rcp files)
   (oset rcp tarballp nil)
-  (pcase-let* (((eieio name version commit revdesc) rcp)
+  (pcase-let* (((eieio name version) rcp)
                (file (caar files))
                (source (expand-file-name file))
                (target (expand-file-name (concat name "-" version ".el")
@@ -1594,18 +1606,10 @@ in `package-build-archive-dir'."
                    name)
       (package-build--error name
         "Single file %s does not match package name %s" file name))
-    (package-build--extract-from-library rcp files)
+    (package-build--extract-from-library rcp target)
     (unless package-build--inhibit-build
       (copy-file source target t)
-      (let ((enable-local-variables nil)
-            (make-backup-files nil)
-            (before-save-hook nil))
-        (with-current-buffer (find-file target)
-          (package-build--update-or-insert-header "Package-Commit" commit)
-          (package-build--update-or-insert-header "Package-Version" version)
-          (package-build--ensure-ends-here-line source)
-          (write-file target nil)
-          (kill-buffer)))
+      (package-build--set-version-headers rcp target)
       (package-build--write-pkg-readme rcp files))
     (package-build--write-archive-entry rcp)))
 
@@ -1623,6 +1627,7 @@ in `package-build-archive-dir'."
       (unwind-protect
           (progn
             (package-build--copy-package-files files target)
+            (package-build--set-version-headers rcp target)
             (package-build--write-pkg-file rcp target)
             (package-build--generate-info-files rcp files target)
             (package-build--create-tar rcp tmpdir)
