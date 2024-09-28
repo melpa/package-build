@@ -126,11 +126,16 @@ If this is non-nil, then it overrides
   (list #'package-build-tag-version)
   "Functions used to determine the current release of a package.
 
-Each function is called in order, with the recipe object as
-argument, until one returns non-nil.  The returned value must
-have the form (COMMIT TIME VERSION), where COMMIT is the commit
-chosen by the function, TIME is its committer date, and VERSION
-is the version string chosen for COMMIT.
+Each function is called in order, with the recipe object as argument,
+until one returns non-nil.  The returned value must have the form
+\(COMMIT TIME VERSION REVDESC [TAG]), where COMMIT is the hash of the
+commit chosen by the function, TIME is its committer date, VERSION is
+the version string chosen for COMMIT, and REVDESC is a representation
+of COMMIT.  If a tag was involve in determining the version, then TAG
+is that tag and REVDESC contains that tag and an abbreviated commit
+hash.  If TAG exactly matches COMMIT, then REVDESC is just that TAG.
+Otherwise if no tag was involved then TAG is omitted and REVDESC is
+an abbreviation of COMMIT.
 
 If obsolete `package-build-get-version-function' is non-nil,
 then that overrides the value set here."
@@ -144,11 +149,16 @@ then that overrides the value set here."
   (list #'package-build-timestamp-version)
   "Function used to determine the current snapshot of a package.
 
-Each function is called in order, with the recipe object as
-argument, until one returns non-nil.  The returned value must
-have the form (COMMIT TIME VERSION), where COMMIT is the commit
-chosen by the function, TIME is its committer date, and VERSION
-is the version string chosen for COMMIT.
+Each function is called in order, with the recipe object as argument,
+until one returns non-nil.  The returned value must have the form
+\(COMMIT TIME VERSION REVDESC [TAG]), where COMMIT is the hash of the
+commit chosen by the function, TIME is its committer date, VERSION is
+the version string chosen for COMMIT, and REVDESC is a representation
+of COMMIT.  If a tag was involve in determining the version, then TAG
+is that tag and REVDESC contains that tag and an abbreviated commit
+hash.  If TAG exactly matches COMMIT, then REVDESC is just that TAG.
+Otherwise if no tag was involved then TAG is omitted and REVDESC is
+an abbreviation of COMMIT.
 
 Some of the functions that return snapshot versions, internally
 use `package-build-release-version-functions' to determine the
@@ -358,7 +368,7 @@ being run for a particular package."
 (defun package-build--select-version (rcp)
   (pcase-let*
       ((default-directory (package-recipe--working-tree rcp))
-       (`(,commit ,time ,version)
+       (`(,commit ,time ,version ,revdesc)
         (cond
          ((with-no-warnings package-build-get-version-function)
           (display-warning 'package-build "\
@@ -378,7 +388,8 @@ or snapshots are build.")
                  "Cannot determine version for %s" (oref rcp name))
       (oset rcp commit commit)
       (oset rcp time time)
-      (oset rcp version version))))
+      (oset rcp version version)
+      (oset rcp revdesc revdesc))))
 
 (cl-defmethod package-build--select-commit ((rcp package-git-recipe) rev exact)
   (pcase-let*
@@ -409,11 +420,20 @@ or snapshots are build.")
          " ")))
     (list hash (string-to-number time))))
 
+(cl-defmethod package-build--revdesc ((_rcp package-git-recipe) rev &optional tag)
+  (if tag
+      (car (process-lines "git" "describe" "--always" "--long"
+                          "--abbrev=12" "--match" tag rev))
+    (car (process-lines "git" "rev-parse" "--short=12" rev))))
+
+(cl-defmethod package-build--revdesc ((_rcp package-hg-recipe) rev &optional _tag)
+  rev)
+
 ;;;; Tag
 
 (defun package-build-tag-version (rcp)
   "Determine version corresponding to largest version tag for RCP.
-Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING)."
+Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING REVDESC TAG) or nil."
   (let ((regexp (package-build--version-regexp rcp))
         (tag nil)
         (version '(0)))
@@ -431,7 +451,10 @@ Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING)."
                                (concat "refs/tags/" tag)
                              tag)
                        t)))
-           (list hash time (package-version-join version))))))
+           (list hash time
+                 (package-version-join version)
+                 (package-build--revdesc rcp hash tag)
+                 tag)))))
 
 (cl-defmethod package-build--list-tags ((_rcp package-git-recipe))
   (process-lines "git" "tag" "--list"))
@@ -445,14 +468,14 @@ Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING)."
 ;;;; Header
 
 (defun package-build-header-version (rcp)
-  "Return version specified in the header of the main library.
+  "Determine version specified in the header of the main library.
 
 Walk the history of the main library until a commit is found
 which changes the `Package-Version' or `Version' header in the
 main library to a version that qualifies as a release, ignoring
 any pre-releases.
 
-Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING)."
+Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING REVDESC) or nil."
   (and-let* ((lib (package-build--main-library rcp)))
     (with-temp-buffer
       (let (commit date version)
@@ -476,7 +499,8 @@ Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING)."
         (and version
              (list commit
                    (string-to-number date)
-                   (package-version-join (version-to-list version))))))))
+                   (package-version-join (version-to-list version))
+                   (package-build--revdesc rcp commit)))))))
 
 (defun package-build--main-library (rcp)
   (package-build--match-library rcp))
@@ -512,8 +536,8 @@ Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING)."
 ;;;; NAME-pkg
 
 (defun package-build-pkg-version (rcp)
-  "Return version specified in the \"NAME-pkg.el\" file.
-Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING)."
+  "Determine version specified in the \"NAME-pkg.el\" file.
+Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING REVDESC) or nil."
   (and-let* ((file (package-build--pkgfile rcp)))
     (let ((regexp (package-build--version-regexp rcp))
           commit date version)
@@ -538,7 +562,8 @@ Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING)."
       (and version
            (list commit
                  (string-to-number date)
-                 (package-version-join version))))))
+                 (package-version-join version)
+                 (package-build--revdesc rcp commit))))))
 
 (defun package-build--pkgfile (rcp)
   (package-build--match-library rcp (concat (oref rcp name) "-pkg.el")))
@@ -569,7 +594,7 @@ Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING)."
 
 (defun package-build-timestamp-version (rcp)
   "Determine timestamp version corresponding to latest relevant commit for RCP.
-Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING), where
+Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING REVDESC).
 VERSION-STRING has the format \"%Y%m%d.%H%M\"."
   (pcase-let ((`(,hash ,time) (package-build--timestamp-version rcp)))
     (list hash time
@@ -577,7 +602,8 @@ VERSION-STRING has the format \"%Y%m%d.%H%M\"."
           ;; that is lost when stored in archive-contents.
           (concat (format-time-string "%Y%m%d." time t)
                   (format "%d" (string-to-number
-                                (format-time-string "%H%M" time t)))))))
+                                (format-time-string "%H%M" time t))))
+          (package-build--revdesc rcp hash))))
 
 (cl-defmethod package-build--timestamp-version ((rcp package-git-recipe))
   (pcase-let*
@@ -622,10 +648,10 @@ Use `package-build-release-version-functions' to determine
 RELEASE.  TIMESTAMP is the COMMITTER-DATE for the identified
 last relevant commit, using the format \"%Y%m%d.%H%M\".
 
-Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING)."
+Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING REVDESC) or nil."
   (pcase-let*
       ((`(,scommit ,stime ,sversion) (package-build-timestamp-version rcp))
-       (`(,rcommit ,rtime ,rversion)
+       (`(,rcommit ,rtime ,rversion ,rrevdesc ,tag)
         (run-hook-with-args-until-success
          'package-build-release-version-functions rcp))
        (ahead (package-build--commit-count rcp scommit rcommit)))
@@ -635,14 +661,15 @@ Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING)."
             (package-version-join
              (nconc (if rversion (version-to-list rversion) (list 0 0))
                     (list 0)
-                    (version-to-list sversion)))))
+                    (version-to-list sversion)))
+            (package-build--revdesc rcp scommit tag)))
      (t
       ;; The latest commit, which touched a relevant file, is either the
       ;; latest release itself, or a commit before that.  Distribute the
       ;; same commit/release as on the stable channel; as it would not
       ;; make sense for the development channel to lag behind the latest
       ;; release.
-      (list rcommit rtime (package-version-join rversion))))))
+      (list rcommit rtime (package-version-join rversion) rrevdesc tag)))))
 
 ;;;; Release+Count
 
@@ -657,12 +684,12 @@ last relevant commit.  If RELEASE is the same as for the last
 snapshot but COUNT is not larger than for that snapshot because
 history was rewritten, then use \"RELEASE.0.OLDCOUNT.NEWCOUNT\".
 
-Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING).
+Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING REVDESC) or nil.
 \n(fn RCP)"
   (pcase-let*
       ;; Get the commit but ignore the associated timestamp.
       ((`(,scommit ,stime ,_) (package-build-timestamp-version rcp))
-       (`(,rcommit ,rtime ,version)
+       (`(,rcommit ,rtime ,version ,rrevdesc ,tag)
         (run-hook-with-args-until-success
          'package-build-release-version-functions rcp))
        (version (and rcommit (version-to-list version)))
@@ -695,14 +722,15 @@ Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING).
                      (if single-count
                          ahead ; Pretend time-travel doesn't happen.
                        (package-build--ensure-count-increase
-                        rcp (copy-sequence version) ahead))))))
+                        rcp (copy-sequence version) ahead))))
+            (package-build--revdesc rcp scommit tag)))
      (t
       ;; The latest commit, which touched a relevant file, is either the
       ;; latest release itself, or a commit before that.  Distribute the
       ;; same commit/release as on the stable channel; as it would not
       ;; make sense for the development channel to lag behind the latest
       ;; release.
-      (list rcommit rtime (package-version-join version))))))
+      (list rcommit rtime (package-version-join version) rrevdesc tag)))))
 
 (defun package-build--ensure-count-increase (rcp version ahead)
   (if-let ((previous (cdr (assq (intern (oref rcp name))
@@ -803,7 +831,9 @@ attractive to users, which might encourage some maintainers to
 release more often, or if they have never done a release before,
 to finally get around to that initial release.  In other words,
 this might help overcome the release channel's chicken and egg
-problem."
+problem.
+
+Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING REVDESC)."
   (let ((package-build-release-version-functions nil))
     (package-build-release+count-version rcp)))
 
@@ -1158,7 +1188,7 @@ Other information is taken from the file named \"NAME-pkg.el\",
 which should appear in FILES.  If it doesn't, return nil.  If a
 value is not specified in the used file, then fall back to the
 value specified in the file \"NAME.el\"."
-  (pcase-let* (((eieio name version commit) rcp)
+  (pcase-let* (((eieio name version commit revdesc) rcp)
                (file (concat name ".el"))
                (file (or (car (rassoc file files)) file))
                (maintainers nil))
@@ -1207,6 +1237,7 @@ value specified in the file \"NAME.el\"."
             :maintainer  (car maintainers)
             :maintainers maintainers
             :authors     (lm-authors)
+            :revdesc     revdesc
             :commit      commit)))))
 
 (defun package-build--desc-from-package (rcp files)
@@ -1220,7 +1251,7 @@ itself.  The value of `kind' is always `tar'.
 
 Other information is taken from the file named \"NAME.el\",
 which should appear in FILES.  If it doesn't, return nil."
-  (pcase-let* (((eieio name version commit) rcp)
+  (pcase-let* (((eieio name version commit revdesc) rcp)
                (file (concat name "-pkg.el"))
                (file (or (car (rassoc file files))
                          file)))
@@ -1256,6 +1287,7 @@ which should appear in FILES.  If it doesn't, return nil."
                               (alist-get :maintainer alt))
               :authors    (or (alist-get :authors extra)
                               (alist-get :authors alt))
+              :revdesc    revdesc
               :commit     commit))))))
 
 (defun package-build--normalize-summary (summary &optional fallback)
@@ -1550,7 +1582,7 @@ in `package-build-archive-dir'."
       (package-build--cleanup rcp))))
 
 (defun package-build--build-single-file-package (rcp files)
-  (pcase-let* (((eieio name version commit) rcp)
+  (pcase-let* (((eieio name version commit revdesc) rcp)
                (file (caar files))
                (source (expand-file-name file))
                (target (expand-file-name (concat name "-" version ".el")
