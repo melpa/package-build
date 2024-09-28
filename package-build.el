@@ -283,8 +283,8 @@ such as \"1A\" or \".5\", and only supports \".\" as separator.
 
 The part before the first capture group should match prefixes
 commonly used in version tags.  To support tags that contain
-the name package of the package (e.g., \"foobar-0.1.3\"), the
-name of the package is substituted for \"%p\".
+the name of the package (e.g., \"foobar-0.1.3\"), the name of
+the package is substituted for \"%p\".
 
 Note that this variable can be overridden in a package's recipe,
 using the `:version-regexp' slot."
