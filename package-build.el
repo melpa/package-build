@@ -181,15 +181,27 @@ If nil (the default), then all packages are build."
   :type '(choice (const :tag "build all") function))
 
 (defcustom package-build-build-function
-  #'package-build--build-multi-file-package
+  #'package-build--build-package
   "Low-level function used to build a package.
-By default a tarball is used for all packages, including those
-consisting of a single file.  It this is nil, then single-file
-packages are distributed without using tarballs."
+
+The default, `package-build--build-package', builds all packages the
+same way.  Metadata is extracted from the library whose name matches
+the name of the package.  The `NAME-pkg.el' file is not used as an
+input.  The package is distributed as a tarball, containing at least
+that library and a generated `NAME-pkg.el' file.
+
+Melpa still uses `package-build--build-multi-file-package'.
+Like the above function it uses a tarball for all packages, but it
+extracts metadata from both the main library and the `NAME-pkg.el'
+file, with non-nil values from the latter taking precedence.
+
+In the distant past, either `package-build--multi-file-package' or
+`package-build--single-file-package' were used by Melpa, depending on
+the number of libraries.  Set this variable to nil to do that again."
   :group 'package-build
-  :type '(choice (const :tag "use tarball for all packages"
-                        package-build--build-multi-file-package)
-                 (const :tag "only use tarball for multi-file packages" nil)
+  :type '(choice (const package-build--build-package)
+                 (const package-build--build-multi-file-package)
+                 (const nil)
                  function))
 
 (defcustom package-build-run-recipe-org-exports nil
@@ -1551,6 +1563,25 @@ in `package-build-archive-dir'."
               (package-build--write-badge-image
                name version package-build-archive-dir))))
       (package-build--cleanup rcp))))
+
+(defun package-build--build-package (rcp files)
+  (pcase-let* (((eieio name version) rcp)
+               (tmpdir (file-name-as-directory (make-temp-file name t)))
+               (target (expand-file-name (concat name "-" version) tmpdir)))
+    (unless (rassoc (concat name ".el") files)
+      (package-build--error name
+        "Missing library \"%s.el\" matching package name `%s'" name name))
+    (package-build--extract-from-library rcp files)
+    (unless package-build--inhibit-build
+      (unwind-protect
+          (progn
+            (package-build--copy-package-files files target)
+            (package-build--write-pkg-file rcp target)
+            (package-build--generate-info-files rcp files target)
+            (package-build--create-tar rcp tmpdir)
+            (package-build--write-pkg-readme rcp files))
+        (delete-directory tmpdir t nil)))
+    (package-build--write-archive-entry rcp)))
 
 (defun package-build--build-single-file-package (rcp files)
   (oset rcp tarballp nil)
