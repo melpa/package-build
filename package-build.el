@@ -947,7 +947,8 @@ Use a sandbox if `package-build--use-sandbox' is non-nil."
   (let* ((name (package-desc-name desc))
          (dependencies (package-desc-reqs desc)))
     (with-temp-file (expand-file-name (format "%s-pkg.el" name) dir)
-      (insert ";; -*- no-byte-compile: t -*-\n")
+      (insert
+       ";; -*- mode: lisp-data; no-byte-compile: t; lexical-binding: nil -*-\n")
       (insert (format "(define-package \"%s\" \"%s\"\n" name
                       (package-version-join (package-desc-version desc))))
       (insert (format "  \"%s.\"\n" (package-desc-summary desc)))
