@@ -1554,8 +1554,12 @@ Return the archive entry for the package and store the package
 in `package-build-archive-dir'."
   (let ((default-directory (package-recipe--working-tree rcp)))
     (unwind-protect
-        (progn
+        (pcase-let (((eieio name version commit revdesc) rcp)
+                    (process-environment (copy-sequence process-environment)))
           (package-build--checkout rcp)
+          (setenv "PACKAGE_VERSION" version)
+          (setenv "PACKAGE_REVISION" commit)
+          (setenv "PACKAGE_REVDESC" revdesc)
           (when-let* ((package-build-run-recipe-shell-command)
                       (command (oref rcp shell-command)))
             (package-build--message "Running %s" command)
@@ -1578,7 +1582,7 @@ in `package-build-archive-dir'."
               (package-build--build-multi-file-package rcp files)))
             (when package-build-badge-data
               (package-build--write-badge-image
-               (oref rcp name) (oref rcp version) package-build-archive-dir))))
+               name version package-build-archive-dir))))
       (package-build--cleanup rcp))))
 
 (defun package-build--build-single-file-package (rcp files)
