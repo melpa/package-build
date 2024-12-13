@@ -458,7 +458,7 @@ Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING REVDESC TAG) or nil."
   (process-lines "git" "tag" "--list"))
 
 (cl-defmethod package-build--list-tags ((_rcp package-hg-recipe))
-  (process-lines "hg" "tags" "--quiet"))
+  (delete "tip" (process-lines "hg" "tags" "--quiet")))
 
 (define-obsolete-function-alias 'package-build-get-tag-version
   'package-build-tag-version "Package-Build 5.0.0")
