@@ -978,7 +978,7 @@ Use a sandbox if `package-build--use-sandbox' is non-nil."
 ;;; Generate Files
 
 (defvar package-build--extras
-  '((:url url)
+  '((:url webpage)
     (:commit commit)
     (:revdesc revdesc)
     (:keywords keywords)
