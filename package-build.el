@@ -107,7 +107,7 @@ This option is used to determine whether failure to come up with
 a version string should be considered an error or not.
 
 Currently this defaults to (not package-build-stable), but the
-default is likely to be changed to just `t' in the future.  See
+default is likely to be changed to just t in the future.  See
 also the commit that added this option."
   :group 'package-build
   :type 'boolean
