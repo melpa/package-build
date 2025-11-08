@@ -10,21 +10,21 @@ DEPS  = compat
 all: lisp
 
 help:
-	$(info make all          - generate byte-code and autoloads)
-	$(info make lisp         - generate byte-code and autoloads)
-	$(info make redo         - re-generate byte-code and autoloads)
-	$(info make test         - run tests)
-	$(info make demo         - run tests showing their documentation)
-	$(info make clean        - remove generated files)
+	$(info make all     -- Build lisp)
+	$(info make lisp    -- Build lisp)
+	$(info make redo    -- Build lisp from scratch)
+	$(info make test    -- Run tests)
+	$(info make demo    -- Demo version generation)
+	$(info make clean   -- Remove built files)
 	@printf "\n"
 
-redo: clean $(ELCS) loaddefs check-declare
+redo: clean $(ELCS) autoloads check-declare
 	@$(MAKE) -C test lisp
 
-lisp: $(ELCS) loaddefs check-declare
+lisp: $(ELCS) autoloads check-declare
 	@$(MAKE) -C test lisp
 
-loaddefs: $(PKG)-autoloads.el
+autoloads: $(PKG)-autoloads.el
 
 %.elc: %.el
 	@printf "Compiling $<\n"
