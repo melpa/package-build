@@ -49,7 +49,7 @@ clean:
 
 $(PKG)-autoloads.el: $(ELS)
 	@printf " Creating $@\n"
-	@$(EMACS) -Q --batch -l autoload -l cl-lib --eval "\
+	@$(EMACS) -Q --batch -l autoload --eval "\
 (let* ((file (expand-file-name \"$@\"))\
        (generated-autoload-file file)\
        (coding-system-for-write 'utf-8-emacs-unix)\
