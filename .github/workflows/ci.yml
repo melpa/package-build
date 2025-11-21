@@ -10,7 +10,7 @@ jobs:
         package: [evil, magit, realgud, edts, elpher, which-key-posframe]
     steps:
     - name: checkout package-build
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
       with:
         path: package-build
         fetch-depth: 1
