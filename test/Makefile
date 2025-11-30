@@ -5,7 +5,7 @@ LOAD_PATH += -L ../
 
 test: lisp
 	@export MELPA_BASE=$$(mktemp -d) && \
-	$(BATCH) --eval "(progn\
+	$(EMACS_BATCH) --eval "(progn\
 	(setq package-build--melpa-base \"$$MELPA_BASE\")\
 	(load-file \"$(TOP)test/package-build-tests.el\")\
 	(ert-run-tests-batch-and-exit))" && \
@@ -13,7 +13,7 @@ test: lisp
 
 demo: lisp
 	@export MELPA_BASE=$$(mktemp -d) && \
-	PB_TEST_VERBOSE=true $(BATCH) --eval "(progn\
+	PB_TEST_VERBOSE=true $(EMACS_BATCH) --eval "(progn\
 	(setq package-build--melpa-base \"$$MELPA_BASE\")\
 	(load-file \"$(TOP)test/package-build-tests.el\")\
 	(ert-run-tests-batch-and-exit))" && \
@@ -23,4 +23,4 @@ lisp: $(addprefix ../,$(ELCS)) $(PKG)-tests.elc
 
 %.elc: %.el
 	@printf "Compiling $<\n"
-	@$(BATCH) --funcall batch-byte-compile $<
+	@$(EMACS_BATCH) --funcall batch-byte-compile $<
