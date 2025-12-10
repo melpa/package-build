@@ -24,8 +24,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        sudo apt-get install emacs
-        sudo apt-get install git mercurial texinfo
+        sudo apt-get install emacs git mercurial texinfo imagemagick
 
         # Work around SSL-related failures, see
         # https://stackoverflow.com/questions/21477683/mercurial-https-clone-abort-error-wrong-version-number
