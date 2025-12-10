@@ -1,4 +1,5 @@
-TOP := $(dir $(lastword $(MAKEFILE_LIST)))
+# LOAD_PATH has to work from "./" and "./test/".
+TOP := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
 
 PKG = package-build
 
@@ -10,7 +11,7 @@ ELCS  = $(ELS:.el=.elc)
 
 DEPS  = compat
 
-LOAD_PATH ?= $(addprefix -L ../../,$(DEPS))
+LOAD_PATH ?= $(addprefix -L $(TOP)../,$(DEPS))
 LOAD_PATH += -L .
 
 VERSION ?= $(shell test -e $(TOP).git && git describe --tags --abbrev=0 | cut -c2-)
