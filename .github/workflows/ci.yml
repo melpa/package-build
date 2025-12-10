@@ -33,5 +33,4 @@ jobs:
     - name: Build ${{ matrix.package }}
       run: |
         cd melpa
-
         make recipes/${{ matrix.package }}
