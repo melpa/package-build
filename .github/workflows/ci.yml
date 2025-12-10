@@ -16,7 +16,7 @@ jobs:
         fetch-depth: 1
 
     - name: Checkout melpa
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
       with:
         path: melpa
         repository: melpa/melpa
