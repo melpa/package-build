@@ -1231,6 +1231,11 @@ is the same as the value of `export_file_name'."
 
 ;;; Extract Metadata
 
+(defconst package-build--http-regexp
+  (concat
+   "\\`\\(http\\)://"
+   (regexp-opt (list "github.com" "gitlab.com" "codeberg.org" "git.sr.ht"))))
+
 (defun package-build--extract-from-library (rcp files)
   "Store information from the main-library from FILES in RCP."
   (let* ((name (oref rcp name))
@@ -1257,10 +1262,13 @@ is the same as the value of `export_file_name'."
                    (package-read-from-string
                     (string-join require-lines " ")))))))
         (oset rcp webpage
-              (or (cond ((fboundp 'lm-website)
-                         (lm-website))
-                        ((fboundp 'lm-homepage)
-                         (lm-homepage)))
+              (or (let ((site (cond ((fboundp 'lm-website)
+                                     (lm-website))
+                                    ((fboundp 'lm-homepage)
+                                     (lm-homepage)))))
+                    (if (string-match package-build--http-regexp site)
+                        (replace-match "https" t t site 1)
+                      site))
                   (and-let* ((format (oref rcp repopage-format)))
                     (format format (oref rcp repo)))))
         (oset rcp keywords (lm-keywords-list))
@@ -1298,7 +1306,10 @@ is the same as the value of `export_file_name'."
                         (eval deps)))
           (when-let ((v (or (alist-get :url plist)
                             (alist-get :homepage plist))))
-            (oset rcp webpage v))
+            (oset rcp webpage
+                  (if (string-match package-build--http-regexp v)
+                      (replace-match "https" t t v 1)
+                    v)))
           (when-let ((v (alist-get :keywords plist)))
             (oset rcp keywords v))
           (when-let ((v (alist-get :maintainers plist)))
