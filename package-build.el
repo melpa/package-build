@@ -1257,19 +1257,19 @@ is the same as the value of `export_file_name'."
                    (package-read-from-string
                     (string-join require-lines " ")))))))
         (oset rcp webpage
-              (or (if (fboundp 'lm-website)
-                      (lm-website)
-                    (with-no-warnings
-                      (lm-homepage)))
+              (or (cond ((fboundp 'lm-website)
+                         (lm-website))
+                        ((fboundp 'lm-homepage)
+                         (lm-homepage)))
                   (and-let* ((format (oref rcp repopage-format)))
                     (format format (oref rcp repo)))))
         (oset rcp keywords (lm-keywords-list))
         (oset rcp maintainers
-              (if (fboundp 'lm-maintainers)
-                  (lm-maintainers)
-                (with-no-warnings
-                  (and-let* ((maintainer (lm-maintainer)))
-                    (list maintainer)))))
+              (cond ((fboundp 'lm-maintainers)
+                     (lm-maintainers))
+                    ((fboundp 'lm-maintainer)
+                     (and-let* ((maintainer (lm-maintainer)))
+                       (list maintainer)))))
         (oset rcp authors (lm-authors))))))
 
 (defun package-build--extract-from-package (rcp files)
