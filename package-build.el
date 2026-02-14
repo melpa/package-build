@@ -1262,10 +1262,10 @@ is the same as the value of `export_file_name'."
                    (package-read-from-string
                     (string-join require-lines " ")))))))
         (oset rcp webpage
-              (or (let ((site (cond ((fboundp 'lm-website)
-                                     (lm-website))
-                                    ((fboundp 'lm-homepage)
-                                     (lm-homepage)))))
+              (or (and-let* ((site (cond ((fboundp 'lm-website)
+                                          (lm-website))
+                                         ((fboundp 'lm-homepage)
+                                          (lm-homepage)))))
                     (if (string-match package-build--http-regexp site)
                         (replace-match "https" t t site 1)
                       site))
