@@ -357,6 +357,30 @@ being run for a particular package."
                     (file-locked (setq delay (* 2 delay)) :retry)
                     (t (message "LOGGING ERROR: %s" err) nil)))))))
 
+(defmacro package-build--static-if (condition then-form &rest else-forms)
+  (declare (indent 2)
+           (debug (sexp sexp &rest sexp)))
+  (if (eval condition lexical-binding)
+      then-form
+    (cons 'progn else-forms)))
+
+(defmacro package-build--log-errors (&rest body)
+  (declare (indent 1))
+  (package-build--static-if (fboundp 'handler-bind) ;Emacs >= 30.1
+      `(handler-bind
+           ((error (lambda (err)
+                     (unless (eq (car err) 'package-build-error)
+                       (package-build--log name err)))))
+         ,@body)
+    ;; When using Emacs < 30.1 we have to choose between
+    ;; 1. Logging a summary to errors.log
+    ;; `(condition-case err
+    ;;      (progn ,@body)
+    ;;    (package-build-error nil)
+    ;;    (error (package-build--log name err)))
+    ;; 2. Logging the (correct) backtrace to NAME.log and stdout.
+    `(progn ,@body)))
+
 ;;; Version Handling
 ;;;; Common
 
@@ -1528,47 +1552,49 @@ are subsequently dumped."
   (unless (file-exists-p package-build-archive-dir)
     (package-build--message "Creating directory %s" package-build-archive-dir)
     (make-directory package-build-archive-dir))
-  (let* ((start-time (current-time))
-         (rcp (package-recipe-lookup name))
-         (url (oref rcp url))
-         (repo (oref rcp repo))
-         (fetcher (package-recipe--fetcher rcp))
-         (version nil)
-         (msg (format "%s%s package %s"
-                      (if noninteractive " • " "")
-                      (if package-build--inhibit-update "Fetching" "Building")
-                      name)))
-    (cond ((and package-build-verbose (not noninteractive))
-           (message "%s..." msg)
-           (message "Package: %s" name)
-           (message "Fetcher: %s" fetcher)
-           (message "Source:  %s\n" url))
-          ((message "%s (from %s)..." msg
-                    (if repo (format "%s:%s" fetcher repo) url))))
-    (package-build--fetch rcp)
-    (unless package-build--inhibit-update
-      (package-build--select-version rcp)
-      (setq version (oref rcp version))
-      (when version
-        (package-build--package rcp)
-        (when dump-archive-contents
-          (package-build-dump-archive-contents)))
-      (if (not version)
-          (message " ✗ Cannot determine version!")
-        (message " ✓ Success:")
-        (pcase-dolist (`(,file . ,attrs)
-                       (directory-files-and-attributes
-                        package-build-archive-dir nil
-                        (format "\\`%s-[0-9]+" name)))
-          (message "  %s  %s"
-                   (format-time-string
-                    "%FT%T%z" (file-attribute-modification-time attrs) t)
-                   file))))
-    (message "%s %s in %.3fs, finished at %s"
-             (if version "Built" "Fetched")
-             name
-             (float-time (time-since start-time))
-             (format-time-string "%FT%T%z" nil t))))
+  ;; On Emacs < 30.1 this expands to just `progn'.
+  (package-build--log-errors
+    (let* ((start-time (current-time))
+           (rcp (package-recipe-lookup name))
+           (url (oref rcp url))
+           (repo (oref rcp repo))
+           (fetcher (package-recipe--fetcher rcp))
+           (version nil)
+           (msg (format "%s%s package %s"
+                        (if noninteractive " • " "")
+                        (if package-build--inhibit-update "Fetching" "Building")
+                        name)))
+      (cond ((and package-build-verbose (not noninteractive))
+             (message "%s..." msg)
+             (message "Package: %s" name)
+             (message "Fetcher: %s" fetcher)
+             (message "Source:  %s\n" url))
+            ((message "%s (from %s)..." msg
+                      (if repo (format "%s:%s" fetcher repo) url))))
+      (package-build--fetch rcp)
+      (unless package-build--inhibit-update
+        (package-build--select-version rcp)
+        (setq version (oref rcp version))
+        (when version
+          (package-build--package rcp)
+          (when dump-archive-contents
+            (package-build-dump-archive-contents)))
+        (if (not version)
+            (message " ✗ Cannot determine version!")
+          (message " ✓ Success:")
+          (pcase-dolist (`(,file . ,attrs)
+                         (directory-files-and-attributes
+                          package-build-archive-dir nil
+                          (format "\\`%s-[0-9]+" name)))
+            (message "  %s  %s"
+                     (format-time-string
+                      "%FT%T%z" (file-attribute-modification-time attrs) t)
+                     file))))
+      (message "%s %s in %.3fs, finished at %s"
+               (if version "Built" "Fetched")
+               name
+               (float-time (time-since start-time))
+               (format-time-string "%FT%T%z" nil t)))))
 
 ;;;###autoload
 (defun package-build--package (rcp)
