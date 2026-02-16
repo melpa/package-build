@@ -193,9 +193,9 @@ a message for each invalid recipe."
         (cl-assert fetcher nil ":fetcher is missing")
         (if (memq fetcher package-recipe--forge-fetchers)
             (progn
-              (cl-assert (plist-get plist :repo) ":repo is missing")
-              (cl-assert (not (plist-get plist :url)) ":url is redundant"))
-          (cl-assert (plist-get plist :url) ":url is missing")))
+              (cl-assert (plist-get plist :repo) nil ":repo is missing")
+              (cl-assert (not (plist-get plist :url)) nil ":url is redundant"))
+          (cl-assert (plist-get plist :url) nil ":url is missing")))
       (dolist (key symbol-keys)
         (when-let* ((val (plist-get plist key)))
           (cl-assert (symbolp val) nil "%s must be a symbol but is %S" key val)))
