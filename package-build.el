@@ -337,23 +337,25 @@ package.  PACKAGE identifies a package, it must be a package
 name, a `package-recipe' object or nil, if the command is not
 being run for a particular package."
   (declare (indent defun))
-  (let ((err (apply #'format-message format-string args)))
-    ;; That's a bit of an inconvenient interface...
-    (with-temp-buffer
-      (insert (format "%s  %-25s  %s\n"
-                      (format-time-string "%FT%T%z" nil t)
-                      (if (cl-typep package 'package-recipe)
-                          (oref package name)
-                        (or package "n/a"))
-                      err))
-      (unless (eq (char-before) ?\n)
-        (insert "\n"))
-      (goto-char (point-min))
-      (append-to-file
-       (point)
-       (1+ (line-end-position))
-       (expand-file-name "errors.log" package-build-archive-dir)))
-    (signal 'package-build-error err)))
+  (let ((message (apply #'format-message format-string args)))
+    (package-build--log package message)
+    (signal 'package-build-error message)))
+
+(defun package-build--log (package message)
+  (with-temp-buffer
+    (insert (format "%s  %-25s  %s\n"
+                    (format-time-string "%FT%T%z" nil t)
+                    (if (cl-typep package 'package-recipe)
+                        (oref package name)
+                      (or package "n/a"))
+                    message))
+    (let ((file (expand-file-name "errors.log" package-build-archive-dir))
+          (delay 0.1))
+      (while (and (< delay 5)
+                  (condition-case err
+                      (progn (append-to-file (point-min) (point-max) file) nil)
+                    (file-locked (setq delay (* 2 delay)) :retry)
+                    (t (message "LOGGING ERROR: %s" err) nil)))))))
 
 ;;; Version Handling
 ;;;; Common
