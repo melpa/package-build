@@ -392,12 +392,12 @@ or snapshots are build.")
       (oset rcp revdesc revdesc))))
 
 (cl-defmethod package-build--select-commit ((rcp package-git-recipe) rev exact)
-  (if-let ((commit
-            (car (apply #'process-lines
-                        "git" "log" "-n1" "--first-parent" "--no-show-signature"
-                        "--pretty=format:%H %cd" "--date=unix" rev
-                        (and (not exact)
-                             (cons "--" (package-build--spec-globs rcp)))))))
+  (if-let* ((commit
+             (car (apply #'process-lines
+                         "git" "log" "-n1" "--first-parent" "--no-show-signature"
+                         "--pretty=format:%H %cd" "--date=unix" rev
+                         (and (not exact)
+                              (cons "--" (package-build--spec-globs rcp)))))))
       (pcase-let ((`(,hash ,time) (split-string commit " ")))
         (list hash (string-to-number time)))
     (package-build--error (oref rcp name)
@@ -405,17 +405,17 @@ or snapshots are build.")
       (or (oref rcp files) 'default))))
 
 (cl-defmethod package-build--select-commit ((rcp package-hg-recipe) rev exact)
-  (if-let ((commit
-            (car (apply #'process-lines
-                        ;; The "date" keyword uses UTC. The "hgdate" filter
-                        ;; returns two integers separated by a space; the
-                        ;; unix timestamp and the timezone offset.  We use
-                        ;; "hgdate" because that makes it easier to discard
-                        ;; the time zone offset, which doesn't interest us.
-                        "hg" "log" "--limit" "1"
-                        "--template" "{node} {date|hgdate}\n" "--rev" rev
-                        (and (not exact)
-                             (cons "--" (package-build--spec-globs rcp)))))))
+  (if-let* ((commit
+             (car (apply #'process-lines
+                         ;; The "date" keyword uses UTC. The "hgdate" filter
+                         ;; returns two integers separated by a space; the
+                         ;; unix timestamp and the timezone offset.  We use
+                         ;; "hgdate" because that makes it easier to discard
+                         ;; the time zone offset, which doesn't interest us.
+                         "hg" "log" "--limit" "1"
+                         "--template" "{node} {date|hgdate}\n" "--rev" rev
+                         (and (not exact)
+                              (cons "--" (package-build--spec-globs rcp)))))))
       (pcase-let ((`(,hash ,time ,_timezone) (split-string commit " ")))
         (list hash (string-to-number time)))
     (package-build--error (oref rcp name)
@@ -743,8 +743,8 @@ Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING REVDESC) or nil.
       (list rcommit rtime (package-version-join version) rrevdesc tag)))))
 
 (defun package-build--adjust-commit-count (rcp commit version ahead)
-  (if-let ((previous (cdr (assq (intern (oref rcp name))
-                                (package-build-archive-alist)))))
+  (if-let* ((previous (cdr (assq (intern (oref rcp name))
+                                 (package-build-archive-alist)))))
       ;; Because upstream may have rewritten history, we cannot be certain
       ;; that appending the new count of commits would result in a version
       ;; string that is greater than the version string used for the
@@ -1304,17 +1304,17 @@ is the same as the value of `export_file_name'."
                               "Invalid package name in dependency: %S" pkg))
                           (list pkg ver))
                         (eval deps)))
-          (when-let ((v (or (alist-get :url plist)
-                            (alist-get :homepage plist))))
+          (when-let* ((v (or (alist-get :url plist)
+                             (alist-get :homepage plist))))
             (oset rcp webpage
                   (if (string-match package-build--http-regexp v)
                       (replace-match "https" t t v 1)
                     v)))
-          (when-let ((v (alist-get :keywords plist)))
+          (when-let* ((v (alist-get :keywords plist)))
             (oset rcp keywords v))
-          (when-let ((v (alist-get :maintainers plist)))
+          (when-let* ((v (alist-get :maintainers plist)))
             (oset rcp maintainers v))
-          (when-let ((v (alist-get :authors plist)))
+          (when-let* ((v (alist-get :authors plist)))
             (oset rcp authors v)))))))
 
 (defun package-build--normalize-summary (summary)
@@ -1584,11 +1584,11 @@ in `package-build-archive-dir'."
             (package-build--message "Running %s" command)
             (package-build--call-sandboxed
              rcp shell-file-name shell-command-switch command))
-          (when-let ((_ package-build-run-recipe-make-targets)
-                     (targets (oref rcp make-targets)))
+          (when-let* ((_ package-build-run-recipe-make-targets)
+                      (targets (oref rcp make-targets)))
             (package-build--message "Running make %s" (string-join targets " "))
             (apply #'package-build--call-sandboxed rcp "make" targets))
-          (if-let ((files (package-build-expand-files-spec rcp t)))
+          (if-let* ((files (package-build-expand-files-spec rcp t)))
               (funcall (or package-build-build-function
                            'package-build--legacy-build)
                        rcp files)
