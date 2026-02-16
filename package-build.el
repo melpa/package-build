@@ -400,7 +400,7 @@ or snapshots are build.")
                               (cons "--" (package-build--spec-globs rcp)))))))
       (pcase-let ((`(,hash ,time) (split-string commit " ")))
         (list hash (string-to-number time)))
-    (package-build--error (oref rcp name)
+    (package-build--error rcp
       "No matching file(s) found in any reachable commit using %S files spec"
       (or (oref rcp files) 'default))))
 
@@ -418,7 +418,7 @@ or snapshots are build.")
                               (cons "--" (package-build--spec-globs rcp)))))))
       (pcase-let ((`(,hash ,time ,_timezone) (split-string commit " ")))
         (list hash (string-to-number time)))
-    (package-build--error (oref rcp name)
+    (package-build--error rcp
       "No matching file(s) found in any reachable commit using %S files spec"
       (or (oref rcp files) 'default))))
 
