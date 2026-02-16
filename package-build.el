@@ -327,6 +327,8 @@ Otherwise do nothing.  FORMAT-STRING and ARGS are as per that function."
   (when package-build-verbose
     (apply #'message format-string args)))
 
+(define-error 'package-build-error "Package build error")
+
 (defun package-build--error (package format-string &rest args)
   "Behave similar to `error' but with additional logging.
 Log the error to \"errors.log\" in `package-build-archive-dir'.
@@ -351,7 +353,7 @@ being run for a particular package."
        (point)
        (1+ (line-end-position))
        (expand-file-name "errors.log" package-build-archive-dir)))
-    (error "%s" err)))
+    (signal 'package-build-error err)))
 
 ;;; Version Handling
 ;;;; Common
