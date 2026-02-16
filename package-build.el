@@ -1601,7 +1601,8 @@ in `package-build-archive-dir'."
 
 (defun package-build--build-package (rcp files)
   (pcase-let* (((eieio name version) rcp)
-               (tmpdir (file-name-as-directory (make-temp-file name t)))
+               (tmpdir (file-name-as-directory
+                        (make-temp-file (concat name "-") t)))
                (target (expand-file-name (concat name "-" version) tmpdir)))
     (unless (rassoc (concat name ".el") files)
       (package-build--error name
@@ -1649,7 +1650,8 @@ in `package-build-archive-dir'."
 (defun package-build--build-multi-file-package (rcp files)
   (declare (obsolete package-build--build-package "Package-Build 5.0.0"))
   (pcase-let* (((eieio name version) rcp)
-               (tmpdir (file-name-as-directory (make-temp-file name t)))
+               (tmpdir (file-name-as-directory
+                        (make-temp-file (concat name "-") t)))
                (target (expand-file-name (concat name "-" version) tmpdir)))
     (unless (or (rassoc (concat name ".el") files)
                 (rassoc (concat name "-pkg.el") files))
