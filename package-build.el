@@ -57,28 +57,53 @@
 
 ;;; Options
 
-(defvar package-build--melpa-base
-  (file-name-directory
-   (directory-file-name
-    (file-name-directory (or load-file-name (buffer-file-name))))))
-
 (defgroup package-build nil
   "Curate an Emacs Lisp package archive."
   :group 'development)
 
+(define-obsolete-variable-alias 'package-build--melpa-base
+  'package-build-directory "Package-Build 5.0.0")
+
+(defcustom package-build-directory
+  (let ((dir (file-name-directory
+              (directory-file-name
+               (file-name-directory
+                (or load-file-name (buffer-file-name)))))))
+    (if (and (file-directory-p (expand-file-name "package-build" dir))
+             (file-directory-p (expand-file-name "working" dir))
+             (file-directory-p (expand-file-name "packages" dir))
+             (file-directory-p (expand-file-name "recipes" dir)))
+        dir
+      (locate-user-emacs-file "package-build/")))
+  "Parent directory of directories used by `package-build'.
+
+The other directories can be configured using dedicated options, but
+as long as you want to keep everything below a common directory, it
+is easier to customize just this option.  Restart Emacs for that to
+take effect."
+  :type 'directory)
+
 (defcustom package-build-working-dir
-  (expand-file-name "working/" package-build--melpa-base)
-  "Directory used to checkout package repositories."
+  (expand-file-name "working/" package-build-directory)
+  "Directory used to checkout package repositories.
+
+Usually this is a subdirectory of `package-build-directory'."
   :type 'directory)
 
 (defcustom package-build-archive-dir
-  (expand-file-name "packages/" package-build--melpa-base)
-  "Directory used to store build package archives."
+  (expand-file-name "packages/" package-build-directory)
+  "Directory used to store build package archives.
+
+Usually this is a subdirectory of `package-build-directory'."
+  :set-after '(package-build-directory)
   :type 'directory)
 
 (defcustom package-build-recipes-dir
-  (expand-file-name "recipes/" package-build--melpa-base)
-  "Directory containing package recipe files."
+  (expand-file-name "recipes/" package-build-directory)
+  "Directory containing package recipe files.
+
+Usually this is a subdirectory of `package-build-directory'."
+  :set-after '(package-build-directory)
   :type 'directory)
 
 (defcustom package-build-verbose t
