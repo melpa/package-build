@@ -1,4 +1,4 @@
-;;; package-build.el --- Tools for assembling a package archive  -*- lexical-binding:t; coding:utf-8 -*-
+;;; package-build.el --- Curate an Emacs Lisp package archive  -*- lexical-binding:t; coding:utf-8 -*-
 
 ;; Copyright (C) 2011-2024 Donald Ephraim Curtis
 ;; Copyright (C) 2012-2024 Steve Purcell
@@ -35,12 +35,10 @@
 
 ;;; Commentary:
 
-;; This file allows a curator to publish an archive of Emacs packages.
-
-;; The archive is generated from a set of recipes, which describe elisp
-;; projects and repositories from which to get them.  The term "package"
-;; here is used to mean a specific version of a project that is prepared
-;; for download and installation.
+;; This package allows a curator to publish an Emacs Lisp package
+;; archive.  The archive is generated from a set of recipes, which
+;; describe Emacs Lisp projects and repositories from which to get
+;; them.
 
 ;;; Code:
 
@@ -65,7 +63,7 @@
     (file-name-directory (or load-file-name (buffer-file-name))))))
 
 (defgroup package-build nil
-  "Tools for assembling a package archive."
+  "Curate an Emacs Lisp package archive."
   :group 'development)
 
 (defcustom package-build-working-dir
