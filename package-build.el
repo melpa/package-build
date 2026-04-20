@@ -69,17 +69,17 @@
 (defcustom package-build-working-dir
   (expand-file-name "working/" package-build--melpa-base)
   "Directory used to checkout package repositories."
-  :type 'string)
+  :type 'directory)
 
 (defcustom package-build-archive-dir
   (expand-file-name "packages/" package-build--melpa-base)
   "Directory used to store build package archives."
-  :type 'string)
+  :type 'directory)
 
 (defcustom package-build-recipes-dir
   (expand-file-name "recipes/" package-build--melpa-base)
   "Directory containing package recipe files."
-  :type 'string)
+  :type 'directory)
 
 (defcustom package-build-verbose t
   "Whether to print additional progress information during builds."
