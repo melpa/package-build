@@ -65,29 +65,29 @@
     (file-name-directory (or load-file-name (buffer-file-name))))))
 
 (defgroup package-build nil
-  "Tools for building package.el-compliant packages from upstream source code."
+  "Tools for assembling a package archive."
   :group 'development)
 
 (defcustom package-build-working-dir
   (expand-file-name "working/" package-build--melpa-base)
-  "Directory in which to keep checkouts."
+  "Directory used to checkout package repositories."
   :group 'package-build
   :type 'string)
 
 (defcustom package-build-archive-dir
   (expand-file-name "packages/" package-build--melpa-base)
-  "Directory in which to keep compiled archives."
+  "Directory used to store build package archives."
   :group 'package-build
   :type 'string)
 
 (defcustom package-build-recipes-dir
   (expand-file-name "recipes/" package-build--melpa-base)
-  "Directory containing recipe files."
+  "Directory containing package recipe files."
   :group 'package-build
   :type 'string)
 
 (defcustom package-build-verbose t
-  "When non-nil, then print additional progress information."
+  "Whether to print additional progress information during builds."
   :group 'package-build
   :type 'boolean)
 
