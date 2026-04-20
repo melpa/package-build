@@ -69,24 +69,20 @@
 (defcustom package-build-working-dir
   (expand-file-name "working/" package-build--melpa-base)
   "Directory used to checkout package repositories."
-  :group 'package-build
   :type 'string)
 
 (defcustom package-build-archive-dir
   (expand-file-name "packages/" package-build--melpa-base)
   "Directory used to store build package archives."
-  :group 'package-build
   :type 'string)
 
 (defcustom package-build-recipes-dir
   (expand-file-name "recipes/" package-build--melpa-base)
   "Directory containing package recipe files."
-  :group 'package-build
   :type 'string)
 
 (defcustom package-build-verbose t
   "Whether to print additional progress information during builds."
-  :group 'package-build
   :type 'boolean)
 
 (defcustom package-build-stable nil
@@ -97,7 +93,6 @@ are build.  `package-build-snapshot-version-functions' and/or
 `package-build-release-version-functions' are used to determine
 the appropriate version for each package and how the version
 string is formatted."
-  :group 'package-build
   :type 'boolean)
 
 (defcustom package-build-all-publishable (not package-build-stable)
@@ -109,7 +104,6 @@ a version string should be considered an error or not.
 Currently this defaults to (not package-build-stable), but the
 default is likely to be changed to just t in the future.  See
 also the commit that added this option."
-  :group 'package-build
   :type 'boolean
   :set-after '(package-build-stable))
 
@@ -139,7 +133,6 @@ an abbreviation of COMMIT.
 
 If obsolete `package-build-get-version-function' is non-nil,
 then that overrides the value set here."
-  :group 'package-build
   :type 'hook
   :options (list #'package-build-tag-version
                  #'package-build-header-version))
@@ -165,7 +158,6 @@ current release, which they use as part of the returned VERSION.
 
 If obsolete `package-build-get-version-function' is non-nil,
 then that overrides the value set here."
-  :group 'package-build
   :type 'hook
   :options (list #'package-build-release+count-version
                  #'package-build-release+timestamp-version
@@ -176,7 +168,6 @@ then that overrides the value set here."
 If non-nil, this function is called with the recipe object as
 argument, and must return non-nil if the package is to be build.
 If nil (the default), then all packages are build."
-  :group 'package-build
   :type '(choice (const :tag "build all") function))
 
 (defcustom package-build-build-function
@@ -187,25 +178,21 @@ The default, `package-build--build-package', extracts metadata from
 the library whose name matches the name of the package, and creates
 a tarball, containing at least that library and \"NAME-pkg.el\", which
 is generated."
-  :group 'package-build
   :type '(choice (const package-build--build-package) function))
 
 (defcustom package-build-run-recipe-org-exports nil
   "Whether to export the files listed in the `:org-exports' recipe slot.
 Note that Melpa leaves this disabled."
-  :group 'package-build
   :type 'boolean)
 
 (defcustom package-build-run-recipe-shell-command nil
   "Whether to run the shell command from the `:shell-command' recipe slot.
 Note that Melpa leaves this disabled."
-  :group 'package-build
   :type 'boolean)
 
 (defcustom package-build-run-recipe-make-targets nil
   "Whether to run the make targets from the `:make-targets' recipe slot.
 Note that Melpa leaves this disabled."
-  :group 'package-build
   :type 'boolean)
 
 (defcustom package-build-timeout-executable "timeout"
@@ -215,7 +202,6 @@ This must be a version which supports the \"-k\" option.
 On MacOS it is possible to install coreutils using Homebrew or
 similar, which will provide the GNU timeout program as
 \"gtimeout\"."
-  :group 'package-build
   :type '(file :must-match t))
 
 (defcustom package-build-timeout-secs nil
@@ -225,7 +211,6 @@ If an external process takes longer than specified here to
 complete, then it is terminated.  If nil, then no time limit is
 applied.  This setting requires
 `package-build-timeout-executable' to be set."
-  :group 'package-build
   :type 'number)
 
 (defcustom package-build-tar-executable "tar"
@@ -235,7 +220,6 @@ Certain package names (e.g., \"@\") may not work properly with a BSD tar.
 On MacOS it is possible to install gnu-tar using Homebrew or
 similar, which will provide the GNU tar program as
 \"gtar\"."
-  :group 'package-build
   :type '(file :must-match t))
 
 (defvar package-build--tar-type nil
@@ -252,7 +236,6 @@ If nil (the default), then no badge images are generated,
 otherwise this has the form (NAME COLOR).  MELPA sets the value
 in its top-level Makefile, to different values, depending on the
 channel that is being build."
-  :group 'package-build
   :type '(list (string :tag "Archive name") color))
 
 (defcustom package-build-version-regexp
@@ -274,14 +257,12 @@ the package is substituted for \"%p\".
 
 Note that this variable can be overridden in a package's recipe,
 using the `:version-regexp' slot."
-  :group 'package-build
   :type 'string)
 
 (defcustom package-build-allowed-git-protocols '("https" "file" "ssh")
   "Protocols that can be used to fetch from upstream with git.
 By default insecure protocols, such as \"http\" or \"git\", are
 disallowed."
-  :group 'package-build
   :type '(repeat string))
 
 (defvar package-build-use-git-remote-hg nil
