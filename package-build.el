@@ -137,7 +137,8 @@ If this is non-nil, then it overrides
 
 (defcustom package-build-release-version-functions
   (list #'package-build-tag-version
-        #'package-build-header-version)
+        #'package-build-header-version
+        #'package-build-fallback-version)
   "Functions used to determine the current release of a package.
 
 Each function is called in order, with the recipe object as argument,
@@ -155,7 +156,8 @@ If obsolete `package-build-get-version-function' is non-nil,
 then that overrides the value set here."
   :type 'hook
   :options (list #'package-build-tag-version
-                 #'package-build-header-version))
+                 #'package-build-header-version
+                 #'package-build-fallback-version))
 
 (defcustom package-build-snapshot-version-functions
   (list #'package-build-timestamp-version)
@@ -591,6 +593,34 @@ Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING REVDESC) or nil."
                 "--template" "commit: {node} {date|hgdate}\n"
                 )) ; TODO What is the equivalent of Git's "-L"?
 
+;;;; Fallback
+
+(defun package-build-fallback-version (rcp)
+  "Determine version string in a \"0.0.0.SNAPSHOT\" format for RCP.
+
+This function implements a fallback that can be used on the
+release channel, for packages that don't do releases.  It should
+be the last element of `package-build-release-version-functions',
+and at the same time `package-build-snapshot-version-functions'
+should contain only a `package-build-release+{*}-version' function.
+
+The result of such a configuration is that, for packages that
+don't do releases, the release and snapshot channels provide
+the same \"0.0.0.COUNT\" snapshot.  That way, all packages are
+available on the release channel, which makes that channel more
+attractive to users, which might encourage some maintainers to
+release more often, or if they have never done a release before,
+to finally get around to that initial release.  In other words,
+this might help overcome the release channel's chicken and egg
+problem.
+
+Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING REVDESC) or
+nil if `package-build-stable' is non-nil."
+  (and package-build-stable
+       (let ((package-build-release-version-functions nil))
+         (run-hook-with-args-until-success
+          'package-build-snapshot-version-functions rcp))))
+
 ;;;; NAME-pkg
 
 (defun package-build-pkg-version (rcp)
@@ -908,31 +938,6 @@ RELEASE until the last relevant commit.
 
 Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING REVDESC) or nil."
   (package-build-release+count-version rcp 'with-date))
-
-;;;; Fallback-Count
-
-(defun package-build-fallback-count-version (rcp)
-  "Determine version string in the \"0.0.0.COUNT\" format for RCP.
-
-This function implements a fallback that can be used on the
-release channel, for packages that don't do releases.  It should
-be the last element of `package-build-release-version-functions',
-and at the same time `package-build-snapshot-version-functions'
-should contain only `package-build-release+count-version'.
-
-The result of such a configuration is that, for packages that
-don't do releases, the release and snapshot channels provide
-the same \"0.0.0.COUNT\" snapshot.  That way, all packages are
-available on the release channel, which makes that channel more
-attractive to users, which might encourage some maintainers to
-release more often, or if they have never done a release before,
-to finally get around to that initial release.  In other words,
-this might help overcome the release channel's chicken and egg
-problem.
-
-Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING REVDESC)."
-  (let ((package-build-release-version-functions nil))
-    (package-build-release+count-version rcp)))
 
 ;;; Call Process
 
