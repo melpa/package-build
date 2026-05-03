@@ -182,6 +182,13 @@ then that overrides the value set here."
                  #'package-build-release+timestamp-version
                  #'package-build-timestamp-version))
 
+(defcustom package-build-minimal-release-components 0
+  "Minimal number of version components before \".0.SNAPSHOT\".
+When constructing a snapshot version of the form \"RELEASE.0.SNAPSHOT\",
+this option controls whether additional \".0\" components are appended
+to RELEASE.  Use 0 to add no filling components."
+  :type 'natnum)
+
 (defcustom package-build-predicate-function nil
   "Predicate used by `package-build-all' to determine which packages to build.
 If non-nil, this function is called with the recipe object as
@@ -464,6 +471,11 @@ or snapshots are build.")
                     tag)
           "{short(node)}\n"))))
 
+(defun package-build--version-separator (release)
+  (make-list (max 1 (- (1+ package-build-minimal-release-components)
+                       (length release)))
+             0))
+
 ;;;; Tag
 
 (defun package-build-tag-version (rcp)
@@ -696,10 +708,11 @@ Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING REVDESC) or nil."
     (cond
      ((> ahead 0)
       (list scommit stime
-            (package-version-join
-             (nconc (if rversion (version-to-list rversion) (list 0 0))
-                    (list 0)
-                    (version-to-list sversion)))
+            (let ((release (if rversion (version-to-list rversion) (list 0 0))))
+              (package-version-join
+               (nconc release
+                      (package-build--version-separator release)
+                      (version-to-list sversion))))
             (package-build--revdesc rcp scommit tag)))
      (t
       ;; The latest commit, which touched a relevant file, is either the
@@ -753,7 +766,7 @@ Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING REVDESC) or nil.
       (list scommit stime
             (package-version-join
              (append version
-                     (list 0)
+                     (package-build--version-separator version)
                      ;; (This argument *could* be used by a wrapper.)
                      (if single-count
                          ahead ; Pretend time-travel doesn't happen.
