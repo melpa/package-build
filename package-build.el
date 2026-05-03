@@ -477,6 +477,12 @@ or snapshots are build.")
                        (length release)))
              0))
 
+(defun package-build--release-placeholder ()
+  ;; Always use at least three zero components before the snapshot
+  ;; component, even if `package-build-minimal-release-components' asks
+  ;; for fewer.  Subtract one because the separator is added elsewhwere.
+  (make-list (1- (max 3 package-build-minimal-release-components)) 0))
+
 ;;;; Tag
 
 (defun package-build-tag-version (rcp)
@@ -709,7 +715,9 @@ Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING REVDESC) or nil."
     (cond
      ((> ahead 0)
       (list scommit stime
-            (let ((release (if rversion (version-to-list rversion) (list 0 0))))
+            (let ((release (if rversion
+                               (version-to-list rversion)
+                             (package-build--release-placeholder))))
               (package-version-join
                (nconc release
                       (package-build--version-separator release)
@@ -752,7 +760,7 @@ Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING REVDESC) or nil.
     (cond
      ((or (when (not rcommit)
             ;; No appropriate release detected.
-            (setq version (list 0 0))
+            (setq version (package-build--release-placeholder))
             t)
           (when (not merge-base)
             ;; As a result of butchered history rewriting, version tags
@@ -762,7 +770,7 @@ Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING REVDESC) or nil.
             ;; that means that users, who have installed a snapshot based
             ;; on a now abandoned tag, are stuck on that snapshot until
             ;; upstream creates a new version tag.
-            (setq version (list 0 0))
+            (setq version (package-build--release-placeholder))
             t)
           ;; Snapshot commit is newer than latest release (or there is no
           ;; release).
