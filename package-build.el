@@ -119,17 +119,12 @@ the appropriate version for each package and how the version
 string is formatted."
   :type 'boolean)
 
-(defcustom package-build-all-publishable (not package-build-stable)
+(defcustom package-build-all-publishable t
   "Whether even packages that lack a release can be published.
 
 This option is used to determine whether failure to come up with
-a version string should be considered an error or not.
-
-Currently this defaults to (not package-build-stable), but the
-default is likely to be changed to just t in the future.  See
-also the commit that added this option."
-  :type 'boolean
-  :set-after '(package-build-stable))
+a version string should be considered an error or not."
+  :type 'boolean)
 
 (make-obsolete-variable 'package-build-get-version-function
                         'package-build-stable
