@@ -182,7 +182,7 @@ then that overrides the value set here."
                  #'package-build-release+timestamp-version
                  #'package-build-timestamp-version))
 
-(defcustom package-build-minimal-release-components 0
+(defcustom package-build-minimal-release-components 3
   "Minimal number of version components before \".0.SNAPSHOT\".
 When constructing a snapshot version of the form \"RELEASE.0.SNAPSHOT\",
 this option controls whether additional \".0\" components are appended
