@@ -725,7 +725,7 @@ Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING REVDESC) or nil."
 
 ;;;; Release+Count
 
-(defun package-build-release+count-version (rcp &optional single-count)
+(defun package-build-release+count-version (rcp &optional modifier)
   "Determine version string in the \"RELEASE.0.COUNT\" format for RCP.
 
 Use `package-build-release-version-functions' to determine RELEASE.
@@ -741,12 +741,11 @@ advantage that it handles rewritten history.
 Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING REVDESC) or nil.
 \n(fn RCP)"
   (pcase-let*
-      ;; Get the commit but ignore the associated timestamp.
-      ((`(,scommit ,stime ,_) (package-build-timestamp-version rcp))
-       (`(,rcommit ,rtime ,version ,rrevdesc ,tag)
+      ((`(,scommit ,stime ,sversion) (package-build-timestamp-version rcp))
+       (`(,rcommit ,rtime ,rversion ,rrevdesc ,tag)
         (run-hook-with-args-until-success
          'package-build-release-version-functions rcp))
-       (version (and rcommit (version-to-list version)))
+       (version (and rcommit (version-to-list rversion)))
        (merge-base (and rcommit
                         (package-build--merge-base rcp scommit rcommit)))
        (ahead (package-build--commit-count rcp scommit rcommit)))
@@ -772,8 +771,10 @@ Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING REVDESC) or nil.
             (package-version-join
              (append version
                      (package-build--version-separator version)
-                     (if single-count
-                         ahead ; Pretend time-travel doesn't happen.
+                     (and (eq modifier 'with-date)
+                          (list (car (version-to-list sversion))))
+                     (if (memq modifier '(one-count with-date))
+                         (list ahead) ; Pretend time-travel doesn't happen.
                        (package-build--adjust-commit-count
                         rcp scommit (copy-sequence version) ahead))))
             (package-build--revdesc rcp scommit tag)))
@@ -885,6 +886,19 @@ the disadvantage that it does not handle rewritten history.
 
 Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING REVDESC) or nil."
   (package-build-release+count-version rcp 'one-count))
+
+;;;; Release+Date+Count
+
+(defun package-build-release+date+count-version (rcp)
+  "Determine version string in the \"RELEASE.0.DATE.COUNT\" format for RCP.
+
+Use `package-build-release-version-functions' to determine RELEASE.
+DATE is the COMMITTER-DATE for the identified last relevant commit,
+using the format \"%Y%m%d\".  COUNT is the number of commits since
+RELEASE until the last relevant commit.
+
+Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING REVDESC) or nil."
+  (package-build-release+count-version rcp 'with-date))
 
 ;;;; Fallback-Count
 
