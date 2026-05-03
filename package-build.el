@@ -179,6 +179,7 @@ If obsolete `package-build-get-version-function' is non-nil,
 then that overrides the value set here."
   :type 'hook
   :options (list #'package-build-release+count-version
+                 #'package-build-release+onecount-version
                  #'package-build-release+timestamp-version
                  #'package-build-timestamp-version))
 
@@ -733,6 +734,10 @@ commit.  If RELEASE is the same as for the last snapshot but COUNT is
 not larger than for that snapshot because history was rewritten, then
 use \"RELEASE.0.OLDCOUNT.NEWCOUNT\".
 
+Prefer this function over `package-build-release+onecount-version'.
+Both functions usually use just one COUNT, but this function has the
+advantage that it handles rewritten history.
+
 Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING REVDESC) or nil.
 \n(fn RCP)"
   (pcase-let*
@@ -767,7 +772,6 @@ Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING REVDESC) or nil.
             (package-version-join
              (append version
                      (package-build--version-separator version)
-                     ;; (This argument *could* be used by a wrapper.)
                      (if single-count
                          ahead ; Pretend time-travel doesn't happen.
                        (package-build--adjust-commit-count
@@ -865,6 +869,22 @@ Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING REVDESC) or nil.
                          (if since
                              (format "only(%s, %s)" rev since)
                            (format "ancestors(%s)" rev)))))
+
+;;;; Release+Onecount
+
+(defun package-build-release+onecount-version (rcp)
+  "Determine version string in the \"RELEASE.0.COUNT\" format for RCP.
+
+Use `package-build-release-version-functions' to determine RELEASE.
+COUNT is the number of commits since RELEASE until the last relevant
+commit.
+
+Prefer `package-build-release+count-version' over this function.
+Both functions usually use just one COUNT, but this function has
+the disadvantage that it does not handle rewritten history.
+
+Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING REVDESC) or nil."
+  (package-build-release+count-version rcp 'one-count))
 
 ;;;; Fallback-Count
 
