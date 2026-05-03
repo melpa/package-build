@@ -887,7 +887,7 @@ Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING REVDESC)."
 
 (defun package-build--call-process (package command &rest args)
   "For PACKAGE, run COMMAND with ARGS in `default-directory'.
-We use this to wrap commands is proper environment settings and
+We use this to wrap commands in proper environment settings and
 with a timeout so that no command can block the build process,
 and so we can properly log errors.  PACKAGE must be the name of
 a package, a `package-recipe' object or nil, and is only used
