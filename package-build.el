@@ -720,7 +720,7 @@ Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING REVDESC) or nil."
       ;; same commit/release as on the stable channel; as it would not
       ;; make sense for the development channel to lag behind the latest
       ;; release.
-      (list rcommit rtime (package-version-join rversion) rrevdesc tag)))))
+      (list rcommit rtime rversion rrevdesc tag)))))
 
 ;;;; Release+Count
 
