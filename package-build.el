@@ -136,7 +136,8 @@ If this is non-nil, then it overrides
 `package-build-snapshot-version-functions'.")
 
 (defcustom package-build-release-version-functions
-  (list #'package-build-tag-version)
+  (list #'package-build-tag-version
+        #'package-build-header-version)
   "Functions used to determine the current release of a package.
 
 Each function is called in order, with the recipe object as argument,
