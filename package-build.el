@@ -241,12 +241,11 @@ similar, which will provide the GNU timeout program as
   'package-build-timeout "Package-Build 5.0.0")
 
 (defcustom package-build-timeout nil
-  "Wait this many seconds for external processes to complete.
+  "Timeout if a process takes more seconds to complete.
 
-If an external process takes longer than specified here to
-complete, then it is terminated.  If nil, then no time limit is
-applied.  This setting requires
-`package-build-timeout-executable' to be set."
+If an external process takes longer to complete, than this limit,
+specified in seconds, then it is terminated.  For no limit use nil.
+This setting requires `package-build-timeout-executable' to be set."
   :type 'number)
 
 (defcustom package-build-tar-executable "tar"
