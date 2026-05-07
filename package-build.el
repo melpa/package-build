@@ -186,6 +186,7 @@ then that overrides the value set here."
   :type 'hook
   :options (list #'package-build-release+count-version
                  #'package-build-release+onecount-version
+                 #'package-build-release+date+count-version
                  #'package-build-release+timestamp-version
                  #'package-build-timestamp-version))
 
@@ -235,7 +236,7 @@ This must be a version which supports the \"-k\" option.
 On MacOS it is possible to install coreutils using Homebrew or
 similar, which will provide the GNU timeout program as
 \"gtimeout\"."
-  :type '(file :must-match t))
+  :type '(file :tag "Executable"))
 
 (define-obsolete-variable-alias 'package-build-timeout-secs
   'package-build-timeout "Package-Build 5.0.0")
@@ -246,7 +247,8 @@ similar, which will provide the GNU timeout program as
 If an external process takes longer to complete, than this limit,
 specified in seconds, then it is terminated.  For no limit use nil.
 This setting requires `package-build-timeout-executable' to be set."
-  :type 'number)
+  :type '(choice (natnum :tag "Seconds" number)
+                 (const  :tag "No timeout" nil)))
 
 (defcustom package-build-tar-executable "tar"
   "Path to a (preferably GNU) tar command.
@@ -255,7 +257,7 @@ Certain package names (e.g., \"@\") may not work properly with a BSD tar.
 On MacOS it is possible to install gnu-tar using Homebrew or
 similar, which will provide the GNU tar program as
 \"gtar\"."
-  :type '(file :must-match t))
+  :type '(file :tag "Executable"))
 
 (defvar package-build--tar-type nil
   "Type of `package-build-tar-executable'.
@@ -271,7 +273,8 @@ If nil (the default), then no badge images are generated,
 otherwise this has the form (NAME COLOR).  MELPA sets the value
 in its top-level Makefile, to different values, depending on the
 channel that is being build."
-  :type '(list (string :tag "Archive name") color))
+  :type '(choice (list (string :tag "Archive name") color)
+                 (const :tag "Do not create badges")))
 
 (defcustom package-build-version-regexp
   "\\`\\(?:\\|[vVrR]\\|\\(?:release\\|%p\\)[-/]v?\\)?\
