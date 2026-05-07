@@ -237,7 +237,10 @@ similar, which will provide the GNU timeout program as
 \"gtimeout\"."
   :type '(file :must-match t))
 
-(defcustom package-build-timeout-secs nil
+(define-obsolete-variable-alias 'package-build-timeout-secs
+  'package-build-timeout "Package-Build 5.0.0")
+
+(defcustom package-build-timeout nil
   "Wait this many seconds for external processes to complete.
 
 If an external process takes longer than specified here to
@@ -959,12 +962,12 @@ for logging purposes."
                  (`(,command . ,args)
                   (nconc (and (not (eq system-type 'windows-nt))
                               (list "env" "LC_ALL=C"))
-                         (if (and package-build-timeout-secs
+                         (if (and package-build-timeout
                                   package-build-timeout-executable)
                              (nconc (list package-build-timeout-executable
                                           "-k" "60"
                                           (number-to-string
-                                           package-build-timeout-secs)
+                                           package-build-timeout)
                                           command)
                                     args)
                            (cons command args))))
