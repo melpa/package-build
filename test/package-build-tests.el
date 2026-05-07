@@ -28,7 +28,7 @@
   `(let* ((package-build-verbose nil)
           (package-build--inhibit-fetch 'strict)
           (package-build--inhibit-checkout t)
-          (package-build-stable nil)
+          (package-build-releases nil)
           (package-build-snapshot-version-functions
            (list #'package-build-release+count-version))
           (package-build-release-version-functions

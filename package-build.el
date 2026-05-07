@@ -109,7 +109,10 @@ Usually this is a subdirectory of `package-build-directory'."
   "Whether to print additional progress information during builds."
   :type 'boolean)
 
-(defcustom package-build-stable nil
+(define-obsolete-variable-alias 'package-build-stable
+  'package-build-releases "Package-Build 5.0.0")
+
+(defcustom package-build-releases nil
   "Whether to build release or snapshot packages.
 
 If nil, snapshot packages are build, otherwise release packages
@@ -127,7 +130,7 @@ a version string should be considered an error or not."
   :type 'boolean)
 
 (make-obsolete-variable 'package-build-get-version-function
-                        'package-build-stable
+                        'package-build-releases
                         "Package-Build 5.0.0")
 (defvar package-build-get-version-function nil
   "This variable is obsolete and its value should be nil.
@@ -412,10 +415,10 @@ being run for a particular package."
 Variable `package-build-get-version-function' is obsolete.
 Instead set `package-build-release-version-functions'
 and/or `package-build-snapshot-version-functions', and
-set `package-build-stable' to control whether releases
+set `package-build-releases' to control whether releases
 or snapshots are build.")
           (with-no-warnings (funcall package-build-get-version-function rcp)))
-         (package-build-stable
+         (package-build-releases
           (run-hook-with-args-until-success
            'package-build-release-version-functions rcp))
          ((run-hook-with-args-until-success
@@ -615,8 +618,8 @@ this might help overcome the release channel's chicken and egg
 problem.
 
 Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING REVDESC) or
-nil if `package-build-stable' is non-nil."
-  (and package-build-stable
+nil if `package-build-releases' is non-nil."
+  (and package-build-releases
        (let ((package-build-release-version-functions nil))
          (run-hook-with-args-until-success
           'package-build-snapshot-version-functions rcp))))
