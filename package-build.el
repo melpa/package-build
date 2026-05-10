@@ -1367,13 +1367,8 @@ is the same as the value of `export_file_name'."
                   (and-let* ((format (oref rcp repopage-format)))
                     (format format (oref rcp repo)))))
         (oset rcp keywords (lm-keywords-list))
-        (oset rcp maintainers
-              (cond ((fboundp 'lm-maintainers)
-                     (lm-maintainers))
-                    ((fboundp 'lm-maintainer)
-                     (and-let* ((maintainer (lm-maintainer)))
-                       (list maintainer)))))
-        (oset rcp authors (lm-authors))))))
+        (oset rcp authors (package-build--authors))
+        (oset rcp maintainers (package-build--maintainers))))))
 
 (defun package-build--extract-from-package (rcp files)
   "Store information from the \"*-pkg.el\" file from FILES in RCP."
@@ -1420,6 +1415,16 @@ is the same as the value of `export_file_name'."
       (setq summary (substring summary 0 -1)))
     (concat (capitalize (substring summary 0 1))
             (substring summary 1))))
+
+(defun package-build--authors (&optional file)
+  (lm-with-file file
+    (mapcan #'lm-crack-address (lm-header-multiline "authors?"))))
+
+(defun package-build--maintainers (&optional file)
+  (lm-with-file file
+    (mapcan #'lm-crack-address
+            (or (lm-header-multiline "maintainers?")
+                (lm-header-multiline "authors?")))))
 
 ;;; Files Spec
 
