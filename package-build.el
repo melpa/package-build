@@ -1044,7 +1044,7 @@ Use a sandbox if `package-build--use-sandbox' is non-nil."
      (t
       (when (file-exists-p dir)
         (delete-directory dir t))
-      (package-build--message "Cloning %s to %s" url dir)
+      (package-build--message "Cloning %s" url)
       (make-directory package-build-working-dir t)
       (let ((default-directory package-build-working-dir))
         (package-build--call-process rcp "git" "clone" url dir))))))
@@ -1065,7 +1065,7 @@ Use a sandbox if `package-build--use-sandbox' is non-nil."
      (t
       (when (file-exists-p dir)
         (delete-directory dir t))
-      (package-build--message "Cloning %s to %s" url dir)
+      (package-build--message "Cloning %s" url)
       (make-directory package-build-working-dir t)
       (let ((default-directory package-build-working-dir))
         (package-build--call-process rcp "hg" "clone" url dir))))))
@@ -1557,7 +1557,7 @@ or all exclude rules (with the `:exclude' keyword removed)."
 FILES is a list of (SOURCE . DEST) relative filepath pairs."
   (package-build--message
    "Copying files (->) and directories (=>)\n  from %s\n  to %s"
-   default-directory target-dir)
+   default-directory (file-name-as-directory target-dir))
   (pcase-dolist (`(,src . ,dst) files)
     (let ((src* (expand-file-name src))
           (dst* (expand-file-name dst target-dir)))
@@ -1629,20 +1629,17 @@ are subsequently dumped."
     (let* ((start-time (current-time))
            (rcp (package-recipe-lookup name))
            (url (oref rcp url))
-           (repo (oref rcp repo))
            (fetcher (package-recipe--fetcher rcp))
-           (version nil)
-           (msg (format "%s%s package %s"
-                        (if noninteractive " • " "")
-                        (if package-build--inhibit-update "Fetching" "Building")
-                        name)))
+           (version nil))
+      (message "%s%s package %s"
+               (if noninteractive "\n • " "")
+               (if package-build--inhibit-update "Fetching" "Building")
+               name)
       (cond ((and package-build-verbose (not noninteractive))
-             (message "%s..." msg)
              (message "Package: %s" name)
              (message "Fetcher: %s" fetcher)
              (message "Source:  %s\n" url))
-            ((message "%s (from %s)..." msg
-                      (if repo (format "%s:%s" fetcher repo) url))))
+            ((message "From %s" url)))
       (package-build--fetch rcp)
       (unless package-build--inhibit-update
         (package-build--select-version rcp)
@@ -1651,17 +1648,18 @@ are subsequently dumped."
           (package-build--package rcp)
           (when dump-archive-contents
             (package-build-dump-archive-contents)))
-        (if (not version)
-            (message " ✗ Cannot determine version!")
-          (message " ✓ Success:")
-          (pcase-dolist (`(,file . ,attrs)
-                         (directory-files-and-attributes
-                          package-build-archive-dir nil
-                          (format "\\`%s-[0-9]+" name)))
-            (message "  %s  %s"
-                     (format-time-string
-                      "%FT%T%z" (file-attribute-modification-time attrs) t)
-                     file))))
+        (cond ((not version)
+               (message " ✗ Cannot determine version!"))
+              ((and package-build-verbose (not noninteractive))
+               (message " ✓ Success:")
+               (pcase-dolist (`(,file . ,attrs)
+                              (directory-files-and-attributes
+                               package-build-archive-dir nil
+                               (format "\\`%s-[0-9]+" name)))
+                 (message "  %s  %s"
+                          (format-time-string
+                           "%FT%T%z" (file-attribute-modification-time attrs) t)
+                          file)))))
       (message "%s %s in %.3fs, finished at %s"
                (if version "Built" "Fetched")
                name
