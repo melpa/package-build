@@ -1418,13 +1418,17 @@ is the same as the value of `export_file_name'."
 
 (defun package-build--authors (&optional file)
   (lm-with-file file
-    (mapcan #'lm-crack-address (lm-header-multiline "authors?"))))
+    ;; 28.1; specifically 5809728bc502d58f4fe96e98b472c569da3d8879.
+    (funcall (if (< emacs-major-version 28) #'mapcar #'mapcan)
+             #'lm-crack-address
+             (lm-header-multiline "authors?"))))
 
 (defun package-build--maintainers (&optional file)
   (lm-with-file file
-    (mapcan #'lm-crack-address
-            (or (lm-header-multiline "maintainers?")
-                (lm-header-multiline "authors?")))))
+    (funcall (if (< emacs-major-version 28) #'mapcar #'mapcan)
+             #'lm-crack-address
+             (or (lm-header-multiline "maintainers?")
+                 (lm-header-multiline "authors?")))))
 
 ;;; Files Spec
 
