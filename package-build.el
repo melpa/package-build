@@ -163,7 +163,7 @@ then that overrides the value set here."
                  #'package-build-fallback-version))
 
 (defcustom package-build-snapshot-version-functions
-  (list #'package-build-release+timestamp-version)
+  (list #'package-build-release+date+count-version)
   "Function used to determine the current snapshot of a package.
 
 Each function is called in order, with the recipe object as argument,
