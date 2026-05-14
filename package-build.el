@@ -1838,13 +1838,16 @@ packages for which that returns non-nil are build."
 
 ;;; Archive
 
-(defun package-build-archive-alist ()
-  "Return the archive contents, without updating it first."
-  (let ((file (expand-file-name "archive-contents" package-build-archive-dir)))
-    (and (file-exists-p file)
-         (with-temp-buffer
-           (insert-file-contents file)
-           (cdr (read (current-buffer)))))))
+(defun package-build-archive-alist (&optional file)
+  "Return form in FILE, without updating it first.
+If optional FILE is nil, return from file \"archive-contents\"
+in `package-build-archive-dir'."
+  (unless file
+    (setq file (expand-file-name "archive-contents" package-build-archive-dir)))
+  (and (file-exists-p file)
+       (with-temp-buffer
+         (insert-file-contents file)
+         (cdr (read (current-buffer))))))
 
 (defun package-build-dump-archive-contents (&optional file pretty-print)
   "Update and return the archive contents.
