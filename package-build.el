@@ -380,7 +380,7 @@ being run for a particular package."
     (cons 'progn else-forms)))
 
 (defmacro package-build--log-errors (&rest body)
-  (declare (indent 1))
+  (declare (indent 0))
   (package-build--static-if (fboundp 'handler-bind) ;Emacs >= 30.1
       `(handler-bind
            ((error (lambda (err)
