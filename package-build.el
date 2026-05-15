@@ -1,15 +1,13 @@
 ;;; package-build.el --- Curate an Emacs Lisp package archive  -*- lexical-binding:t; coding:utf-8 -*-
 
-;; Copyright (C) 2011-2024 Donald Ephraim Curtis
-;; Copyright (C) 2012-2024 Steve Purcell
+;; Copyright (C) 2011-2021 Donald Ephraim Curtis
+;; Copyright (C) 2012-2021 Steve Purcell
 ;; Copyright (C) 2016-2026 Jonas Bernoulli
-;; Copyright (C) 2009 Phil Hagelberg
 
 ;; Author: Donald Ephraim Curtis <dcurtis@milkbox.net>
 ;;     Steve Purcell <steve@sanityinc.com>
-;;     Jonas Bernoulli <emacs.package-build@jonas.bernoulli.dev>
-;;     Phil Hagelberg <technomancy@gmail.com>
-;; Maintainer: Jonas Bernoulli <emacs.package-build@jonas.bernoulli.dev>
+;;     Jonas Bernoulli <jonas@bernoulli.dev>
+;; Maintainer: Jonas Bernoulli <jonas@bernoulli.dev>
 ;; Homepage: https://github.com/melpa/package-build
 ;; Keywords: maint tools
 
