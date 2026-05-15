@@ -83,10 +83,7 @@
                   (git "reset" "--hard" rev)
                   (git "update-ref" "refs/remotes/origin/main" "main"))
                 (build ()
-                  (when verbose
-                    (message "Building from %s/%s/pkg"
-                             package-build-working-dir num))
-                  (package-build-archive "pkg" t (not verbose)))
+                  (package-build-archive "pkg" t t))
                 (check (version commit &optional silent)
                   (when (zerop (call-process "git" nil t nil
                                              "rev-parse" "--verify" commit))
