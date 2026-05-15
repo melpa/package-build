@@ -1618,7 +1618,7 @@ FILES is a list of (SOURCE . DEST) relative filepath pairs."
 ;;; Commands
 
 ;;;###autoload
-(defun package-build-archive (name &optional dump-archive-contents)
+(defun package-build-archive (name &optional dump-archive-contents silent)
   "Build a package archive for the package named NAME.
 If DUMP-ARCHIVE-CONTENTS is non-nil, the updated archive contents
 are subsequently dumped."
@@ -1633,15 +1633,16 @@ are subsequently dumped."
            (url (oref rcp url))
            (fetcher (package-recipe--fetcher rcp))
            (version nil))
-      (message "%s%s package %s"
-               (if noninteractive "\n • " "")
-               (if package-build--inhibit-update "Fetching" "Building")
-               name)
-      (cond ((and package-build-verbose (not noninteractive))
-             (message "Package: %s" name)
-             (message "Fetcher: %s" fetcher)
-             (message "Source:  %s\n" url))
-            ((message "From %s" url)))
+      (unless silent
+        (message "%s%s package %s"
+                 (if noninteractive "\n • " "")
+                 (if package-build--inhibit-update "Fetching" "Building")
+                 name)
+        (cond ((and package-build-verbose (not noninteractive))
+               (message "Package: %s" name)
+               (message "Fetcher: %s" fetcher)
+               (message "Source:  %s\n" url))
+              ((message "From %s" url))))
       (package-build--fetch rcp)
       (unless package-build--inhibit-update
         (package-build--select-version rcp)
@@ -1650,7 +1651,8 @@ are subsequently dumped."
           (package-build--package rcp)
           (when dump-archive-contents
             (package-build-dump-archive-contents)))
-        (cond ((not version)
+        (cond (silent)
+              ((not version)
                (message " ✗ Cannot determine version!"))
               ((and package-build-verbose (not noninteractive))
                (message " ✓ Success:")
@@ -1662,11 +1664,12 @@ are subsequently dumped."
                           (format-time-string
                            "%FT%T%z" (file-attribute-modification-time attrs) t)
                           file)))))
-      (message "%s %s in %.3fs, finished at %s"
-               (if version "Built" "Fetched")
-               name
-               (float-time (time-since start-time))
-               (format-time-string "%FT%T%z" nil t)))))
+      (unless silent
+        (message "%s %s in %.3fs, finished at %s"
+                 (if version "Built" "Fetched")
+                 name
+                 (float-time (time-since start-time))
+                 (format-time-string "%FT%T%z" nil t))))))
 
 ;;;###autoload
 (defun package-build--package (rcp)
