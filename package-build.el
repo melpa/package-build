@@ -1174,7 +1174,7 @@ that is put in the tarball."
           (process-environment process-environment))
       (when (eq system-type 'darwin)
         ;; Files whose name begin with ._ are added to tarballs
-        ;; by, default, but at least we can turn that off.  See
+        ;; by default, but at least we can turn that off.  See
         ;; also https://superuser.com/a/260264.
         (setenv "COPYFILE_DISABLE" "true"))
       (process-file
