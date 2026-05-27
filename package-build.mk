@@ -199,12 +199,13 @@ json: .FORCE
 	$(Q)$(EMACS_EVAL) "(package-build-archive-alist-as-json \"$(PKGDIR)/archive.json\")"
 	$(Q)$(EMACS_EVAL) "(package-build-recipe-alist-as-json \"$(PKGDIR)/recipes.json\")"
 
+START_URL ?= https://codeberg.org/tarsius/myelpa/wiki/
+
 page: .FORCE
 	$(M)"Building page..."
 	$(Q)ELPA_NAME=$(ELPA_NAME) ELPA_URL=$(ELPA_URL) \
 	REPO_URL=$(REPO_URL) WIKI_URL=$(WIKI_URL) \
-	PACKAGE_BUILD_URL=https://wiki.codeberg.org/tarsius/package-build/wiki \
-	$(EMACS_EVAL) \
+	START_URL=$(START_URL) $(EMACS_EVAL) \
 	'(package-build--format-webpage "index.html" "$(or $(PUBDIR),$(CHANNEL))")'
 
 ## Container
