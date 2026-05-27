@@ -47,7 +47,11 @@ help helpall::
 
 PACKAGE_BUILD_DIRECTORY := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 
-TOP ?= /elpa
+ifdef GITHUB_WORKSPACE
+  TOP := $(GITHUB_WORKSPACE)
+else
+  TOP ?= /elpa
+endif
 
 MAKE += TOP=$(TOP)
 
@@ -202,6 +206,13 @@ container-build:
 
 container-image:
 	$(Q)docker build -t package-build $(PACKAGE_BUILD_DIRECTORY)
+
+action-setup:
+ifdef GITHUB_WORKSPACE
+	$(Q) git config --global --add safe.directory $(GITHUB_WORKSPACE)/sources/*
+else
+	@:
+endif
 
 ## Cleanup
 
