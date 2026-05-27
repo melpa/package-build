@@ -43,6 +43,12 @@ help helpall::
 
 ## Config
 
+PACKAGE_BUILD_DIRECTORY := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
+
+MAKE += TOP=$(TOP)
+
+-include $(TOP)/config.mk
+
 CONFIG ?= "()"
 
 NOFETCH ?= nil
@@ -80,7 +86,8 @@ else
   $(error Unknown CHANNEL: $(CHANNEL))
 endif
 
-PKGDIR ?= $(CHANNEL)
+PUBDIR ?= archives
+PKGDIR ?= $(PUBDIR:=/)$(CHANNEL)
 RCPDIR ?= recipes
 SRCDIR ?= sources
 PATH_CONFIG ?= '(progn\
@@ -114,6 +121,8 @@ else
   Q=@
   MAKEFLAGS += --no-print-directory
 endif
+
+MAKE += --file $(PACKAGE_BUILD_DIRECTORY)/package-build.mk
 
 .FORCE:
 .PHONY: help fetch build-channels build-channel build \
@@ -180,7 +189,7 @@ json: .FORCE
 ## Cleanup
 
 clean:
-	$(Q)git clean --quiet --force -x $(CHANNELS)
+	$(Q)git clean --quiet --force -x $(or $(PUBDIR),$(CHANNELS))
 
 ## Sandbox
 
