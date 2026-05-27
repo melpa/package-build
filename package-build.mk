@@ -223,7 +223,7 @@ container-image:
 
 action-setup:
 ifdef GITHUB_WORKSPACE
-	$(Q) git config --global --add safe.directory $(GITHUB_WORKSPACE)/sources/*
+	$(Q)git config --global --add safe.directory $(GITHUB_WORKSPACE)/sources/*
 else
 	@:
 endif
