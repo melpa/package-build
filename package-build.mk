@@ -1,4 +1,3 @@
-TOP := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 ## Help
 
 help helpall::
@@ -39,35 +38,10 @@ help helpall::
 	$(info Cleaning)
 	$(info ========)
 	$(info make clean                                Remove all generated files)
-	$(info make clean-packages                       Remove all generated packages)
-helpall::
-	$(info make clean-indices                        Remove all generated indices)
-	$(info make remove-sandbox                       Remove all package test installations)
-	$(info make remove-repositories                  Remove all cloned package repositories)
-	$(info )
-	$(info Building with Docker)
-	$(info ====================)
-	$(info make docker-build                         Build everything like melpa.org does)
-	$(info make docker-fetch                         Fetch upstream repositories)
-	$(info make docker-shell                         Run interactive shell in the container)
-	$(info make docker-image                         Re-build the build container)
-	$(info )
-	$(info Maintenance)
-	$(info ===========)
-	$(info make pull-package-build                   Merge new package-build.el version)
-help helpall::
 	$(info )
 	@:
 
 ## Config
-
--include ./config.mk
-
-ifeq ($(INSIDE_DOCKER), true)
-  PACKAGE_BUILD_DIRECTORY := $(TOP)/package-build
-else
-  PACKAGE_BUILD_DIRECTORY ?= $(TOP)/package-build
-endif
 
 CONFIG ?= "()"
 
@@ -85,46 +59,19 @@ NOERROR ?= true
 OPENPGP_CMD ?= gpg --yes --no-tty --detach-sign --local-user
 OPENPGP_KEY ?=
 
-CHANNELS ?= unstable stable snapshots releases
-CHANNEL  ?= unstable
+CHANNELS ?= snapshots releases
+CHANNEL  ?= snapshots
 
 ifdef DOCKER_CHANNEL
   CHANNEL := $(DOCKER_CHANNEL)
 endif
 
-ifeq ($(CHANNEL), unstable)
-  PKGDIR  := packages
-  HTMLDIR := html
-  CHANNEL_CONFIG := "(progn\
-  (setq package-build-stable nil)\
-  (setq package-build-build-function 'package-build--build-multi-file-package)\
-  (setq package-build-snapshot-version-functions '(package-build-timestamp-version))\
-  (setq package-build-badge-data '(\"melpa\" \"\#922793\")))"
-
-else ifeq ($(CHANNEL), stable)
-  PKGDIR  := packages-stable
-  HTMLDIR := html-stable
-  CHANNEL_CONFIG := "(progn\
-  (setq package-build-stable t)\
-  (setq package-build-all-publishable nil)\
-  (setq package-build-build-function 'package-build--build-multi-file-package)\
-  (setq package-build-release-version-functions '(package-build-tag-version))\
-  (setq package-build-badge-data '(\"melpa stable\" \"\#3e999f\")))"
-
-else ifeq ($(CHANNEL), snapshots)
-  # This is an experimental channel, which may
-  # eventually replace the "unstable" channel.
-  PKGDIR  := packages-snapshots
-  HTMLDIR := html-snapshots
+ifeq ($(CHANNEL), snapshots)
   CHANNEL_CONFIG := "(progn\
   (setq package-build-stable nil)\
   (setq package-build-badge-data '(\"snapshots\" \"\#30a14e\")))"
 
 else ifeq ($(CHANNEL), releases)
-  # This is an experimental channel, which may
-  # eventually replace the "stable" channel.
-  PKGDIR  := packages-releases
-  HTMLDIR := html-releases
   CHANNEL_CONFIG := "(progn\
   (setq package-build-stable t)\
   (setq package-build-badge-data '(\"releases\" \"\#9be9a8\")))"
@@ -135,7 +82,7 @@ endif
 
 PKGDIR ?= $(CHANNEL)
 RCPDIR ?= recipes
-SRCDIR ?= working
+SRCDIR ?= sources
 PATH_CONFIG ?= '(progn\
   (setq package-build-directory "$(TOP)")\
   (setq package-build-archive-dir "$(TOP)/$(PKGDIR)")\
@@ -150,7 +97,6 @@ EMACS_BATCH ?= $(EMACS) $(EMACS_Q_ARG) --batch $(EMACS_ARGS)\
 EMACS_EVAL   = $(EMACS_BATCH)\
   --eval $(CHANNEL_CONFIG)\
   --eval $(PATH_CONFIG)\
-  --eval "$(DOCKER_BUILD_CONFIG)"\
   --eval $(CONFIG)\
   --eval "(setq package-build--inhibit-fetch $(NOFETCH))"\
   --eval "(setq package-build--inhibit-build $(NOBUILD))"\
@@ -228,108 +174,13 @@ endif
 
 json: .FORCE
 	$(M)"Building json indices..."
-	$(Q)$(EMACS_EVAL) "(package-build-archive-alist-as-json \"$(HTMLDIR)/archive.json\")"
-	$(Q)$(EMACS_EVAL) "(package-build-recipe-alist-as-json \"$(HTMLDIR)/recipes.json\")"
-
-html: .FORCE
-	$(M)"Building html index..."
-	$(Q)$(MAKE) -C $(HTMLDIR)
+	$(Q)$(EMACS_EVAL) "(package-build-archive-alist-as-json \"$(PKGDIR)/archive.json\")"
+	$(Q)$(EMACS_EVAL) "(package-build-recipe-alist-as-json \"$(PKGDIR)/recipes.json\")"
 
 ## Cleanup
 
-HTMLDIRS = html html-stable html-snapshots html-releases
-PKGDIRS  = packages packages-stable packages-snapshots packages-releases
-
-INDICES  = $(addsuffix /archive.json,$(HTMLDIRS))
-INDICES += $(addsuffix /recipes.json,$(HTMLDIRS))
-INDICES += $(addsuffix /updates.rss,$(HTMLDIRS))
-INDICES += $(addsuffix /archive-contents,$(PKGDIRS))
-INDICES += $(addsuffix /elpa-packages.eld,$(PKGDIRS))
-# Only created by docker targets:
-INDICES += $(addsuffix /errors.log,$(PKGDIRS))
-INDICES += $(addsuffix /errors-previous.log,$(PKGDIRS))
-# Directory hardcoded in "run.sh" and symlinked for channels.
-INDICES += html/build-status.json
-
 clean:
-	$(M)"Removing indices..."
-	$(M)"Removing packages..."
-	$(Q)git clean --quiet --force -x $(HTMLDIRS) $(PKGDIRS)
-
-clean-packages:
-	$(M)"Removing packages..."
-	$(Q)git clean --quiet --force -x $(HTMLDIRS) $(PKGDIRS) \
-	$(addprefix -e /,$(INDICES))
-
-clean-indices:
-	$(M)"Removing indices..."
-	$(Q)rm -f $(sort $(INDICES))
-
-remove-sandbox:
-	$(M)"Removing $(SANDBOX)..."
-	$(Q)rm -rf $(SANDBOX)
-
-remove-repositories:
-	$(M)"Removing $(WORKDIR)..."
-	$(Q)rm -rf $(WORKDIR)
-
-## Update package-build
-
-PACKAGE_BUILD_REPO ?= "https://github.com/melpa/package-build"
-
-pull-package-build:
-	$(Q)git fetch $(PACKAGE_BUILD_REPO)
-	$(Q)git -c "commit.gpgSign=true" subtree \
-	$(shell test -e package-build && echo merge || echo add) \
-	-m "Merge Package-Build $$(git describe --always FETCH_HEAD)" \
-	--squash -P package-build FETCH_HEAD
-
-## Docker
-
-# Channels build by the "docker-build-run" target.
-# To build all channels use "unstable stable snapshots releases".
-# To fetch without building use "", which the "docker-build-fetch"
-# target does.  (Keep in sync with "docker/builder/run.sh".)
-DOCKER_CHANNELS ?= unstable stable
-
-# Only intended for "docker/builder/run.sh" and similar scripts.  That
-# is also why we add extra quoting when setting EMACS_EVAL, instead of
-# here.  Not doing it like that would complicate the quoting needed in
-# scripts.
-DOCKER_BUILD_CONFIG ?= ()
-
-DOCKER_INHIBIT_PACKAGE_PULL ?= nil
-
-DOCKER_RUN_ARGS = \
- --user $$(id --user):$$(id --group) \
- --mount type=bind,src=$$PWD,target=/mnt/store/melpa \
- --mount type=bind,src=$(PACKAGE_BUILD_DIRECTORY),target=/mnt/store/melpa/package-build \
- --env INHIBIT_MELPA_PULL=t \
- --env BUILD_PAUSE=0
-
-docker-build:
-	@docker run $(DOCKER_RUN_ARGS) \
-	--env INHIBIT_PACKAGE_PULL=$(DOCKER_INHIBIT_PACKAGE_PULL) \
-	--env DOCKER_CHANNELS="$(DOCKER_CHANNELS)" \
-	melpa_builder
-
-docker-fetch:
-	@docker run $(DOCKER_RUN_ARGS) \
-	--env INHIBIT_PACKAGE_PULL="" \
-	--env DOCKER_CHANNELS="" \
-	melpa_builder
-
-docker-shell:
-	@docker run $(DOCKER_RUN_ARGS) \
-	--env INHIBIT_PACKAGE_PULL=$(DOCKER_INHIBIT_PACKAGE_PULL) \
-	--env DOCKER_CHANNELS="$(DOCKER_CHANNELS)" \
-	melpa_builder bash
-
-docker-image:
-	@docker build -t melpa_builder docker/builder
-
-get-pkgdir: .FORCE
-	@echo $(PKGDIR)
+	$(Q)git clean --quiet --force -x $(CHANNELS)
 
 ## Sandbox
 
