@@ -13,14 +13,14 @@ jobs:
         package: [evil, magit, realgud, org-contacts, which-key-posframe]
     steps:
     - name: Checkout package-build
-      uses: actions/checkout@v6
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       with:
         path: package-build
         fetch-depth: 1
         persist-credentials: false
 
     - name: Checkout melpa
-      uses: actions/checkout@v6
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       with:
         path: melpa
         repository: melpa/melpa
