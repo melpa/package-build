@@ -13,6 +13,8 @@ help helpall::
 	$(info make recipes/<package>                    Build <package>)
 	$(info make build-channel                        Build "$(CHANNEL)" channel)
 	$(info make build-channels                       Build all channels)
+	$(info make container-build                      Build all channels in container)
+	$(info make container-image                      Build container image)
 	$(info make CHANNEL=<channel> recipes/<package>  Build <package> on <channel>)
 	$(info make CHANNEL=<channel> build-channel      Build <channel>)
 	$(info )
@@ -44,6 +46,8 @@ help helpall::
 ## Config
 
 PACKAGE_BUILD_DIRECTORY := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
+
+TOP ?= /elpa
 
 MAKE += TOP=$(TOP)
 
@@ -185,6 +189,19 @@ json: .FORCE
 	$(M)"Building json indices..."
 	$(Q)$(EMACS_EVAL) "(package-build-archive-alist-as-json \"$(PKGDIR)/archive.json\")"
 	$(Q)$(EMACS_EVAL) "(package-build-recipe-alist-as-json \"$(PKGDIR)/recipes.json\")"
+
+## Container
+
+container-build:
+	$(Q)docker run \
+	--user $$(id --user):$$(id --group) \
+	--mount type=bind,src=$$PWD,target=/elpa \
+	--mount type=bind,src=$(PACKAGE_BUILD_DIRECTORY),target=/builder \
+	--workdir /elpa \
+	package-build build-channels
+
+container-image:
+	$(Q)docker build -t package-build $(PACKAGE_BUILD_DIRECTORY)
 
 ## Cleanup
 
