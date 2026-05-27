@@ -59,6 +59,11 @@ MAKE += TOP=$(TOP)
 
 CONFIG ?= "()"
 
+ELPA_NAME ?= MyELPA
+ELPA_URL  ?= https://owner.github.io/name/
+REPO_URL  ?= https://github.com/owner/name/
+WIKI_URL  ?= https://github.com/owner/name/wiki/
+
 NOFETCH ?= nil
 NOBUILD ?= nil
 ASYNC   ?= nil
@@ -193,6 +198,14 @@ json: .FORCE
 	$(M)"Building json indices..."
 	$(Q)$(EMACS_EVAL) "(package-build-archive-alist-as-json \"$(PKGDIR)/archive.json\")"
 	$(Q)$(EMACS_EVAL) "(package-build-recipe-alist-as-json \"$(PKGDIR)/recipes.json\")"
+
+page: .FORCE
+	$(M)"Building page..."
+	$(Q)ELPA_NAME=$(ELPA_NAME) ELPA_URL=$(ELPA_URL) \
+	REPO_URL=$(REPO_URL) WIKI_URL=$(WIKI_URL) \
+	PACKAGE_BUILD_URL=https://wiki.codeberg.org/tarsius/package-build/wiki \
+	$(EMACS_EVAL) \
+	'(package-build--format-webpage "index.html" "$(or $(PUBDIR),$(CHANNEL))")'
 
 ## Container
 
