@@ -87,12 +87,12 @@ endif
 
 ifeq ($(CHANNEL), snapshots)
   CHANNEL_CONFIG := "(progn\
-  (setq package-build-stable nil)\
+  (setq package-build-releases nil)\
   (setq package-build-badge-data '(\"snapshots\" \"\#30a14e\")))"
 
 else ifeq ($(CHANNEL), releases)
   CHANNEL_CONFIG := "(progn\
-  (setq package-build-stable t)\
+  (setq package-build-releases t)\
   (setq package-build-badge-data '(\"releases\" \"\#9be9a8\")))"
 
 else
