@@ -489,7 +489,7 @@ or snapshots are build.")
 (defun package-build--release-placeholder ()
   ;; Always use at least three zero components before the snapshot
   ;; component, even if `package-build-minimal-release-components' asks
-  ;; for fewer.  Subtract one because the separator is added elsewhwere.
+  ;; for fewer.  Subtract one because the separator is added elsewhere.
   (make-list (1- (max 3 package-build-minimal-release-components)) 0))
 
 ;;;; Tag
