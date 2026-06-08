@@ -601,11 +601,12 @@ Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING REVDESC) or nil."
   (process-lines "hg" "files" "--include" "**/*.el"))
 
 (cl-defmethod package-build--insert-version-header-log
-  ((_rcp package-git-recipe) lib)
+  ((rcp package-git-recipe) lib)
   (call-process "git" nil t nil
                 "log" "--first-parent" "--no-renames"
                 "--pretty=format:commit %H %cd" "--date=unix"
-                "-L" (format "/^;;* *\\(Package-\\)\\?Version:/,+1:%s" lib)))
+                "-L" (format "/^;;* *\\(Package-\\)\\?Version:/,+1:%s" lib)
+                (package-build--head rcp)))
 
 (cl-defmethod package-build--insert-version-header-log
   ((_rcp package-hg-recipe) _lib)
