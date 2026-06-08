@@ -609,11 +609,14 @@ Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING REVDESC) or nil."
                 (package-build--head rcp)))
 
 (cl-defmethod package-build--insert-version-header-log
-  ((_rcp package-hg-recipe) _lib)
+  ((rcp package-hg-recipe) lib)
   (call-process "hg" nil t nil
-                "log" "--first-parent"
-                "--template" "commit: {node} {date|hgdate}\n"
-                )) ; TODO What is the equivalent of Git's "-L"?
+                "log"
+                "--template" "commit {node} {date|hgdate}\n"
+                "--rev" (package-build--head rcp)
+                ;; Unlike Git's "-L" that prints the full diff for LIB,
+                ;; but that should be okay.
+                "-p" "--" lib))
 
 ;;;; Fallback
 
