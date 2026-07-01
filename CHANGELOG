@@ -1,5 +1,5 @@
 # -*- mode: org -*-
-* v5.0.0     UNRELEASED
+* v5.0.0     2026-07-01
 
 - The option ~package-build-releases~ now controls whether release
   or snapshot packages are built.  Previously, under its old name
