@@ -63,9 +63,6 @@
   "Curate an Emacs Lisp package archive."
   :group 'development)
 
-(define-obsolete-variable-alias 'package-build--melpa-base
-  'package-build-directory "Package-Build 5.0.0")
-
 (defcustom package-build-directory
   (let ((dir (file-name-directory
               (directory-file-name
@@ -110,9 +107,6 @@ Usually this is a subdirectory of `package-build-directory'."
 (defcustom package-build-verbose t
   "Whether to print additional progress information during builds."
   :type 'boolean)
-
-(define-obsolete-variable-alias 'package-build-stable
-  'package-build-releases "Package-Build 5.0.0")
 
 (defcustom package-build-releases nil
   "Whether to build release or snapshot packages.
@@ -240,9 +234,6 @@ similar, which will provide the GNU timeout program as
 \"gtimeout\"."
   :type '(file :tag "Executable"))
 
-(define-obsolete-variable-alias 'package-build-timeout-secs
-  'package-build-timeout "Package-Build 5.0.0")
-
 (defcustom package-build-timeout nil
   "Timeout if a process takes more seconds to complete.
 
@@ -264,9 +255,6 @@ similar, which will provide the GNU tar program as
 (defvar package-build--tar-type nil
   "Type of `package-build-tar-executable'.
 Can be `gnu' or `bsd'; nil means the type is not decided yet.")
-
-(define-obsolete-variable-alias 'package-build-write-melpa-badge-images
-  'package-build-badge-data "Package-Build 5.0.0")
 
 (defcustom package-build-badge-data nil
   "Text and color used in badge images, if any.
@@ -547,9 +535,6 @@ Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING REVDESC TAG) or nil."
 (cl-defmethod package-build--list-tags ((_rcp package-hg-recipe))
   (delete "tip" (process-lines "hg" "tags" "--quiet")))
 
-(define-obsolete-function-alias 'package-build-get-tag-version
-  'package-build-tag-version "Package-Build 5.0.0")
-
 ;;;; Header
 
 (defun package-build-header-version (rcp)
@@ -747,9 +732,6 @@ VERSION-STRING has the format \"%Y%m%d.%H%M\"."
 (cl-defmethod package-build--timestamp-version ((rcp package-hg-recipe))
   ;; Someone who likes hg can volunteer to implement the merge-base logic.
   (package-build--select-commit rcp (package-build--head rcp) nil))
-
-(define-obsolete-function-alias 'package-build-get-snapshot-version
-  'package-build-snapshot-version "Package-Build 5.0.0")
 
 ;;;; Release+Timestamp
 
