@@ -1028,11 +1028,6 @@ Use a sandbox if `package-build--use-sandbox' is non-nil."
               ,command ,@args)))
     ((apply #'package-build--call-process package command args))))
 
-(defun package-build--run-process (command &rest args)
-  "Like `package-build--call-process', but lacks the PACKAGE argument."
-  (apply #'package-build--call-process nil command args))
-(make-obsolete 'package-build--run-process 'package-build--call-process "5.0.0")
-
 ;;; Fetch
 
 (cl-defmethod package-build--fetch ((rcp package-git-recipe))
