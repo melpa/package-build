@@ -125,15 +125,6 @@ This option is used to determine whether failure to come up with
 a version string should be considered an error or not."
   :type 'boolean)
 
-(make-obsolete-variable 'package-build-get-version-function
-                        'package-build-releases
-                        "Package-Build 5.0.0")
-(defvar package-build-get-version-function nil
-  "This variable is obsolete and its value should be nil.
-If this is non-nil, then it overrides
-`package-build-release-version-functions' and
-`package-build-snapshot-version-functions'.")
-
 (defcustom package-build-release-version-functions
   (list #'package-build-tag-version
         #'package-build-header-version
@@ -149,10 +140,7 @@ of COMMIT.  If a tag was involve in determining the version, then TAG
 is that tag and REVDESC contains that tag and an abbreviated commit
 hash.  If TAG exactly matches COMMIT, then REVDESC is just that TAG.
 Otherwise if no tag was involved then TAG is omitted and REVDESC is
-an abbreviation of COMMIT.
-
-If obsolete `package-build-get-version-function' is non-nil,
-then that overrides the value set here."
+an abbreviation of COMMIT."
   :type 'hook
   :options (list #'package-build-tag-version
                  #'package-build-header-version
@@ -175,10 +163,7 @@ an abbreviation of COMMIT.
 
 Some of the functions that return snapshot versions, internally
 use `package-build-release-version-functions' to determine the
-current release, which they use as part of the returned VERSION.
-
-If obsolete `package-build-get-version-function' is non-nil,
-then that overrides the value set here."
+current release, which they use as part of the returned VERSION."
   :type 'hook
   :options (list #'package-build-release+count-version
                  #'package-build-release+onecount-version
@@ -405,14 +390,6 @@ being run for a particular package."
       ((default-directory (package-recipe--working-tree rcp))
        (`(,commit ,time ,version ,revdesc)
         (cond
-          ((with-no-warnings package-build-get-version-function)
-           (display-warning 'package-build "\
-Variable `package-build-get-version-function' is obsolete.
-Instead set `package-build-release-version-functions'
-and/or `package-build-snapshot-version-functions', and
-set `package-build-releases' to control whether releases
-or snapshots are build.")
-           (with-no-warnings (funcall package-build-get-version-function rcp)))
           (package-build-releases
            (run-hook-with-args-until-success
             'package-build-release-version-functions rcp))
