@@ -1305,43 +1305,6 @@ is the same as the value of `export_file_name'."
         (oset rcp authors (package-build--authors))
         (oset rcp maintainers (package-build--maintainers))))))
 
-(defun package-build--extract-from-package (rcp files)
-  "Store information from the \"*-pkg.el\" file from FILES in RCP."
-  (declare (obsolete "exclusively extract metadata from main library instead."
-                     "Package-Build 5.0.0"))
-  (let* ((name (oref rcp name))
-         (file (concat name "-pkg.el"))
-         (file (or (car (rassoc file files)) file)))
-    (when (or (file-exists-p file)
-              (file-exists-p (setq file (concat file ".in"))))
-      (let ((form (with-temp-buffer
-                    (insert-file-contents file)
-                    (read (current-buffer)))))
-        (unless (eq (car-safe form) 'define-package)
-          (package-build--error name "No define-package found in %s" file))
-        (pcase-let* ((`(,_ ,_ ,_ ,summary ,deps . ,plist) form))
-          (when summary
-            (oset rcp summary (package-build--normalize-summary summary)))
-          (oset rcp dependencies
-                (mapcar (pcase-lambda (`(,pkg ,ver))
-                          (unless (symbolp pkg)
-                            (package-build--error name
-                              "Invalid package name in dependency: %S" pkg))
-                          (list pkg ver))
-                        (eval deps)))
-          (when-let* ((v (or (alist-get :url plist)
-                             (alist-get :homepage plist))))
-            (oset rcp webpage
-                  (if (string-match package-build--http-regexp v)
-                      (replace-match "https" t t v 1)
-                    v)))
-          (when-let* ((v (alist-get :keywords plist)))
-            (oset rcp keywords v))
-          (when-let* ((v (alist-get :maintainers plist)))
-            (oset rcp maintainers v))
-          (when-let* ((v (alist-get :authors plist)))
-            (oset rcp authors v)))))))
-
 (defun package-build--normalize-summary (summary)
   (if (or (not summary) (string-empty-p summary))
       "[No description available]"
