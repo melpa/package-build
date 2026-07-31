@@ -635,65 +635,6 @@ nil if `package-build-releases' is non-nil."
          (run-hook-with-args-until-success
           'package-build-snapshot-version-functions rcp))))
 
-;;;; NAME-pkg
-
-(defun package-build-pkg-version (rcp)
-  "Determine version specified in the \"NAME-pkg.el\" file.
-Return (COMMIT-HASH COMMITTER-DATE VERSION-STRING REVDESC) or nil."
-  (declare (obsolete "extract version from tag and/or main library instead."
-                     "Package-Build 5.0.0"))
-  (and-let* ((file (package-build--pkgfile rcp)))
-    (let ((regexp (package-build--version-regexp rcp))
-          commit date version)
-      (catch 'before-latest
-        (pcase-dolist (`(,c ,d) (package-build--pkgfile-commits rcp file))
-          (with-temp-buffer
-            (save-excursion
-              (package-build--insert-pkgfile rcp c file))
-            (when-let* ((n (ignore-errors (nth 2 (read (current-buffer)))))
-                        (v (ignore-errors
-                             (version-to-list
-                              (and (string-match regexp n)
-                                   ;; Use match-group 0, not 1, because in
-                                   ;; this file a version string without a
-                                   ;; prefix is expected.
-                                   (match-string 0 n))))))
-              (when (and version (not (equal v version)))
-                (throw 'before-latest nil))
-              (setq commit c)
-              (setq date d)
-              (setq version v)))))
-      (and version
-           (list commit
-                 (string-to-number date)
-                 (package-version-join version)
-                 (package-build--revdesc rcp commit))))))
-
-(defun package-build--pkgfile (rcp)
-  (package-build--match-library rcp (concat (oref rcp name) "-pkg.el")))
-
-(cl-defmethod package-build--pkgfile-commits
-  ((_rcp package-git-recipe) file)
-  (mapcar (lambda (line) (split-string line " "))
-          (process-lines "git" "log" "--first-parent"
-                         "--pretty=format:%H %cd" "--date=unix"
-                         "--" file)))
-
-(cl-defmethod package-build--pkgfile-commits
-  ((_rcp package-hg-recipe) file)
-  (mapcar (lambda (line) (seq-take (split-string line " ") 2))
-          (process-lines "hg" "log"
-                         "--template" "{node} {date|hgdate}\n"
-                         "--" file)))
-
-(cl-defmethod package-build--insert-pkgfile
-  ((_rcp package-git-recipe) commit file)
-  (call-process "git" nil t nil "show" (concat commit ":" file)))
-
-(cl-defmethod package-build--insert-pkgfile
-  ((_rcp package-hg-recipe) commit file)
-  (call-process "hg" nil t nil "cat" "-r" commit file))
-
 ;;;; Timestamp
 
 (defun package-build-timestamp-version (rcp)
