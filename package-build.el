@@ -1721,58 +1721,6 @@ in `package-build-archive-dir'."
         (delete-directory tmpdir t nil)))
     (package-build--write-archive-entry rcp)))
 
-(defun package-build--legacy-build (rcp files)
-  (declare (obsolete package-build--build-package "Package-Build 5.0.0"))
-  (with-suppressed-warnings ((obsolete package-build--build-single-file-package
-                                       package-build--build-multi-file-package))
-    (if (= (length files) 1)
-        (package-build--build-single-file-package rcp files)
-      (package-build--build-multi-file-package rcp files))))
-
-(defun package-build--build-single-file-package (rcp files)
-  (declare (obsolete package-build--build-package "Package-Build 5.0.0"))
-  (oset rcp tarballp nil)
-  (pcase-let* (((eieio name version) rcp)
-               (file (caar files))
-               (source (expand-file-name file))
-               (target (expand-file-name (concat name "-" version ".el")
-                                         package-build-archive-dir)))
-    (unless (equal (file-name-sans-extension (file-name-nondirectory file))
-                   name)
-      (package-build--error name
-        "Single file %s does not match package name %s" file name))
-    (package-build--extract-from-library rcp target)
-    (unless package-build--inhibit-build
-      (copy-file source target t)
-      (package-build--set-version-headers rcp target)
-      (package-build--write-pkg-readme rcp files))
-    (package-build--write-archive-entry rcp)))
-
-(defun package-build--build-multi-file-package (rcp files)
-  (declare (obsolete package-build--build-package "Package-Build 5.0.0"))
-  (pcase-let* (((eieio name version) rcp)
-               (tmpdir (file-name-as-directory
-                        (make-temp-file (concat name "-") t)))
-               (target (expand-file-name (concat name "-" version) tmpdir)))
-    (unless (or (rassoc (concat name ".el") files)
-                (rassoc (concat name "-pkg.el") files))
-      (package-build--error name
-        "%s[-pkg].el matching package name is missing" name))
-    (package-build--extract-from-library rcp files)
-    (with-suppressed-warnings ((obsolete package-build--extract-from-package))
-      (package-build--extract-from-package rcp files))
-    (unless package-build--inhibit-build
-      (unwind-protect
-          (progn
-            (package-build--copy-package-files files target)
-            (package-build--set-version-headers rcp target)
-            (package-build--write-pkg-file rcp target)
-            (package-build--generate-info-files rcp files target)
-            (package-build--create-tar rcp tmpdir)
-            (package-build--write-pkg-readme rcp files))
-        (delete-directory tmpdir t nil)))
-    (package-build--write-archive-entry rcp)))
-
 (defun package-build--cleanup (rcp)
   (cond ((cl-typep rcp 'package-git-recipe)
          (package-build--call-process rcp "git" "clean" "-f" "-d" "-x"))
