@@ -1,4 +1,18 @@
 # -*- mode: org -*-
+* v5.0.2     2026-09-01
+
+As announced when v5.0.0 was released, the following obsolete
+variables and functions have been removed:
+
+- ~package-build-get-version-function~ (use
+  ~package-build-release-version-functions~ and
+  ~package-build-snapshot-version-functions~)
+- ~package-build-pkg-version~ and ~package-build--extract-from-package~
+  (use default value of ~package-build-release-version-functions~)
+- ~package-build--legacy-build~, ~package-build--build-multi-file-package~
+  and ~package-build--build-single-file-package~ (use default value of
+  ~package-build-build-function~)
+
 * v5.0.1     2026-08-01
 
 As announced when v5.0.0 was released, the following obsolete
