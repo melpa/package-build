@@ -299,4 +299,36 @@ are none left, or it is larger than the new count."
     (mod "pkg.el" "A" "A")
     (run "1.0.0.4" "5f141cefedd3f0104eb5ba6bda090ea9187adc01")))
 
+(ert-deftest package-build-test-refuse-symlink-outside-working-tree ()
+  "Refuse a files-spec path whose truename leaves the checkout."
+  (let* ((root (make-temp-file "pb-root" t))
+         (outside (make-temp-file "pb-outside"))
+         (package-build-archive-dir (expand-file-name "archive" root)))
+    (unwind-protect
+        (let ((default-directory (file-name-as-directory root))
+              (link (expand-file-name "leak.el" root))
+              (dest (expand-file-name "dest" root))
+              (ok-src (expand-file-name "ok.el" root)))
+          (make-directory package-build-archive-dir t)
+          (with-temp-file outside
+            (insert "outside\n"))
+          (with-temp-file ok-src
+            (insert ";; ok\n"))
+          (make-symbolic-link outside link)
+          (should (package-build--working-tree-file-p ok-src))
+          (should-not (package-build--working-tree-file-p link))
+          (package-build--copy-package-files
+           (list (cons "ok.el" "ok.el"))
+           dest)
+          (should (file-exists-p (expand-file-name "ok.el" dest)))
+          (should-error
+           (package-build--copy-package-files
+            (list (cons "leak.el" "leak.el"))
+            dest)
+           :type 'package-build-error)
+          (should-not (file-exists-p (expand-file-name "leak.el" dest))))
+      (delete-directory root t)
+      (when (file-exists-p outside)
+        (delete-file outside)))))
+
 ;;; package-build-tests.el ends here
