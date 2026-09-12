@@ -1431,6 +1431,15 @@ or all exclude rules (with the `:exclude' keyword removed)."
                 (concat subdir (car entry) "/")))))
           spec))
 
+(defun package-build--working-tree-file-p (file)
+  "Return non-nil if FILE's truename stays inside `default-directory'.
+`file-regular-p' and `file-directory-p' follow symlinks, so the
+copy step must reject a link whose target is outside the package
+working tree."
+  (file-in-directory-p
+   (file-truename file)
+   (file-name-as-directory (file-truename default-directory))))
+
 (defun package-build--copy-package-files (files target-dir)
   "Copy FILES from `default-directory' to TARGET-DIR.
 FILES is a list of (SOURCE . DEST) relative filepath pairs."
@@ -1441,7 +1450,10 @@ FILES is a list of (SOURCE . DEST) relative filepath pairs."
     (let ((src* (expand-file-name src))
           (dst* (expand-file-name dst target-dir)))
       (make-directory (file-name-directory dst*) t)
-      (cond ((file-regular-p src*)
+      (cond ((not (package-build--working-tree-file-p src*))
+             (package-build--error nil
+               "Refusing to copy %s (resolves outside working tree)" src))
+            ((file-regular-p src*)
              (package-build--message
               "  %s %s -> %s" (if (equal src dst) " " "!") src dst)
              (copy-file src* dst*))
