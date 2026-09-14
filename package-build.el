@@ -11,10 +11,10 @@
 ;; Homepage: https://github.com/melpa/package-build
 ;; Keywords: maint tools
 
-;; Package-Version: 5.0.2
+;; Package-Version: 5.0.3
 ;; Package-Requires: (
 ;;     (emacs  "26.1")
-;;     (compat "31.0"))
+;;     (compat "31.1"))
 
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 
