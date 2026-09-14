@@ -331,7 +331,7 @@ being run for a particular package."
   (declare (indent defun))
   (let ((message (apply #'format-message format-string args)))
     (package-build--log package message)
-    (signal 'package-build-error message)))
+    (signal 'package-build-error (list message))))
 
 (defun package-build--log (package message)
   (with-temp-buffer

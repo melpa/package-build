@@ -1,4 +1,9 @@
 # -*- mode: org -*-
+* v5.0.3     UNRELEASED
+
+- ~package-build-error~ called ~signal~ with a string instead of a list
+  as error data.
+
 * v5.0.2     2026-09-01
 
 As announced when v5.0.0 was released, the following obsolete
