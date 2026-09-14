@@ -1431,7 +1431,7 @@ or all exclude rules (with the `:exclude' keyword removed)."
                 (concat subdir (car entry) "/")))))
           spec))
 
-(defun package-build--copy-package-files (files target-dir)
+(defun package-build--copy-package-files (rcp files target-dir)
   "Copy FILES from `default-directory' to TARGET-DIR.
 FILES is a list of (SOURCE . DEST) relative filepath pairs."
   (package-build--message
@@ -1441,7 +1441,10 @@ FILES is a list of (SOURCE . DEST) relative filepath pairs."
     (let ((src* (expand-file-name src))
           (dst* (expand-file-name dst target-dir)))
       (make-directory (file-name-directory dst*) t)
-      (cond ((file-regular-p src*)
+      (cond ((not (file-in-directory-p src* default-directory))
+             (package-build--error rcp
+               "Symlink %s points outside package repository" src))
+            ((file-regular-p src*)
              (package-build--message
               "  %s %s -> %s" (if (equal src dst) " " "!") src dst)
              (copy-file src* dst*))
@@ -1593,7 +1596,7 @@ in `package-build-archive-dir'."
     (unless package-build--inhibit-build
       (unwind-protect
           (progn
-            (package-build--copy-package-files files target)
+            (package-build--copy-package-files rcp files target)
             (package-build--set-version-headers rcp target)
             (package-build--write-pkg-file rcp target)
             (package-build--generate-info-files rcp files target)

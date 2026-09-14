@@ -1,6 +1,17 @@
 # -*- mode: org -*-
 * v5.0.3     UNRELEASED
 
+This is a critical security release.  All users should update as soon
+as possible.
+
+- If a symlink inside a malicious package's repository targets a file
+  or directory outside of that, the target was included in the package
+  archive, potentially allowing an attacker to extract sensitive data.
+  MELPA builds inside a docker container, which in practice prevented
+  the extraction of sensitive data, but if a user built untrusted
+  packages without using docker, and published the archive, then an
+  attack could download the archive containing sensitive data.  #98
+
 - ~package-build-error~ called ~signal~ with a string instead of a list
   as error data.
 
