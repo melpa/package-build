@@ -1451,7 +1451,8 @@ FILES is a list of (SOURCE . DEST) relative filepath pairs."
             ((file-directory-p src*)
              (package-build--message
               "  %s %s => %s" (if (equal src dst) " " "!") src dst)
-             (copy-directory src* dst*))))))
+             (copy-directory src* dst*))
+            ((package-build--message "File %s has unexpected type" src))))))
 
 (defun package-build--spec-globs (rcp)
   "Return a list of vcs arguments to match the files specified in RCP."
