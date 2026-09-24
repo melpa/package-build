@@ -1,4 +1,8 @@
 # -*- mode: org -*-
+* v5.1.0     UNRELEASED
+
+- Added policy rejecting LLM contributions.
+
 * v5.0.3     2026-09-14
 
 This is a critical security release.  All users should update as soon
