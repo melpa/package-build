@@ -3,6 +3,8 @@
 
 - Added policy rejecting LLM contributions.
 
+- As announced when v5.0.0 was released, Emacs 29.1 is now required.
+
 * v5.0.3     2026-09-14
 
 This is a critical security release.  All users should update as soon
