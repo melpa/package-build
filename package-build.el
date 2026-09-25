@@ -48,7 +48,6 @@
 (require 'compat nil t)
 (require 'format-spec)
 (require 'pcase)
-(require 'subr-x)
 
 (require 'package)
 (require 'lisp-mnt)
