@@ -46,7 +46,6 @@
 
 (require 'cl-lib)
 (require 'compat nil t)
-(require 'format-spec)
 (require 'pcase)
 
 (require 'package)
