@@ -17,4 +17,6 @@ You can also use it [[https://codeberg.org/tarsius/myelpa/wiki][to create]] *you
 #+html: <br>
 #+html: <a href="https://github.com/melpa/package-build/actions/workflows/compile.yml"><img alt="Compile" src="https://github.com/melpa/package-build/actions/workflows/compile.yml/badge.svg"/></a>
 #+html: <a href="https://github.com/melpa/package-build/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/melpa/package-build/actions/workflows/ci.yml/badge.svg"/></a>
+#+html: <br>
+#+html: <a href="https://emacsair.me/human"><img alt="human made" src="https://emacsair.me/assets/badges/human.svg"/></a>
 #+html: </div>
