@@ -60,6 +60,7 @@ MAKE += TOP=$(TOP)
 CONFIG ?= "()"
 
 ELPA_NAME ?= MyELPA
+ELPA_STEM ?= myelpa
 ELPA_URL  ?= https://owner.github.io/name/
 REPO_URL  ?= https://github.com/owner/name/
 WIKI_URL  ?= https://github.com/owner/name/wiki/
@@ -203,7 +204,7 @@ START_URL ?= https://codeberg.org/tarsius/myelpa/wiki/
 
 page: .FORCE
 	$(M)"Building page..."
-	$(Q)ELPA_NAME=$(ELPA_NAME) ELPA_URL=$(ELPA_URL) \
+	$(Q)ELPA_NAME=$(ELPA_NAME) ELPA_STEM=$(ELPA_STEM) ELPA_URL=$(ELPA_URL) \
 	REPO_URL=$(REPO_URL) WIKI_URL=$(WIKI_URL) \
 	START_URL=$(START_URL) $(EMACS_EVAL) \
 	'(package-build--format-webpage "index.html" "$(or $(PUBDIR),$(CHANNEL))")'
