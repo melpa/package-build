@@ -1,4 +1,9 @@
 # -*- mode: org -*-
+* v5.1.1     UNRELEASED
+
+- The ~page~ make target now passes along the value of ~ELPA_STEM~, which
+  now has a default value.
+
 * v5.1.0     2026-10-01
 
 - Added policy rejecting LLM contributions.
